@@ -283,7 +283,7 @@ const CalendarPage = () => {
                   {today.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
                 </div>
               </div>
-              <div className="flex gap-3 overflow-x-auto">
+              <div className={isMobile ? 'flex flex-col gap-3' : 'flex gap-3 overflow-x-auto'}>
                 {todaysEvents.map((event) => {
                   const { time } = googleCalendarService.formatEventDateTime(
                     event.startDateTime,
@@ -297,7 +297,7 @@ const CalendarPage = () => {
                     <button
                       key={event.id}
                       onClick={() => setSelectedEvent(event)}
-                      className="flex-1 min-w-[280px] bg-white/10 backdrop-blur-sm rounded-lg p-4 hover:bg-white/20 transition-colors text-left"
+                      className={`bg-white/10 backdrop-blur-sm rounded-lg p-4 hover:bg-white/20 transition-colors text-left ${isMobile ? 'w-full' : 'flex-1 min-w-[280px]'}`}
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex items-start gap-3 flex-1">
