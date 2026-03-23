@@ -1,7 +1,19 @@
 import Navigation from '../components/layout/Navigation';
 import ProfileCard from '../components/ProfileCard';
+import {images} from "@/constants/images.ts";
 
 const CoachesPage = () => {
+  const coachImages = [
+    images.coach1,
+    images.coach2,
+    images.coach3,
+    images.coach4,
+    images.coach5,
+    images.coach6,
+    images.coach7,
+    images.coach8,
+  ]
+
   const coaches = [
     {
       id: 1,
@@ -9,7 +21,7 @@ const CoachesPage = () => {
       title: "Director & Head Coach",
       handle: "coach1",
       status: "Available",
-      avatarUrl: "", // Add image URL here
+      avatarUrl: coachImages[0],
     },
     {
       id: 2,
@@ -17,7 +29,7 @@ const CoachesPage = () => {
       title: "Head Coach",
       handle: "coach2",
       status: "Available",
-      avatarUrl: "", // Add image URL here
+      avatarUrl: coachImages[1],
     },
     {
       id: 3,
@@ -25,7 +37,7 @@ const CoachesPage = () => {
       title: "Pro Coach",
       handle: "coach3",
       status: "Available",
-      avatarUrl: "", // Add image URL here
+      avatarUrl: coachImages[2],
     },
     {
       id: 4,
@@ -33,7 +45,7 @@ const CoachesPage = () => {
       title: "Pro Coach",
       handle: "coach4",
       status: "Available",
-      avatarUrl: "", // Add image URL here
+      avatarUrl: coachImages[3],
     },
     {
       id: 5,
@@ -41,7 +53,7 @@ const CoachesPage = () => {
       title: "Pro Coach",
       handle: "coach5",
       status: "Available",
-      avatarUrl: "", // Add image URL here
+      avatarUrl: coachImages[4],
     },
     {
       id: 6,
@@ -49,7 +61,7 @@ const CoachesPage = () => {
       title: "Pro Coach",
       handle: "coach6",
       status: "Available",
-      avatarUrl: "", // Add image URL here
+      avatarUrl: coachImages[5],
     },
     {
       id: 7,
@@ -57,7 +69,7 @@ const CoachesPage = () => {
       title: "Pro Coach",
       handle: "coach7",
       status: "Available",
-      avatarUrl: "", // Add image URL here
+      avatarUrl: coachImages[6],
     },
     {
       id: 8,
@@ -65,7 +77,7 @@ const CoachesPage = () => {
       title: "Pro Coach",
       handle: "coach8",
       status: "Available",
-      avatarUrl: "", // Add image URL here
+      avatarUrl: coachImages[7],
     }
   ];
 
