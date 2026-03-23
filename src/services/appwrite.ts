@@ -25,7 +25,7 @@ try {
   console.log('✅ Environment variables validated');
 } catch (error) {
   console.error('🚨 Environment validation failed:', error);
-  throw error;
+  console.error('⚠️ App will continue loading — public pages will work, auth/dashboard features require these env vars.');
 }
 
 // Initialize Appwrite client

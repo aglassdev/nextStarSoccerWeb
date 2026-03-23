@@ -40,7 +40,17 @@ const CalendarPage = () => {
     { id: "other", label: "Other Events", color: "#D3D3D3", selected: true },
   ]);
 
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== 'undefined' ? window.innerWidth < 768 : false
+  );
+
   const monthScrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
 
   const months = [
     "January", "February", "March", "April", "May", "June",
@@ -226,6 +236,19 @@ const CalendarPage = () => {
       selectedMonth === today.getMonth() &&
       selectedYear === today.getFullYear()
     );
+  };
+
+  // Group filtered events by date for the mobile list view
+  const getMobileEventGroups = (): { dateStr: string; date: Date; events: CalendarEvent[] }[] => {
+    const groups: Record<string, CalendarEvent[]> = {};
+    filteredEvents.forEach((event) => {
+      const dateStr = event.startDateTime.split('T')[0];
+      if (!groups[dateStr]) groups[dateStr] = [];
+      groups[dateStr].push(event);
+    });
+    return Object.entries(groups)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([dateStr, events]) => ({ dateStr, date: new Date(dateStr + 'T12:00:00'), events }));
   };
 
   if (loading) {
