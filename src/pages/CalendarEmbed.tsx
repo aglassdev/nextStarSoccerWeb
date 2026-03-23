@@ -39,7 +39,17 @@ const CalendarEmbed = () => {
     { id: "other", label: "Other Events", color: "#D3D3D3", selected: true },
   ]);
 
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== 'undefined' ? window.innerWidth < 768 : false
+  );
+
   const monthScrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
 
   const months = [
     "January", "February", "March", "April", "May", "June",
@@ -213,6 +223,19 @@ const CalendarEmbed = () => {
     );
   };
 
+  // Group filtered events by date for the mobile list view
+  const getMobileEventGroups = (): { dateStr: string; date: Date; events: CalendarEvent[] }[] => {
+    const groups: Record<string, CalendarEvent[]> = {};
+    filteredEvents.forEach((event) => {
+      const dateStr = event.startDateTime.split('T')[0];
+      if (!groups[dateStr]) groups[dateStr] = [];
+      groups[dateStr].push(event);
+    });
+    return Object.entries(groups)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([dateStr, events]) => ({ dateStr, date: new Date(dateStr + 'T12:00:00'), events }));
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
@@ -334,81 +357,143 @@ const CalendarEmbed = () => {
           </button>
         </div>
 
-        {/* Calendar Grid */}
-        <div className="bg-gray-900 rounded-lg overflow-hidden">
-          <div className="grid grid-cols-7 border-b border-gray-700">
-            {daysOfWeek.map((day) => (
-              <div key={day} className="text-center py-3 text-gray-400 text-sm font-medium">
-                {day}
-              </div>
-            ))}
+        {/* Calendar — grid on desktop, vertical list on mobile */}
+        {isMobile ? (
+          <div className="space-y-6">
+            {getMobileEventGroups().length === 0 ? (
+              <div className="text-center py-12 text-gray-500">No events this month</div>
+            ) : (
+              getMobileEventGroups().map(({ dateStr, date, events: groupEvents }) => {
+                const isTodayDate =
+                  date.getDate() === today.getDate() &&
+                  date.getMonth() === today.getMonth() &&
+                  date.getFullYear() === today.getFullYear();
+                return (
+                  <div key={dateStr}>
+                    <div className={`text-sm font-semibold mb-2 px-1 ${isTodayDate ? 'text-blue-400' : 'text-gray-400'}`}>
+                      {date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                      {isTodayDate && <span className="ml-2 text-xs bg-blue-600 text-white px-2 py-0.5 rounded-full">Today</span>}
+                    </div>
+                    <div className="space-y-2">
+                      {groupEvents.map((event) => {
+                        const isCancelled = isEventCancelled(event);
+                        const eventColor = getEventColor(event.title);
+                        const { time } = googleCalendarService.formatEventDateTime(
+                          event.startDateTime,
+                          event.endDateTime,
+                          event.dateOnly || false
+                        );
+                        return (
+                          <button
+                            key={event.id}
+                            onClick={() => setSelectedEvent(event)}
+                            className={`w-full bg-gray-900 rounded-lg p-4 text-left flex items-start gap-3 hover:bg-gray-800 transition-colors ${isCancelled ? 'opacity-60' : ''}`}
+                          >
+                            <div
+                              className="w-1 self-stretch rounded-full flex-shrink-0"
+                              style={{ backgroundColor: isCancelled ? '#DC2626' : eventColor }}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between gap-2">
+                                <p className={`text-white font-semibold text-sm leading-tight ${isCancelled ? 'line-through' : ''}`}>
+                                  {event.title}
+                                </p>
+                                {isCancelled && (
+                                  <span className="flex-shrink-0 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                                    CANCELLED
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-gray-400 text-xs mt-1">{time}</p>
+                              {event.location && (
+                                <p className="text-gray-500 text-xs mt-0.5">{getLocationName(event.location)}</p>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
+        ) : (
+          <div className="bg-gray-900 rounded-lg overflow-hidden">
+            <div className="grid grid-cols-7 border-b border-gray-700">
+              {daysOfWeek.map((day) => (
+                <div key={day} className="text-center py-3 text-gray-400 text-sm font-medium">
+                  {day}
+                </div>
+              ))}
+            </div>
 
-          <div className="grid grid-cols-7">
-            {calendarDays.map((day, index) => {
-              if (day === null) {
+            <div className="grid grid-cols-7">
+              {calendarDays.map((day, index) => {
+                if (day === null) {
+                  return (
+                    <div
+                      key={`empty-${index}`}
+                      className="min-h-[120px] border-r border-b border-gray-800 bg-gray-950"
+                    />
+                  );
+                }
+
+                const dayEvents = getEventsForDay(day);
+                const isTodayDate = isToday(day);
+                const displayEvents = isTodayDate && todaysEvents.length > 0 ? todaysEvents : dayEvents;
+
                 return (
                   <div
-                    key={`empty-${index}`}
-                    className="min-h-[120px] border-r border-b border-gray-800 bg-gray-950"
-                  />
-                );
-              }
-
-              const dayEvents = getEventsForDay(day);
-              const isTodayDate = isToday(day);
-              const displayEvents = isTodayDate && todaysEvents.length > 0 ? todaysEvents : dayEvents;
-
-              return (
-                <div
-                  key={day}
-                  className={`min-h-[120px] border-r border-b border-gray-800 p-2 ${
-                    isTodayDate ? 'bg-gray-800' : 'bg-gray-900'
-                  }`}
-                >
-                  <div
-                    className={`text-sm font-medium mb-2 ${
-                      isTodayDate
-                        ? 'text-white bg-blue-600 rounded-full w-7 h-7 flex items-center justify-center'
-                        : 'text-gray-400'
+                    key={day}
+                    className={`min-h-[120px] border-r border-b border-gray-800 p-2 ${
+                      isTodayDate ? 'bg-gray-800' : 'bg-gray-900'
                     }`}
                   >
-                    {day}
+                    <div
+                      className={`text-sm font-medium mb-2 ${
+                        isTodayDate
+                          ? 'text-white bg-blue-600 rounded-full w-7 h-7 flex items-center justify-center'
+                          : 'text-gray-400'
+                      }`}
+                    >
+                      {day}
+                    </div>
+                    <div className="space-y-1">
+                      {displayEvents.map((event) => {
+                        const isCancelled = isEventCancelled(event);
+                        const eventColor = getEventColor(event.title);
+                        const { time } = googleCalendarService.formatEventDateTime(
+                          event.startDateTime,
+                          event.endDateTime,
+                          event.dateOnly || false
+                        );
+                        return (
+                          <button
+                            key={event.id}
+                            onClick={() => setSelectedEvent(event)}
+                            className={`text-xs px-2 py-1 rounded flex items-start gap-1.5 w-full text-left hover:bg-gray-800 transition-colors ${
+                              isCancelled ? 'opacity-50' : ''
+                            }`}
+                            title={`${event.title} - ${time}`}
+                          >
+                            <div
+                              className="w-1 h-4 rounded-full flex-shrink-0 mt-0.5"
+                              style={{ backgroundColor: isCancelled ? '#DC2626' : eventColor }}
+                            />
+                            <span className={`text-white flex-1 line-clamp-2 ${isCancelled ? 'line-through' : ''}`}>
+                              {event.title}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    {displayEvents.map((event) => {
-                      const isCancelled = isEventCancelled(event);
-                      const eventColor = getEventColor(event.title);
-                      const { time } = googleCalendarService.formatEventDateTime(
-                        event.startDateTime,
-                        event.endDateTime,
-                        event.dateOnly || false
-                      );
-                      return (
-                        <button
-                          key={event.id}
-                          onClick={() => setSelectedEvent(event)}
-                          className={`text-xs px-2 py-1 rounded flex items-start gap-1.5 w-full text-left hover:bg-gray-800 transition-colors ${
-                            isCancelled ? 'opacity-50' : ''
-                          }`}
-                          title={`${event.title} - ${time}`}
-                        >
-                          <div
-                            className="w-1 h-4 rounded-full flex-shrink-0 mt-0.5"
-                            style={{ backgroundColor: isCancelled ? '#DC2626' : eventColor }}
-                          />
-                          <span className={`text-white flex-1 line-clamp-2 ${isCancelled ? 'line-through' : ''}`}>
-                            {event.title}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
 
         {monthChanging && (
           <div className="mt-8">
@@ -453,7 +538,7 @@ const CalendarEmbed = () => {
                 </button>
               </div>
 
-              <div className="flex gap-6">
+              <div className={`${isMobile ? 'flex flex-col gap-4' : 'flex gap-6'}`}>
                 <div className="flex-1 space-y-4">
                   <div>
                     <h3 className="text-sm font-semibold text-gray-400 mb-1">Date</h3>
@@ -484,7 +569,7 @@ const CalendarEmbed = () => {
                 </div>
 
                 {selectedEvent.location && (
-                  <div className="w-80 h-80 bg-gray-800 rounded-lg overflow-hidden flex-shrink-0">
+                  <div className={`bg-gray-800 rounded-lg overflow-hidden ${isMobile ? 'w-full h-48' : 'w-80 h-80 flex-shrink-0'}`}>
                     <iframe
                       width="100%"
                       height="100%"
