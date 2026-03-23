@@ -28,6 +28,16 @@ export const images = {
   instagram3: '/assets/images/instagram3.jpg',
   instagram4: '/assets/images/instagram4.jpg',
   instagram5: '/assets/images/instagram5.jpg',
+
+  coach1: '/assets/images/coach1.png',
+  coach2: '/assets/images/coach2.png',
+  coach3: '/assets/images/coach3.png',
+  coach4: '/assets/images/coach4.png',
+  coach5: '/assets/images/coach5.png',
+  coach6: '/assets/images/coach6.png',
+  coach7: '/assets/images/coach7.png',
+  coach8: '/assets/images/coach8.png',
+
 };
 
 export const icons = {
