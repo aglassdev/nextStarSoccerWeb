@@ -52,10 +52,7 @@
   transition: opacity 200ms ease;
 }
 
-.pc-card-wrapper:hover,
-.pc-card-wrapper.active {
-  --card-opacity: 1;
-}
+/* glow on hover removed */
 
 .pc-card {
   height: 80svh;
@@ -243,7 +240,7 @@
 }
 
 .pc-avatar-content {
-  mix-blend-mode: luminosity;
+  mix-blend-mode: normal;
   overflow: visible;
   transform: translateZ(2);
   backface-visibility: hidden;
@@ -362,7 +359,6 @@
     0.1px
   );
   z-index: 5;
-  mix-blend-mode: luminosity;
 }
 
 .pc-details {
