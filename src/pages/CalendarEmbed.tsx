@@ -275,19 +275,19 @@ const CalendarEmbed = () => {
                   <button
                     key={event.id}
                     onClick={() => setSelectedEvent(event)}
-                    className={`bg-white/10 backdrop-blur-sm rounded-lg p-4 hover:bg-white/20 transition-colors text-left ${isMobile ? 'w-full' : 'flex-1 min-w-[280px]'}`}
+                    className={`bg-white/10 backdrop-blur-sm rounded-lg p-3 hover:bg-white/20 transition-colors text-left ${isMobile ? 'w-full' : 'flex-1 min-w-[240px]'}`}
                   >
                     <div className="flex items-start justify-between">
-                      <div className="flex items-start gap-3 flex-1">
+                      <div className="flex items-start gap-2 flex-1">
                         <div
-                          className="w-1 h-16 rounded-full flex-shrink-0 mt-0.5"
+                          className="w-1 h-10 rounded-full flex-shrink-0 mt-0.5"
                           style={{ backgroundColor: isCancelled ? '#DC2626' : eventColor }}
                         />
                         <div className="flex-1">
-                          <h3 className="text-white font-bold text-base">{event.title}</h3>
-                          <p className="text-white/80 text-sm mt-1">{time}</p>
+                          <h3 className="text-white font-semibold text-sm">{event.title}</h3>
+                          <p className="text-white/80 text-xs mt-0.5">{time}</p>
                           {event.location && (
-                            <p className="text-white/70 text-sm mt-1">{getLocationName(event.location)}</p>
+                            <p className="text-white/70 text-xs mt-0.5">{getLocationName(event.location)}</p>
                           )}
                         </div>
                       </div>
@@ -387,7 +387,7 @@ const CalendarEmbed = () => {
                           <button
                             key={event.id}
                             onClick={() => setSelectedEvent(event)}
-                            className={`w-full bg-gray-900 rounded-lg p-4 text-left flex items-start gap-3 hover:bg-gray-800 transition-colors ${isCancelled ? 'opacity-60' : ''}`}
+                            className={`w-full bg-gray-900 rounded-lg p-3 text-left flex items-start gap-2 hover:bg-gray-800 transition-colors ${isCancelled ? 'opacity-60' : ''}`}
                           >
                             <div
                               className="w-1 self-stretch rounded-full flex-shrink-0"
@@ -395,7 +395,7 @@ const CalendarEmbed = () => {
                             />
                             <div className="flex-1 min-w-0">
                               <div className="flex items-start justify-between gap-2">
-                                <p className={`text-white font-semibold text-sm leading-tight ${isCancelled ? 'line-through' : ''}`}>
+                                <p className={`text-white font-semibold text-xs leading-tight ${isCancelled ? 'line-through' : ''}`}>
                                   {event.title}
                                 </p>
                                 {isCancelled && (
