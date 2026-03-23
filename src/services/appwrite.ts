@@ -28,10 +28,15 @@ try {
   console.error('⚠️ App will continue loading — public pages will work, auth/dashboard features require these env vars.');
 }
 
-// Initialize Appwrite client
-const client = new Client()
-  .setEndpoint(import.meta.env.VITE_APPWRITE_ENDPOINT)
-  .setProject(import.meta.env.VITE_APPWRITE_PROJECT_ID);
+// Initialize Appwrite client (use empty strings as fallback to prevent
+// module-level crash when env vars are not set; API calls will fail gracefully)
+const endpoint = import.meta.env.VITE_APPWRITE_ENDPOINT || '';
+const projectId = import.meta.env.VITE_APPWRITE_PROJECT_ID || '';
+
+const client = new Client();
+if (endpoint && projectId) {
+  client.setEndpoint(endpoint).setProject(projectId);
+}
 
 // Initialize services
 export const account = new Account(client);
