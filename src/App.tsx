@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import HomePage from './pages/HomePageNew';
 import AboutPage from './pages/AboutPage';
 import CoachesPage from './pages/CoachesPage';
+import CoachDetailPage from './pages/CoachDetailPage';
 import ServicesPage from './pages/ServicesPage';
 import AlumniPage from './pages/AlumniPage';
 import ContactPage from './pages/ContactPage';
@@ -41,6 +42,7 @@ function AppRoutes() {
       <Route path="/" element={<HomePage />} />
       <Route path="/about" element={<AboutPage />} />
       <Route path="/coaches" element={<CoachesPage />} />
+      <Route path="/coaches/:slug" element={<CoachDetailPage />} />
       <Route path="/services" element={<ServicesPage />} />
       <Route path="/alumni" element={<AlumniPage />} />
       <Route path="/calendar" element={<CalendarPage />} />

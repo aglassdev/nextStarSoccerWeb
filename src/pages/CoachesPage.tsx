@@ -1,85 +1,10 @@
+import { useNavigate } from 'react-router-dom';
 import Navigation from '../components/layout/Navigation';
 import ProfileCard from '../components/ProfileCard';
-import {images} from "@/constants/images.ts";
+import { coaches } from '../constants/coachesData';
 
 const CoachesPage = () => {
-  const coachImages = [
-    images.coach1,
-    images.coach2,
-    images.coach3,
-    images.coach4,
-    images.coach5,
-    images.coach6,
-    images.coach7,
-    images.coach8,
-  ]
-
-  const coaches = [
-    {
-      id: 1,
-      name: "Paul Torres",
-      title: "Director & Head Coach",
-      handle: "coach1",
-      status: "Available",
-      avatarUrl: coachImages[0],
-    },
-    {
-      id: 2,
-      name: "Phillip Gyau",
-      title: "Head Coach",
-      handle: "coach2",
-      status: "Available",
-      avatarUrl: coachImages[1],
-    },
-    {
-      id: 3,
-      name: "Ryan Machado",
-      title: "Pro Coach",
-      handle: "coach3",
-      status: "Available",
-      avatarUrl: coachImages[2],
-    },
-    {
-      id: 4,
-      name: "Gonzalo Carrasco",
-      title: "Pro Coach",
-      handle: "coach4",
-      status: "Available",
-      avatarUrl: coachImages[3],
-    },
-    {
-      id: 5,
-      name: "Steve Birnbaum",
-      title: "Pro Coach",
-      handle: "coach5",
-      status: "Available",
-      avatarUrl: coachImages[4],
-    },
-    {
-      id: 6,
-      name: "Marco Etcheverry",
-      title: "Pro Coach",
-      handle: "coach6",
-      status: "Available",
-      avatarUrl: coachImages[5],
-    },
-    {
-      id: 7,
-      name: "Patrick Mullins",
-      title: "Pro Coach",
-      handle: "coach7",
-      status: "Available",
-      avatarUrl: coachImages[6],
-    },
-    {
-      id: 8,
-      name: "Chris Pontius",
-      title: "Pro Coach",
-      handle: "coach8",
-      status: "Available",
-      avatarUrl: coachImages[7],
-    }
-  ];
+  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-black">
@@ -95,7 +20,11 @@ const CoachesPage = () => {
           {/* Profile Cards Grid - 2 rows of 4 */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
             {coaches.map((coach) => (
-              <div key={coach.id} className="flex justify-center">
+              <div
+                key={coach.id}
+                className="flex justify-center cursor-pointer"
+                onClick={() => navigate(`/coaches/${coach.slug}`)}
+              >
                 <ProfileCard
                   name={coach.name}
                   title={coach.title}
@@ -109,7 +38,7 @@ const CoachesPage = () => {
                   behindGlowEnabled={true}
                   behindGlowColor="hsla(223, 100%, 70%, 0.6)"
                   innerGradient="linear-gradient(145deg,hsla(223, 40%, 45%, 0.55) 0%,hsla(76, 60%, 70%, 0.27) 100%)"
-                  onContactClick={() => console.log(`Contact ${coach.name}`)}
+                  onContactClick={() => navigate(`/coaches/${coach.slug}`)}
                 />
               </div>
             ))}
