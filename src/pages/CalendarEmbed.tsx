@@ -44,12 +44,24 @@ const CalendarEmbed = () => {
   );
 
   const monthScrollRef = useRef<HTMLDivElement>(null);
+  const todayGroupRef = useRef<HTMLDivElement>(null);
+  const hasAutoScrolled = useRef(false);
 
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handler);
     return () => window.removeEventListener('resize', handler);
   }, []);
+
+  // On mobile, scroll to today's events after initial load (once per month view)
+  useEffect(() => {
+    if (isMobile && !loading && filteredEvents.length > 0 && !hasAutoScrolled.current && todayGroupRef.current) {
+      setTimeout(() => {
+        todayGroupRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+      hasAutoScrolled.current = true;
+    }
+  }, [filteredEvents, isMobile, loading]);
 
   const months = [
     "January", "February", "March", "April", "May", "June",
@@ -170,6 +182,7 @@ const CalendarEmbed = () => {
     setSelectedMonth(monthIndex);
     setSelectedYear(year);
     setCurrentMonthIndex(arrayIndex);
+    hasAutoScrolled.current = false;
     fetchEvents(false, monthIndex, year);
 
     if (monthScrollRef.current) {
@@ -369,7 +382,7 @@ const CalendarEmbed = () => {
                   date.getMonth() === today.getMonth() &&
                   date.getFullYear() === today.getFullYear();
                 return (
-                  <div key={dateStr}>
+                  <div key={dateStr} ref={isTodayDate ? todayGroupRef : undefined}>
                     <div className={`text-sm font-semibold mb-2 px-1 ${isTodayDate ? 'text-blue-400' : 'text-gray-400'}`}>
                       {date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
                       {isTodayDate && <span className="ml-2 text-xs bg-blue-600 text-white px-2 py-0.5 rounded-full">Today</span>}
