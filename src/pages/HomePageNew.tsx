@@ -14,7 +14,6 @@ const HomePageNew = () => {
         row1: false,
         row2: false,
     });
-    const [showInstagramModal, setShowInstagramModal] = useState(false);
     const [paragraphsVisible, setParagraphsVisible] = useState([false, false, false, false]);
 
     const statsRef = useRef<HTMLDivElement>(null);
@@ -23,19 +22,18 @@ const HomePageNew = () => {
     const collageTrackRef = useRef<HTMLDivElement>(null);
     const heroRef = useRef<HTMLDivElement>(null);
     const backgroundRef = useRef<HTMLDivElement>(null);
-    const instagramDeckRef = useRef<HTMLDivElement>(null);
 
     const collageImages = [
-        images.collage1,
-        images.collage2,
-        images.collage3,
-        images.collage4,
-        images.collage5,
-        images.collage6,
-        images.collage7,
-        images.collage8,
-        images.collage9,
-        images.collage10,
+        { src: images.collage1,  caption: 'Private Training' },
+        { src: images.collage2,  caption: 'Game Day' },
+        { src: images.collage3,  caption: 'Academy Clinic' },
+        { src: images.collage4,  caption: 'Player Development' },
+        { src: images.collage5,  caption: 'Speed & Agility' },
+        { src: images.collage6,  caption: 'Technical Work' },
+        { src: images.collage7,  caption: 'Small Group' },
+        { src: images.collage8,  caption: 'College Prep' },
+        { src: images.collage9,  caption: 'Team Training' },
+        { src: images.collage10, caption: 'Next Star Showcase' },
     ];
 
     const instagramImages = [
@@ -124,43 +122,7 @@ const HomePageNew = () => {
         return () => ScrollTrigger.killAll();
     }, []);
 
-    /* ---------------- INSTAGRAM DECK WITH GSAP ---------------- */
-    useEffect(() => {
-        if (!instagramDeckRef.current) return;
-
-        const cards = gsap.utils.toArray<HTMLElement>('.instagram-card');
-
-        cards.forEach((card, i) => {
-            const offset = i - 2; // Center card is at index 2
-
-            gsap.set(card, {
-                x: offset * 200,
-                rotation: offset * 6,
-                scale: 1,
-                zIndex: 10 - Math.abs(offset),
-            });
-
-            card.addEventListener('mouseenter', () => {
-                gsap.to(card, {
-                    scale: 1.1,
-                    rotation: 0,
-                    zIndex: 50,
-                    duration: 0.35,
-                    ease: 'power3.out',
-                });
-            });
-
-            card.addEventListener('mouseleave', () => {
-                gsap.to(card, {
-                    scale: 1,
-                    rotation: offset * 6,
-                    zIndex: 10 - Math.abs(offset),
-                    duration: 0.4,
-                    ease: 'power3.out',
-                });
-            });
-        });
-    }, []);
+    /* INSTAGRAM DECK removed — replaced with mosaic grid */
 
     /* ---------------- PARAGRAPH SLIDE IN ---------------- */
     useEffect(() => {
@@ -397,74 +359,107 @@ const HomePageNew = () => {
             {/* COLLAGE - GSAP Horizontal Scroll */}
             <section ref={collageSectionRef} className="relative h-screen z-10">
                 <div className="sticky top-0 h-screen overflow-hidden">
-                    <div ref={collageTrackRef} className="flex items-center h-full gap-32 px-[15vw]">
-                        {collageImages.map((img, i) => (
-                            <img
+                    <div ref={collageTrackRef} className="flex items-center h-full gap-24 px-[15vw]">
+                        {collageImages.map((item, i) => (
+                            <div
                                 key={i}
-                                src={img}
-                                alt={`Collage ${i + 1}`}
-                                className="collage-img w-[360px] h-[52vh] object-cover rounded-2xl shadow-2xl flex-shrink-0"
+                                className="collage-img flex-shrink-0 flex flex-col gap-3"
                                 style={{ marginTop: i % 2 === 0 ? '6vh' : '-4vh' }}
-                            />
+                            >
+                                <img
+                                    src={item.src}
+                                    alt={item.caption}
+                                    className="w-[320px] h-[48vh] object-cover rounded-xl shadow-2xl"
+                                />
+                                <p className="text-[11px] uppercase tracking-[0.18em] text-gray-500 font-medium pl-1">
+                                    {item.caption}
+                                </p>
+                            </div>
                         ))}
                     </div>
                 </div>
             </section>
 
-            {/* INSTAGRAM - GSAP Deck */}
-            <section className="relative z-10 py-32 px-4 section-container" data-section="instagram">
+            {/* SOCIALS - Lando-style mosaic */}
+            <section className="relative z-10 py-28 px-8 section-container" data-section="instagram">
                 <div className="max-w-6xl mx-auto section-content">
-                    <div className="text-center mb-16">
-                        <h2 className="text-5xl font-bold mb-2 text-black">
+
+                    {/* Heading */}
+                    <div className="mb-12">
+                        <h2 className="text-[clamp(56px,8vw,96px)] font-black leading-none text-black uppercase tracking-tight">
                             WHAT'S UP
                         </h2>
-                        <h3 className="text-3xl text-black" style={{ fontFamily: 'serif' }}>
-                            ON SOCIALS
-                        </h3>
+                        <p className="text-2xl text-black/50 font-light italic mt-1" style={{ fontFamily: 'Georgia, serif' }}>
+                            on socials
+                        </p>
                     </div>
 
-                    <div ref={instagramDeckRef} className="relative flex justify-center items-center h-[420px] mb-12">
-                        {instagramPosts.map((postUrl, i) => (
-                            <a
-                                key={i}
-                                href={postUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="instagram-card absolute w-[280px] h-[380px] rounded-2xl bg-gray-900 shadow-2xl cursor-pointer overflow-hidden"
-                            >
-                                <img
-                                    src={instagramImages[i]}
-                                    alt={`Instagram post ${i + 1}`}
-                                    className="w-full h-full object-cover"
-                                />
-                                <div className="absolute inset-0 bg-gradient-to-br from-purple-600 via-pink-600 to-orange-500 opacity-0 hover:opacity-20 transition-opacity duration-300" />
-                            </a>
-                        ))}
-                    </div>
-
-                    <div className="text-center mt-20">
-                        <button
-                            onClick={() => setShowInstagramModal(true)}
-                            className="inline-block"
+                    {/* Mosaic grid — 3 cols, 2 rows */}
+                    <div className="grid gap-3 mb-14" style={{
+                        gridTemplateColumns: '1.2fr 0.9fr 0.9fr',
+                        gridTemplateRows: '280px 280px',
+                    }}>
+                        {/* img1 — tall, spans 2 rows */}
+                        <a
+                            href={instagramPosts[0]}
+                            target="_blank" rel="noopener noreferrer"
+                            className="overflow-hidden rounded-xl group"
+                            style={{ gridRow: '1 / 3' }}
                         >
-                            <div className="instagram-gradient-border p-[2px] rounded-xl hover:scale-105 transition-transform duration-300">
-                                <div className="bg-black px-10 py-5 rounded-xl hover:bg-gray-900 transition-colors">
-                                    <div className="flex items-center gap-4">
-                                        <svg
-                                            className="w-10 h-10 instagram-gradient-text"
-                                            fill="currentColor"
-                                            viewBox="0 0 24 24"
-                                        >
-                                            <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
-                                        </svg>
-                                        <div className="text-left">
-                                            <div className="instagram-gradient-text text-xl font-bold">@nextstarsoccer</div>
-                                            <div className="text-gray-400 text-sm">Follow on Instagram</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </button>
+                            <img src={instagramImages[0]} alt="Post 1"
+                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                        </a>
+                        {/* img2 — top right first col */}
+                        <a href={instagramPosts[1]} target="_blank" rel="noopener noreferrer"
+                            className="overflow-hidden rounded-xl group">
+                            <img src={instagramImages[1]} alt="Post 2"
+                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                        </a>
+                        {/* img3 — top right second col */}
+                        <a href={instagramPosts[2]} target="_blank" rel="noopener noreferrer"
+                            className="overflow-hidden rounded-xl group">
+                            <img src={instagramImages[2]} alt="Post 3"
+                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                        </a>
+                        {/* img4 — bottom spans last 2 cols */}
+                        <a href={instagramPosts[3]} target="_blank" rel="noopener noreferrer"
+                            className="overflow-hidden rounded-xl group" style={{ gridColumn: '2 / 4' }}>
+                            <img src={instagramImages[3]} alt="Post 4"
+                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                        </a>
+                    </div>
+
+                    {/* Platform text links */}
+                    <div className="flex items-center gap-10 border-t border-black/10 pt-8">
+                        <span className="text-black/30 text-xs uppercase tracking-[0.2em]">Follow</span>
+                        <div className="flex gap-8">
+                            <a
+                                href="https://www.instagram.com/nextstarsoccer/"
+                                target="_blank" rel="noopener noreferrer"
+                                className="text-black text-xl font-light lowercase tracking-wide hover:opacity-40 transition-opacity duration-300"
+                            >
+                                instagram
+                            </a>
+                            <a
+                                href="https://www.youtube.com/@nextstarsoccer"
+                                target="_blank" rel="noopener noreferrer"
+                                className="text-black text-xl font-light lowercase tracking-wide hover:opacity-40 transition-opacity duration-300"
+                            >
+                                youtube
+                            </a>
+                        </div>
+                        <div className="ml-auto">
+                            <a
+                                href="https://www.instagram.com/nextstarsoccer/"
+                                target="_blank" rel="noopener noreferrer"
+                                className="text-xs uppercase tracking-[0.15em] text-black/40 hover:text-black transition-colors duration-300 flex items-center gap-2"
+                            >
+                                @nextstarsoccer
+                                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
+                                    <path d="M2 10L10 2M10 2H4M10 2V8" />
+                                </svg>
+                            </a>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -477,33 +472,6 @@ const HomePageNew = () => {
                 </div>
             </footer>
 
-            {showInstagramModal && (
-                <div
-                    className="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-90 p-4"
-                    onClick={() => setShowInstagramModal(false)}
-                >
-                    <div
-                        className="relative bg-white rounded-lg w-full max-w-md h-[680px] overflow-hidden shadow-2xl"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <button
-                            onClick={() => setShowInstagramModal(false)}
-                            className="absolute top-4 right-4 z-10 bg-black bg-opacity-70 hover:bg-opacity-90 text-white rounded-full p-2 transition-colors"
-                        >
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
-
-                        <iframe
-                            src="https://www.instagram.com/nextstarsoccer/"
-                            className="w-full h-full border-0 rounded-lg"
-                            title="Instagram Profile"
-                            sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
-                        />
-                    </div>
-                </div>
-            )}
 
             <style>{`
         .section-container {
@@ -552,17 +520,6 @@ const HomePageNew = () => {
         .section-container.in-view .section-title {
           opacity: 1;
           transform: translateY(0);
-        }
-
-        .instagram-gradient-border {
-          background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
-        }
-
-        .instagram-gradient-text {
-          background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
         }
 
         html {

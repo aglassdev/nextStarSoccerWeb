@@ -42,7 +42,6 @@ interface Player {
 const getDivision = (subtitle: string) => {
   if (!subtitle) return "D1";
   const s = subtitle.toLowerCase();
-
   const d1 = [
     "binghamton", "yale", "princeton", "georgetown", "duke", "harvard",
     "columbia", "cornell", "virginia", "bucknell", "pennsylvania", "colgate",
@@ -52,9 +51,7 @@ const getDivision = (subtitle: string) => {
     "illinois at chicago", "ohio state", "akron", "james madison", "old dominion",
     "lynchburg",
   ];
-
   const d3 = ["emory", "haverford", "st. louis"];
-
   if (d1.some((u) => s.includes(u))) return "D1";
   if (d3.some((u) => s.includes(u))) return "D3";
   return "D2";
@@ -63,224 +60,176 @@ const getDivision = (subtitle: string) => {
 const getRegion = (subtitle: string) => {
   if (!subtitle) return "North America";
   const s = subtitle.toLowerCase();
-
   const europe = [
     "bournemouth", "wolfsburg", "leverkusen", "westerlo", "leuven",
     "arsenal", "lyonnes", "grazer", "jiskra", "dukla",
   ];
-
   const oceania = ["manurewa", "birkenhead"];
-
   if (europe.some((u) => s.includes(u))) return "Europe";
   if (oceania.some((u) => s.includes(u))) return "Oceania";
   return "North America";
 };
 
 const processSheetAsset = (cellValue: string): string | null => {
-  if (!cellValue || cellValue.trim() === "") {
-    return null;
-  }
-
+  if (!cellValue || cellValue.trim() === "") return null;
   const trimmedValue = cellValue.trim();
-  
-  // Handle =IMAGE() formula
   if (trimmedValue.startsWith("=IMAGE(")) {
     const match = trimmedValue.match(/=IMAGE\("([^"]+)"(?:,[^)]+)?\)/);
     if (match && match[1]) {
       let url = match[1];
-      
-      // Convert Google Drive URLs to direct download format
       if (url.includes("drive.google.com")) {
-        // Format: https://drive.google.com/file/d/FILE_ID/view
-        // Convert to: https://drive.google.com/thumbnail?id=FILE_ID&sz=w400
         const fileIdMatch = url.match(/\/file\/d\/([a-zA-Z0-9-_]+)/);
-        if (fileIdMatch && fileIdMatch[1]) {
-          // Use thumbnail API which is more reliable for displaying in web
-          return `https://drive.google.com/thumbnail?id=${fileIdMatch[1]}&sz=w400`;
-        }
-        // If already in uc?id= format
+        if (fileIdMatch && fileIdMatch[1]) return `https://drive.google.com/thumbnail?id=${fileIdMatch[1]}&sz=w400`;
         const ucIdMatch = url.match(/[?&]id=([a-zA-Z0-9-_]+)/);
-        if (ucIdMatch && ucIdMatch[1]) {
-          return `https://drive.google.com/thumbnail?id=${ucIdMatch[1]}&sz=w400`;
-        }
+        if (ucIdMatch && ucIdMatch[1]) return `https://drive.google.com/thumbnail?id=${ucIdMatch[1]}&sz=w400`;
       }
-      
       return url;
     }
   }
-  
-  // Handle direct URLs
   if (trimmedValue.startsWith("http://") || trimmedValue.startsWith("https://")) {
-    // Convert Google Drive URLs even if not in =IMAGE() formula
     if (trimmedValue.includes("drive.google.com")) {
       const fileIdMatch = trimmedValue.match(/\/file\/d\/([a-zA-Z0-9-_]+)/);
-      if (fileIdMatch && fileIdMatch[1]) {
-        return `https://drive.google.com/thumbnail?id=${fileIdMatch[1]}&sz=w400`;
-      }
+      if (fileIdMatch && fileIdMatch[1]) return `https://drive.google.com/thumbnail?id=${fileIdMatch[1]}&sz=w400`;
       const ucIdMatch = trimmedValue.match(/[?&]id=([a-zA-Z0-9-_]+)/);
-      if (ucIdMatch && ucIdMatch[1]) {
-        return `https://drive.google.com/thumbnail?id=${ucIdMatch[1]}&sz=w400`;
-      }
+      if (ucIdMatch && ucIdMatch[1]) return `https://drive.google.com/thumbnail?id=${ucIdMatch[1]}&sz=w400`;
     }
     return trimmedValue;
   }
-  
-  // Handle data URLs
-  if (trimmedValue.startsWith("data:")) {
-    return trimmedValue;
-  }
-  
+  if (trimmedValue.startsWith("data:")) return trimmedValue;
   return null;
 };
 
-const PlayerOverlay: React.FC<{
-  player: Player | null;
-  onClose: () => void;
-  visible: boolean;
-}> = ({ player, onClose, visible }) => {
-  if (!visible || !player) return null;
+/* ─── Flip Card ─────────────────────────────────────────────────────────── */
+const FlipCard: React.FC<{ player: Player }> = ({ player }) => {
+  const [flipped, setFlipped] = useState(false);
 
-  const renderInfoRow = (label: string, value?: string, icon?: string | null) => {
-    if (!value || value.trim() === "") return null;
-
-    return (
-      <div className="mb-4 px-1">
-        <p className="text-gray-600 text-sm font-bold mb-1">{label}:</p>
-        <div className="flex items-center">
-          {icon && (
-            <img
-              src={icon}
-              alt=""
-              className="w-4 h-4 mr-2 object-contain"
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-              }}
-            />
-          )}
-          <p className="text-gray-800 text-sm flex-1 break-words">
-            {value}
-          </p>
-        </div>
-      </div>
-    );
-  };
-
-  const leftColumnInfo = [
-    { label: "Hometown", value: player.hometown },
-    { label: "High School", value: player.school },
-    { label: "Youth Club", value: player.youthClub, icon: player.youthClubIcon },
-    { label: "Youth National Team", value: player.youthNationalTeam, icon: player.youthNationIcon },
-  ];
-
-  const rightColumnInfo = [
-    { label: "Position", value: player.position },
-    { label: "Club", value: player.club, icon: player.clubIcon },
-    { label: "National Team", value: player.nationalTeam, icon: player.nationIcon },
-    { label: "College", value: player.college, icon: player.collegeIcon },
-  ];
+  const infoItems = [
+    { label: 'Hometown', value: player.hometown },
+    { label: 'High School', value: player.school },
+    { label: 'Position', value: player.position },
+    { label: 'Youth Club', value: player.youthClub, icon: player.youthClubIcon },
+    { label: 'College', value: player.college, icon: player.collegeIcon },
+    { label: 'Club', value: player.club, icon: player.clubIcon },
+    { label: 'National Team', value: player.nationalTeam, icon: player.nationIcon },
+  ].filter((item) => item.value && item.value.trim() !== '');
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 p-4"
-      onClick={onClose}
+      className="flip-card cursor-pointer"
+      onClick={() => setFlipped((f) => !f)}
+      style={{ perspective: '1000px' }}
     >
       <div
-        className="relative bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
+        className="flip-card-inner relative w-full h-full transition-transform duration-500"
+        style={{
+          transformStyle: 'preserve-3d',
+          transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+        }}
       >
-        {/* Top Half - Hero Section */}
-        <div className="bg-gray-100 pt-8 pb-10 flex flex-col items-center border-b border-gray-200">
-          <div className="w-40 h-40 rounded-xl overflow-hidden mb-6 bg-white shadow-md">
+        {/* FRONT */}
+        <div
+          className="flip-card-front absolute inset-0 rounded-2xl overflow-hidden bg-gray-900 border border-white/5"
+          style={{ backfaceVisibility: 'hidden' }}
+        >
+          {/* Photo */}
+          <div className="w-full aspect-[3/4] overflow-hidden">
             {player.image ? (
               <img
                 src={player.image}
                 alt={player.name}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  console.error('Failed to load image:', player.image);
-                  e.currentTarget.style.display = 'none';
-                  const parent = e.currentTarget.parentElement;
-                  if (parent) {
-                    const placeholder = document.createElement('div');
-                    placeholder.className = 'w-full h-full bg-gray-200 flex items-center justify-center';
-                    placeholder.innerHTML = '<span class="text-gray-400 text-sm">No Image</span>';
-                    parent.appendChild(placeholder);
-                  }
-                }}
+                className="w-full h-full object-cover object-top"
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
               />
             ) : (
-              <div className="w-full h-full bg-white flex items-center justify-center">
-                <span className="text-gray-400 text-sm">No Image</span>
+              <div className="w-full h-full bg-gray-800 flex items-center justify-center">
+                <svg className="w-10 h-10 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
               </div>
             )}
           </div>
 
-          <h2 className="text-gray-800 text-2xl font-bold text-center mb-3">
-            {player.name}
-          </h2>
+          {/* Name + subtitle */}
+          <div className="p-3">
+            <p className="text-white text-sm font-semibold leading-tight truncate">{player.name}</p>
+            <div className="flex items-center gap-1.5 mt-1">
+              {player.subtitleIcon && (
+                <img src={player.subtitleIcon} alt="" className="w-3.5 h-3.5 object-contain flex-shrink-0"
+                  onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+              )}
+              <p className="text-gray-400 text-xs truncate">{player.subtitle}</p>
+            </div>
+          </div>
 
-          <div className="flex items-center">
-            {player.subtitleIcon && (
-              <img
-                src={player.subtitleIcon}
-                alt=""
-                className="w-5 h-5 mr-2 object-contain"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                }}
-              />
-            )}
-            <p className="text-gray-600 text-base text-center">
-              {player.subtitle}
-            </p>
+          {/* Tap hint */}
+          <div className="absolute top-2 right-2 w-6 h-6 bg-black/40 backdrop-blur-sm rounded-full flex items-center justify-center">
+            <svg className="w-3 h-3 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
           </div>
         </div>
 
-        {/* Bottom Half - Info Section */}
-        <div className="p-6">
-          <div className="flex justify-between gap-4">
-            <div className="w-1/2">
-              {leftColumnInfo.map((info, index) => (
-                <React.Fragment key={`left-${index}`}>
-                  {renderInfoRow(info.label, info.value, info.icon)}
-                </React.Fragment>
-              ))}
-            </div>
-            <div className="w-1/2">
-              {rightColumnInfo.map((info, index) => (
-                <React.Fragment key={`right-${index}`}>
-                  {renderInfoRow(info.label, info.value, info.icon)}
-                </React.Fragment>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Back Arrow Button */}
-        <button
-          onClick={onClose}
-          className="absolute top-3 left-3 w-8 h-8 flex items-center justify-center hover:bg-gray-200 rounded-full transition-colors"
+        {/* BACK */}
+        <div
+          className="flip-card-back absolute inset-0 rounded-2xl overflow-hidden bg-gray-900 border border-white/10 p-4 flex flex-col"
+          style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
         >
-          <svg className="w-5 h-5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
+          {/* Header */}
+          <div className="flex items-center gap-2 mb-3 pb-3 border-b border-white/10">
+            {player.image ? (
+              <img src={player.image} alt={player.name}
+                className="w-9 h-9 rounded-full object-cover object-top flex-shrink-0"
+                onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+            ) : (
+              <div className="w-9 h-9 rounded-full bg-gray-700 flex-shrink-0" />
+            )}
+            <div className="min-w-0">
+              <p className="text-white text-xs font-bold leading-tight truncate">{player.name}</p>
+              <div className="flex items-center gap-1 mt-0.5">
+                {player.subtitleIcon && (
+                  <img src={player.subtitleIcon} alt="" className="w-3 h-3 object-contain"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                )}
+                <p className="text-gray-400 text-[10px] truncate">{player.subtitle}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Info rows */}
+          <div className="flex-1 overflow-y-auto space-y-2 scrollbar-hide">
+            {infoItems.length > 0 ? infoItems.map((item, i) => (
+              <div key={i}>
+                <p className="text-gray-500 text-[9px] uppercase tracking-wider">{item.label}</p>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  {item.icon && (
+                    <img src={item.icon} alt="" className="w-3.5 h-3.5 object-contain flex-shrink-0"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                  )}
+                  <p className="text-white text-xs leading-tight">{item.value}</p>
+                </div>
+              </div>
+            )) : (
+              <p className="text-gray-500 text-xs italic mt-4 text-center">No additional info</p>
+            )}
+          </div>
+
+          {/* Close hint */}
+          <p className="text-gray-600 text-[9px] text-center mt-3 uppercase tracking-widest">tap to flip back</p>
+        </div>
       </div>
     </div>
   );
 };
 
+/* ─── Main page ─────────────────────────────────────────────────────────── */
 const AlumniPage = () => {
   const [alumni, setAlumni] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
   const [searchText, setSearchText] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
   const [sortOption, setSortOption] = useState(SORT_OPTIONS[0]);
-  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
-  const [overlayVisible, setOverlayVisible] = useState(false);
   const [selectedFilters, setSelectedFilters] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
     Object.entries(FILTERS).forEach(([cat, subs]) => {
@@ -290,98 +239,44 @@ const AlumniPage = () => {
     return initial;
   });
 
-  useEffect(() => {
-    fetchAlumniData();
-  }, []);
+  useEffect(() => { fetchAlumniData(); }, []);
 
   const fetchAlumniData = async () => {
     try {
       setLoading(true);
-
       const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${RANGE}?key=${API_KEY}&valueRenderOption=FORMULA`;
       const response = await fetch(url);
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          `HTTP error! status: ${response.status}, message: ${data.error?.message || "Unknown error"}`,
-        );
-      }
-
-      if (data.error) {
-        throw new Error(`Google Sheets API error: ${data.error.message}`);
-      }
-
-      if (!data.values || data.values.length === 0) {
-        setError("No data found in the spreadsheet");
-        return;
-      }
-
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      if (data.error) throw new Error(`Google Sheets API error: ${data.error.message}`);
+      if (!data.values || data.values.length === 0) { setError("No data found"); return; }
       const [headers, ...rows] = data.values;
-      const nonEmptyRows = rows.filter((row: any[]) =>
-        row.some((cell) => cell && cell.toString().trim() !== ""),
-      );
-
-      if (nonEmptyRows.length === 0) {
-        setError("No data rows found");
-        return;
-      }
-
-      const transformedData: Player[] = nonEmptyRows.map((row: any[], index: number) => {
-        const alumniObject: any = {};
-        headers.forEach((header: string, headerIndex: number) => {
-          alumniObject[header] = row[headerIndex] || "";
-        });
-
-        const processed = {
-          ...alumniObject,
-          image: processSheetAsset(alumniObject.image),
-          subtitleIcon: processSheetAsset(alumniObject.subtitleIcon),
-          youthClubIcon: processSheetAsset(alumniObject.youthClubIcon),
-          youthNationIcon: processSheetAsset(alumniObject.youthNationIcon),
-          nationIcon: processSheetAsset(alumniObject.nationIcon),
-          clubIcon: processSheetAsset(alumniObject.clubIcon),
-          collegeIcon: processSheetAsset(alumniObject.collegeIcon),
+      const nonEmptyRows = rows.filter((row: any[]) => row.some((cell) => cell && cell.toString().trim() !== ""));
+      if (nonEmptyRows.length === 0) { setError("No data rows found"); return; }
+      const transformedData: Player[] = nonEmptyRows.map((row: any[]) => {
+        const obj: any = {};
+        headers.forEach((header: string, idx: number) => { obj[header] = row[idx] || ""; });
+        return {
+          ...obj,
+          image: processSheetAsset(obj.image),
+          subtitleIcon: processSheetAsset(obj.subtitleIcon),
+          youthClubIcon: processSheetAsset(obj.youthClubIcon),
+          youthNationIcon: processSheetAsset(obj.youthNationIcon),
+          nationIcon: processSheetAsset(obj.nationIcon),
+          clubIcon: processSheetAsset(obj.clubIcon),
+          collegeIcon: processSheetAsset(obj.collegeIcon),
         };
-
-        // Debug log for first few entries
-        if (index < 3) {
-          console.log(`Player ${index}:`, {
-            name: processed.name,
-            originalImage: alumniObject.image,
-            processedImage: processed.image
-          });
-        }
-
-        return processed;
       });
-
-      console.log(`Loaded ${transformedData.length} alumni`);
       setAlumni(transformedData);
       setError(null);
     } catch (err) {
-      console.error('Error fetching alumni:', err);
       setError("Failed to fetch alumni data: " + (err as Error).message);
     } finally {
       setLoading(false);
     }
   };
 
-  const closeMenus = () => {
-    setFilterOpen(false);
-    setSortOpen(false);
-  };
-
-  const openPlayerOverlay = (player: Player) => {
-    console.log('Opening player:', player.name, 'Image URL:', player.image);
-    setSelectedPlayer(player);
-    setOverlayVisible(true);
-  };
-
-  const closePlayerOverlay = () => {
-    setOverlayVisible(false);
-    setSelectedPlayer(null);
-  };
+  const closeMenus = () => { setFilterOpen(false); setSortOpen(false); };
 
   const toggleCategory = (category: string) => {
     setSelectedFilters((prev) => {
@@ -389,9 +284,7 @@ const AlumniPage = () => {
       const allSubsSelected = subs.every((sub) => prev[sub]);
       const newValue = !allSubsSelected;
       const next = { ...prev, [category]: newValue };
-      subs.forEach((sub) => {
-        next[sub] = newValue;
-      });
+      subs.forEach((sub) => { next[sub] = newValue; });
       return next;
     });
   };
@@ -400,15 +293,12 @@ const AlumniPage = () => {
     setSelectedFilters((prev) => {
       const next = { ...prev, [sub]: !prev[sub] };
       const subs = FILTERS[parent as keyof typeof FILTERS];
-      const allSelected = subs.every((s) => next[s]);
-      next[parent] = allSelected;
+      next[parent] = subs.every((s) => next[s]);
       return next;
     });
   };
 
-  if (loading) {
-    return <LoadingScreen message="Loading alumni..." />;
-  }
+  if (loading) return <LoadingScreen message="Loading alumni..." />;
 
   if (error) {
     return (
@@ -417,12 +307,7 @@ const AlumniPage = () => {
         <div className="flex items-center justify-center min-h-screen px-4">
           <div className="text-center">
             <p className="text-red-500 text-base mb-6 max-w-md">{error}</p>
-            <button
-              onClick={fetchAlumniData}
-              className="bg-white text-black px-6 py-3 rounded-lg font-bold hover:bg-gray-200 transition-colors"
-            >
-              Retry
-            </button>
+            <button onClick={fetchAlumniData} className="bg-white text-black px-6 py-3 rounded-lg font-bold hover:bg-gray-200 transition-colors">Retry</button>
           </div>
         </div>
       </div>
@@ -430,62 +315,33 @@ const AlumniPage = () => {
   }
 
   const filtered = alumni.filter((alum) => {
-    const nameMatch =
-      alum.name && alum.name.toLowerCase().includes(searchText.toLowerCase());
-    const subMatch =
-      alum.subtitle &&
-      alum.subtitle.toLowerCase().includes(searchText.toLowerCase());
+    const nameMatch = alum.name && alum.name.toLowerCase().includes(searchText.toLowerCase());
+    const subMatch = alum.subtitle && alum.subtitle.toLowerCase().includes(searchText.toLowerCase());
     if (!nameMatch && !subMatch) return false;
-
-    const isUni =
-      alum.subtitle && alum.subtitle.toLowerCase().includes("university");
+    const isUni = alum.subtitle && alum.subtitle.toLowerCase().includes("university");
     const division = getDivision(alum.subtitle || "");
     const region = getRegion(alum.subtitle || "");
-    const collOK = isUni && selectedFilters[division];
-    const profOK = !isUni && selectedFilters[region];
-    return collOK || profOK;
+    return (isUni && selectedFilters[division]) || (!isUni && selectedFilters[region]);
   });
 
-  const sorted = filtered.sort((a, b) => {
-    const aNameParts = (a.name || "").split(" ");
-    const bNameParts = (b.name || "").split(" ");
-    const aFirst = aNameParts[0] || "";
-    const aLast = aNameParts[aNameParts.length - 1] || "";
-    const bFirst = bNameParts[0] || "";
-    const bLast = bNameParts[bNameParts.length - 1] || "";
-
+  const sorted = [...filtered].sort((a, b) => {
+    const aParts = (a.name || "").split(" ");
+    const bParts = (b.name || "").split(" ");
+    const aFirst = aParts[0] || "", aLast = aParts[aParts.length - 1] || "";
+    const bFirst = bParts[0] || "", bLast = bParts[bParts.length - 1] || "";
     switch (sortOption) {
-      case "Last Name A-Z":
-        return aLast.localeCompare(bLast);
-      case "Last Name Z-A":
-        return bLast.localeCompare(aLast);
-      case "First Name A-Z":
-        return aFirst.localeCompare(bFirst);
-      case "First Name Z-A":
-        return bFirst.localeCompare(aFirst);
-      default:
-        return 0;
+      case "Last Name A-Z": return aLast.localeCompare(bLast);
+      case "Last Name Z-A": return bLast.localeCompare(aLast);
+      case "First Name A-Z": return aFirst.localeCompare(bFirst);
+      case "First Name Z-A": return bFirst.localeCompare(aFirst);
+      default: return 0;
     }
   });
 
-  const renderCheckbox = (
-    label: string,
-    checked: boolean,
-    onPress: () => void,
-    isParent = false
-  ) => (
-    <button
-      onClick={onPress}
-      className="flex justify-between items-center ml-2 mt-1 px-2 py-1 rounded-md hover:bg-gray-100 transition-colors w-full text-left"
-    >
-      <span className={`text-gray-800 text-sm ${isParent ? 'font-bold' : ''}`}>
-        {label}
-      </span>
-      <div
-        className={`w-4 h-4 border border-gray-800 rounded flex items-center justify-center ${
-          checked ? 'bg-gray-800' : 'bg-transparent'
-        }`}
-      >
+  const renderCheckbox = (label: string, checked: boolean, onPress: () => void, isParent = false) => (
+    <button onClick={onPress} className="flex justify-between items-center ml-2 mt-1 px-2 py-1 rounded-md hover:bg-gray-100 transition-colors w-full text-left">
+      <span className={`text-gray-800 text-sm ${isParent ? 'font-bold' : ''}`}>{label}</span>
+      <div className={`w-4 h-4 border border-gray-800 rounded flex items-center justify-center ${checked ? 'bg-gray-800' : 'bg-transparent'}`}>
         {checked && (
           <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
@@ -499,62 +355,39 @@ const AlumniPage = () => {
     <div className="min-h-screen bg-black">
       <Navigation />
 
-      <div
-        className={filterOpen || sortOpen ? 'cursor-pointer' : ''}
-        onClick={closeMenus}
-      >
+      <div className={filterOpen || sortOpen ? 'cursor-pointer' : ''} onClick={closeMenus}>
         <div className="pt-20">
-          {/* Header */}
-          <div className="relative mb-6">
-            <img
-              src={images.alumniHeader}
-              alt="Alumni Header"
-              className="w-full h-64 object-cover"
-              style={{ objectPosition: '50% 30%' }}
-            />
-            <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center">
-              <h1 className="text-white text-4xl font-medium">
-                Players & Alumni
-              </h1>
+
+          {/* Header banner */}
+          <div className="relative mb-8">
+            <img src={images.alumniHeader} alt="Alumni Header" className="w-full h-64 object-cover" style={{ objectPosition: '50% 30%' }} />
+            <div className="absolute inset-0 bg-black bg-opacity-40 flex flex-col items-center justify-center">
+              <h1 className="text-white text-4xl font-bold font-lt-wave">Players & Alumni</h1>
+              <p className="text-white/50 text-sm mt-2 uppercase tracking-widest">{sorted.length} players</p>
             </div>
           </div>
 
-          {/* Search, Filter, Sort Controls */}
-          <div className="flex gap-3 px-6 mb-6">
+          {/* Controls */}
+          <div className="flex gap-4 px-6 mb-8 items-center">
             {/* Filter */}
             <div className="relative">
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setFilterOpen((f) => !f);
-                  setSortOpen(false);
-                }}
-                className="flex items-center gap-2 text-white text-sm"
+                onClick={(e) => { e.stopPropagation(); setFilterOpen((f) => !f); setSortOpen(false); }}
+                className="flex items-center gap-2 text-white text-sm border border-white/20 px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors"
               >
-                <span>Filter</span>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                 </svg>
+                <span>Filter</span>
               </button>
-
               {filterOpen && (
-                <div
-                  onClick={(e) => e.stopPropagation()}
-                  className="absolute top-8 left-0 bg-white rounded-lg p-3 min-w-48 z-50 shadow-lg"
-                >
+                <div onClick={(e) => e.stopPropagation()} className="absolute top-10 left-0 bg-white rounded-xl p-3 min-w-52 z-50 shadow-2xl">
                   {Object.entries(FILTERS).map(([cat, subs]) => (
                     <div key={cat} className="mb-3 last:mb-0">
-                      {renderCheckbox(
-                        cat,
-                        selectedFilters[cat],
-                        () => toggleCategory(cat),
-                        true
-                      )}
+                      {renderCheckbox(cat, selectedFilters[cat], () => toggleCategory(cat), true)}
                       {subs.map((sub) => (
                         <div key={sub} className="ml-4">
-                          {renderCheckbox(sub, selectedFilters[sub], () =>
-                            toggleSubFilter(sub, cat)
-                          )}
+                          {renderCheckbox(sub, selectedFilters[sub], () => toggleSubFilter(sub, cat))}
                         </div>
                       ))}
                     </div>
@@ -566,33 +399,19 @@ const AlumniPage = () => {
             {/* Sort */}
             <div className="relative">
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSortOpen((s) => !s);
-                  setFilterOpen(false);
-                }}
-                className="flex items-center gap-2 text-white text-sm"
+                onClick={(e) => { e.stopPropagation(); setSortOpen((s) => !s); setFilterOpen(false); }}
+                className="flex items-center gap-2 text-white text-sm border border-white/20 px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors"
               >
                 <span>Sort</span>
                 <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
                 </svg>
               </button>
-
               {sortOpen && (
-                <div
-                  onClick={(e) => e.stopPropagation()}
-                  className="absolute top-8 left-0 bg-white rounded-lg p-2 w-40 z-50 shadow-lg"
-                >
+                <div onClick={(e) => e.stopPropagation()} className="absolute top-10 left-0 bg-white rounded-xl p-2 w-44 z-50 shadow-2xl">
                   {SORT_OPTIONS.map((opt) => (
-                    <button
-                      key={opt}
-                      onClick={() => {
-                        setSortOption(opt);
-                        setSortOpen(false);
-                      }}
-                      className="block w-full text-left px-3 py-1 text-sm text-gray-800 hover:bg-gray-100 rounded"
-                    >
+                    <button key={opt} onClick={() => { setSortOption(opt); setSortOpen(false); }}
+                      className={`block w-full text-left px-3 py-1.5 text-sm rounded-lg hover:bg-gray-100 transition-colors ${sortOption === opt ? 'text-gray-900 font-semibold' : 'text-gray-600'}`}>
                       {opt}
                     </button>
                   ))}
@@ -604,78 +423,38 @@ const AlumniPage = () => {
             <div className="flex-1 max-w-md relative">
               <input
                 type="text"
-                placeholder="Search"
+                placeholder="Search players..."
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
-                className="w-full bg-transparent border-b border-white text-white text-sm pb-1 outline-none placeholder-gray-400"
+                className="w-full bg-white/5 border border-white/20 text-white text-sm px-4 py-1.5 rounded-lg outline-none placeholder-gray-500 focus:border-white/40 transition-colors"
               />
               {!searchText && (
-                <svg className="w-3.5 h-3.5 text-gray-400 absolute right-0 top-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-3.5 h-3.5 text-gray-500 absolute right-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               )}
             </div>
           </div>
 
-          {/* Alumni Cards Grid - Landscape style (horizontal rows) */}
-          <div className="px-6 pb-12">
+          {/* Cards grid */}
+          <div className="px-6 pb-16">
             {sorted.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-gray-400 text-lg">No alumni found matching your criteria</p>
+              <div className="text-center py-16">
+                <p className="text-gray-500 text-lg">No players found</p>
               </div>
             ) : (
-              sorted.map((alum, i) => (
-                <button
-                  key={`alum-${i}`}
-                  onClick={() => openPlayerOverlay(alum)}
-                  className="flex items-center gap-4 w-full bg-gray-900 border border-gray-800 rounded-lg p-4 mb-4 hover:bg-gray-800 transition-colors text-left"
-                >
-                  <div className="w-20 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-black">
-                    {alum.image ? (
-                      <img
-                        src={alum.image}
-                        alt={alum.name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          console.error('Image load error for:', alum.name, alum.image);
-                          e.currentTarget.style.display = 'none';
-                          const parent = e.currentTarget.parentElement;
-                          if (parent && !parent.querySelector('.placeholder-text')) {
-                            const placeholder = document.createElement('div');
-                            placeholder.className = 'placeholder-text w-full h-full flex items-center justify-center';
-                            placeholder.innerHTML = '<span class="text-gray-500 text-xs">No Image</span>';
-                            parent.appendChild(placeholder);
-                          }
-                        }}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <span className="text-gray-500 text-xs">No Image</span>
-                      </div>
-                    )}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                {sorted.map((alum, i) => (
+                  <div key={`alum-${i}`} style={{ height: '280px' }}>
+                    <FlipCard player={alum} />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-white text-base font-bold mb-1 truncate">
-                      {alum.name || ""}
-                    </h3>
-                    <p className="text-gray-400 text-sm truncate">
-                      {alum.subtitle || ""}
-                    </p>
-                  </div>
-                </button>
-              ))
+                ))}
+              </div>
             )}
           </div>
         </div>
       </div>
 
-      <PlayerOverlay
-        player={selectedPlayer}
-        visible={overlayVisible}
-        onClose={closePlayerOverlay}
-      />
-
-      {/* Footer */}
       <footer className="bg-black py-8 px-4 border-t border-gray-800">
         <div className="max-w-6xl mx-auto text-center">
           <p className="text-gray-400 text-sm">
@@ -683,6 +462,14 @@ const AlumniPage = () => {
           </p>
         </div>
       </footer>
+
+      <style>{`
+        .flip-card { width: 100%; height: 100%; }
+        .flip-card:hover .flip-card-inner { transform: rotateY(5deg); }
+        .flip-card-inner { width: 100%; height: 100%; }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+      `}</style>
     </div>
   );
 };
