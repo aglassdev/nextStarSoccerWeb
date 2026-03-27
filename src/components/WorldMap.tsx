@@ -26,7 +26,7 @@ const getCountryName = (f: any): string =>
 const nameToKey = (name: string): string | null => {
   const n = name.toLowerCase();
   if (n.includes('united states') || n === 'usa') return 'usa';
-  if (n.includes('united kingdom') || n.includes('great britain')) return 'england';
+  if (n.includes('united kingdom') || n.includes('great britain') || n === 'england' || n === 'uk') return 'england';
   if (n === 'germany') return 'germany';
   if (n === 'belgium') return 'belgium';
   if (n === 'france') return 'france';
@@ -193,31 +193,41 @@ const WorldMap: React.FC<WorldMapProps> = ({ alumni }) => {
           );
         })}
 
-        {/* USA — two labels directly inside the country */}
-        {usaTotal > 0 && (
-          <g fontFamily="system-ui,sans-serif">
-            {collegiate > 0 && <>
-              <text x={projX(-82)} y={projY(41)}
-                textAnchor="middle" fill={LBL_PRI} fontSize="9" fontWeight="700">
-                Collegiate
-              </text>
-              <text x={projX(-82)} y={projY(41) + 11}
-                textAnchor="middle" fill={LBL_SUB} fontSize="7.5">
-                {collegiate} players
-              </text>
-            </>}
-            {professional > 0 && <>
-              <text x={projX(-100)} y={projY(35)}
-                textAnchor="middle" fill={LBL_PRI} fontSize="9" fontWeight="700">
-                Professional
-              </text>
-              <text x={projX(-100)} y={projY(35) + 11}
-                textAnchor="middle" fill={LBL_SUB} fontSize="7.5">
-                {professional} players
-              </text>
-            </>}
-          </g>
-        )}
+        {/* USA — two compact labels side by side inside the country */}
+        {usaTotal > 0 && (() => {
+          const baseY = projY(38);
+          const bothExist = collegiate > 0 && professional > 0;
+          const leftX  = bothExist ? projX(-95) : projX(-90);
+          const rightX = projX(-78);
+          return (
+            <g fontFamily="system-ui,sans-serif">
+              {collegiate > 0 && (
+                <g textAnchor="middle">
+                  <text x={bothExist ? leftX : leftX} y={baseY}
+                    fill={LBL_PRI} fontSize="8" fontWeight="700">
+                    Collegiate
+                  </text>
+                  <text x={bothExist ? leftX : leftX} y={baseY + 10}
+                    fill={LBL_SUB} fontSize="7">
+                    {collegiate} players
+                  </text>
+                </g>
+              )}
+              {professional > 0 && (
+                <g textAnchor="middle">
+                  <text x={rightX} y={baseY}
+                    fill={LBL_PRI} fontSize="8" fontWeight="700">
+                    Professional
+                  </text>
+                  <text x={rightX} y={baseY + 10}
+                    fill={LBL_SUB} fontSize="7">
+                    {professional} players
+                  </text>
+                </g>
+              )}
+            </g>
+          );
+        })()}
 
         {/* Small/clustered countries — dashed leader lines + offset labels */}
         {LEADERS.map(({ key, label, cLng, cLat, aLng, aLat, ta }) => {
@@ -228,7 +238,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ alumni }) => {
           return (
             <g key={key} fontFamily="system-ui,sans-serif">
               <line x1={cx} y1={cy} x2={ax} y2={ay}
-                stroke={LEADER} strokeWidth="0.8" strokeDasharray="3 2" />
+                stroke={LEADER} strokeWidth="0.8" />
               <circle cx={cx} cy={cy} r="2.5" fill={DOT_CLR} />
               <text x={ax} y={ay - 4} textAnchor={ta} fill={LBL_PRI} fontSize="8.5" fontWeight="700">
                 {label}
