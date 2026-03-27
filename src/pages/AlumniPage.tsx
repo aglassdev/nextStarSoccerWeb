@@ -106,7 +106,6 @@ const FlipCard: React.FC<{ player: Player }> = ({ player }) => {
   const infoItems = [
     { label: 'Hometown', value: player.hometown },
     { label: 'High School', value: player.school },
-    { label: 'Position', value: player.position },
     { label: 'Youth Club', value: player.youthClub, icon: player.youthClubIcon },
     { label: 'College', value: player.college, icon: player.collegeIcon },
     { label: 'Club', value: player.club, icon: player.clubIcon },
@@ -194,8 +193,13 @@ const FlipCard: React.FC<{ player: Player }> = ({ player }) => {
             ) : (
               <div className="w-9 h-9 rounded-full bg-gray-700 flex-shrink-0" />
             )}
-            <div className="min-w-0">
-              <p className="text-white text-xs font-bold leading-tight truncate">{player.name}</p>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-baseline justify-between gap-1">
+                <p className="text-white text-xs font-bold leading-tight truncate">{player.name}</p>
+                {player.position && player.position.trim() !== '' && (
+                  <span className="text-blue-400 text-[10px] font-semibold flex-shrink-0">{player.position}</span>
+                )}
+              </div>
               <div className="flex items-center gap-1 mt-0.5">
                 {player.subtitleIcon && (
                   <img src={player.subtitleIcon} alt="" className="w-3 h-3 object-contain"
