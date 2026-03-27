@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import Navigation from '../components/layout/Navigation';
+import Footer from '../components/layout/Footer';
 import AnimatedCycleText from '../components/common/AnimatedCycleText';
 import AnimatedCounter from '../components/common/AnimatedCounter';
 import { images } from '../constants/images';
@@ -497,13 +498,9 @@ const HomePageNew = () => {
                 </div>
             </section>
 
-            <footer className="relative z-10 py-8 px-4 bg-black">
-                <div className="max-w-6xl mx-auto text-center">
-                    <p className="text-sm text-gray-400">
-                        © {new Date().getFullYear()} Next Star Soccer. All rights reserved.
-                    </p>
-                </div>
-            </footer>
+            <div className="relative z-10">
+                <Footer />
+            </div>
 
 
             <style>{`

@@ -1,5 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import Navigation from '../components/layout/Navigation';
+import Footer from '../components/layout/Footer';
 import { coaches } from '../constants/coachesData';
 
 const CoachDetailPage = () => {
@@ -34,7 +35,7 @@ const CoachDetailPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-black flex flex-col">
       <Navigation />
 
       <div className="pt-24 pb-20 px-6 md:px-10">
@@ -150,13 +151,7 @@ const CoachDetailPage = () => {
         </div>
       </div>
 
-      <footer className="bg-black py-8 px-4 border-t border-gray-800">
-        <div className="max-w-6xl mx-auto text-center">
-          <p className="text-gray-400 text-sm">
-            © {new Date().getFullYear()} Next Star Soccer. All rights reserved.
-          </p>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 };

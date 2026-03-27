@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import Navigation from '../components/layout/Navigation';
+import Footer from '../components/layout/Footer';
 import ProfileCard from '../components/ProfileCard';
 import { coaches } from '../constants/coachesData';
 
@@ -7,7 +8,7 @@ const CoachesPage = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-black flex flex-col">
       <Navigation />
       <div className="pt-24 px-4 pb-16">
         <div className="max-w-[1600px] mx-auto">
@@ -45,6 +46,7 @@ const CoachesPage = () => {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 };

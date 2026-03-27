@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import { databases, account, collections, databaseId } from '../services/appwrite';
 import { ADMIN_CONFIG } from '../constants/adminConfig';
 import Navigation from '../components/layout/Navigation';
+import Footer from '../components/layout/Footer';
 import Lottie from 'lottie-web';
 
 const subjectOptions = [
@@ -340,7 +341,7 @@ const ContactPage = () => {
   );
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-black flex flex-col">
       <Navigation />
 
       <div className="pt-24 pb-16 px-4 max-w-5xl mx-auto">
@@ -530,6 +531,7 @@ const ContactPage = () => {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 };

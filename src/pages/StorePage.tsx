@@ -1,8 +1,9 @@
 import Navigation from '../components/layout/Navigation';
+import Footer from '../components/layout/Footer';
 
 const StorePage = () => {
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-black flex flex-col">
       <Navigation />
       <div className="pt-24 px-4">
         <div className="max-w-6xl mx-auto">
@@ -14,6 +15,7 @@ const StorePage = () => {
           </p>
         </div>
       </div>
+      <Footer />
     </div>
   );
 };

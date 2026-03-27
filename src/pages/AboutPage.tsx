@@ -1,8 +1,9 @@
 import Navigation from '../components/layout/Navigation';
+import Footer from '../components/layout/Footer';
 
 const AboutPage = () => {
   return (
-    <div className="min-h-screen bg-black font-lt-wave">
+    <div className="min-h-screen bg-black flex flex-col font-lt-wave">
       <Navigation />
       
       <div className="pt-24 pb-16 px-4">
@@ -37,6 +38,7 @@ const AboutPage = () => {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 };
