@@ -114,107 +114,118 @@ const FlipCard: React.FC<{ player: Player }> = ({ player }) => {
   ].filter((item) => item.value && item.value.trim() !== '');
 
   return (
+    /* Outer wrapper sets the card's aspect ratio — drives height automatically */
     <div
-      className="flip-card cursor-pointer"
+      className="flip-card cursor-pointer relative w-full"
+      style={{ perspective: '1000px', aspectRatio: '3/4' }}
       onClick={() => setFlipped((f) => !f)}
-      style={{ perspective: '1000px' }}
     >
       <div
-        className="flip-card-inner relative w-full h-full transition-transform duration-500"
+        className="absolute inset-0 transition-transform duration-500"
         style={{
           transformStyle: 'preserve-3d',
           transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
         }}
       >
-        {/* FRONT */}
+        {/* ── FRONT ─────────────────────────────────────────────────────── */}
         <div
-          className="flip-card-front absolute inset-0 rounded-2xl overflow-hidden bg-gray-900 border border-white/5"
+          className="absolute inset-0 rounded-xl overflow-hidden bg-gray-900 border border-white/5"
           style={{ backfaceVisibility: 'hidden' }}
         >
-          {/* Photo — fixed height so name/subtitle always visible below */}
-          <div className="w-full overflow-hidden" style={{ height: '220px' }}>
+          {/* Photo area — fills ~78% of card height */}
+          <div className="absolute inset-x-0 top-0 overflow-hidden" style={{ height: '78%' }}>
+            {/* Dimmed subtitle icon watermark */}
+            {player.subtitleIcon && (
+              <img
+                src={player.subtitleIcon}
+                alt=""
+                className="absolute inset-0 w-full h-full object-contain p-5 opacity-[0.08]"
+                style={{ filter: 'blur(1px)' }}
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              />
+            )}
             {player.image ? (
               <img
                 src={player.image}
                 alt={player.name}
-                className="w-full h-full object-cover object-top"
+                className="absolute inset-0 w-full h-full object-cover object-top"
                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
               />
             ) : (
-              <div className="w-full h-full bg-gray-800 flex items-center justify-center">
-                <svg className="w-10 h-10 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="absolute inset-0 bg-gray-800 flex items-center justify-center">
+                <svg className="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
               </div>
             )}
           </div>
 
-          {/* Name + subtitle */}
-          <div className="px-3 pt-2 pb-3">
-            <p className="text-white text-sm font-bold leading-tight truncate">{player.name}</p>
-            <div className="flex items-center gap-1.5 mt-1.5">
+          {/* Name + subtitle — pinned to bottom 22% */}
+          <div className="absolute inset-x-0 bottom-0 px-2 pt-1.5 pb-2" style={{ height: '22%' }}>
+            <p className="text-white text-[11px] font-bold leading-tight truncate">{player.name}</p>
+            <div className="flex items-center gap-1 mt-0.5">
               {player.subtitleIcon && (
-                <img src={player.subtitleIcon} alt="" className="w-4 h-4 object-contain flex-shrink-0"
+                <img src={player.subtitleIcon} alt="" className="w-3 h-3 object-contain flex-shrink-0"
                   onError={(e) => { e.currentTarget.style.display = 'none'; }} />
               )}
-              <p className="text-gray-200 text-xs font-medium leading-tight" style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>{player.subtitle}</p>
+              <p className="text-gray-400 text-[9px] leading-tight line-clamp-2">{player.subtitle}</p>
             </div>
           </div>
 
           {/* Tap hint */}
-          <div className="absolute top-2 right-2 w-6 h-6 bg-black/40 backdrop-blur-sm rounded-full flex items-center justify-center">
-            <svg className="w-3 h-3 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="absolute top-1.5 right-1.5 w-4 h-4 bg-black/40 backdrop-blur-sm rounded-full flex items-center justify-center">
+            <svg className="w-2 h-2 text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
         </div>
 
-        {/* BACK */}
+        {/* ── BACK ──────────────────────────────────────────────────────── */}
         <div
-          className="flip-card-back absolute inset-0 rounded-2xl overflow-hidden bg-gray-900 border border-white/10 p-4 flex flex-col"
+          className="absolute inset-0 rounded-xl overflow-hidden bg-gray-900 border border-white/10 p-3 flex flex-col"
           style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
         >
           {/* Header */}
-          <div className="flex items-center gap-2 mb-3 pb-3 border-b border-white/10">
+          <div className="flex items-center gap-2 mb-2 pb-2 border-b border-white/10">
             {player.image ? (
               <img src={player.image} alt={player.name}
-                className="w-9 h-9 rounded-full object-cover object-top flex-shrink-0"
+                className="w-7 h-7 rounded-full object-cover object-top flex-shrink-0"
                 onError={(e) => { e.currentTarget.style.display = 'none'; }} />
             ) : (
-              <div className="w-9 h-9 rounded-full bg-gray-700 flex-shrink-0" />
+              <div className="w-7 h-7 rounded-full bg-gray-700 flex-shrink-0" />
             )}
             <div className="min-w-0">
-              <p className="text-white text-xs font-bold leading-tight truncate">{player.name}</p>
+              <p className="text-white text-[10px] font-bold leading-tight truncate">{player.name}</p>
               <div className="flex items-center gap-1 mt-0.5">
                 {player.subtitleIcon && (
-                  <img src={player.subtitleIcon} alt="" className="w-3 h-3 object-contain"
+                  <img src={player.subtitleIcon} alt="" className="w-2.5 h-2.5 object-contain"
                     onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                 )}
-                <p className="text-gray-400 text-[10px] truncate">{player.subtitle}</p>
+                <p className="text-gray-400 text-[9px] truncate">{player.subtitle}</p>
               </div>
             </div>
           </div>
 
           {/* Info rows */}
-          <div className="flex-1 overflow-y-auto space-y-2 scrollbar-hide">
+          <div className="flex-1 overflow-y-auto space-y-1.5 scrollbar-hide">
             {infoItems.length > 0 ? infoItems.map((item, i) => (
               <div key={i}>
-                <p className="text-gray-500 text-[9px] uppercase tracking-wider">{item.label}</p>
-                <div className="flex items-center gap-1.5 mt-0.5">
+                <p className="text-gray-500 text-[8px] uppercase tracking-wider">{item.label}</p>
+                <div className="flex items-center gap-1 mt-0.5">
                   {item.icon && (
-                    <img src={item.icon} alt="" className="w-3.5 h-3.5 object-contain flex-shrink-0"
+                    <img src={item.icon} alt="" className="w-3 h-3 object-contain flex-shrink-0"
                       onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                   )}
-                  <p className="text-white text-xs leading-tight">{item.value}</p>
+                  <p className="text-white text-[10px] leading-tight">{item.value}</p>
                 </div>
               </div>
             )) : (
-              <p className="text-gray-500 text-xs italic mt-4 text-center">No additional info</p>
+              <p className="text-gray-500 text-[10px] italic mt-4 text-center">No additional info</p>
             )}
           </div>
 
           {/* Close hint */}
-          <p className="text-gray-600 text-[9px] text-center mt-3 uppercase tracking-widest">tap to flip back</p>
+          <p className="text-gray-600 text-[8px] text-center mt-2 uppercase tracking-widest">tap to flip back</p>
         </div>
       </div>
     </div>
@@ -445,9 +456,9 @@ const AlumniPage = () => {
                 <p className="text-gray-500 text-lg">No players found</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
                 {sorted.map((alum, i) => (
-                  <div key={`alum-${i}`} style={{ height: '310px' }}>
+                  <div key={`alum-${i}`}>
                     <FlipCard player={alum} />
                   </div>
                 ))}
@@ -466,9 +477,6 @@ const AlumniPage = () => {
       </footer>
 
       <style>{`
-        .flip-card { width: 100%; height: 100%; }
-        .flip-card:hover .flip-card-inner { transform: rotateY(5deg); }
-        .flip-card-inner { width: 100%; height: 100%; }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
