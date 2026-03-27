@@ -161,24 +161,26 @@ const HomePageNew = () => {
             },
         });
 
-        // Hover: card pops up
+        // Hover: pop card up AND nudge neighbours outward so nothing clips
+        const NUDGE = 38; // px each neighbour shifts away
         cards.forEach((card, i) => {
             card.addEventListener('mouseenter', () => {
-                gsap.to(card, {
-                    y: -22,
-                    scale: 1.05,
-                    zIndex: 20,
-                    duration: 0.28,
-                    ease: 'power2.out',
+                // Pop the hovered card
+                gsap.to(card, { y: -22, scale: 1.05, zIndex: 20, duration: 0.28, ease: 'power2.out' });
+                // Push neighbours away
+                cards.forEach((other, j) => {
+                    if (j === i) return;
+                    const shift = j < i ? -NUDGE : NUDGE;
+                    gsap.to(other, { x: fanData[j].x + shift, duration: 0.28, ease: 'power2.out' });
                 });
             });
             card.addEventListener('mouseleave', () => {
-                gsap.to(card, {
-                    y: 0,
-                    scale: 1,
-                    zIndex: fanData[i].z,
-                    duration: 0.35,
-                    ease: 'power2.out',
+                // Return hovered card
+                gsap.to(card, { y: 0, scale: 1, zIndex: fanData[i].z, duration: 0.35, ease: 'power2.out' });
+                // Return all neighbours to fanned positions
+                cards.forEach((other, j) => {
+                    if (j === i) return;
+                    gsap.to(other, { x: fanData[j].x, duration: 0.35, ease: 'power2.out' });
                 });
             });
         });
