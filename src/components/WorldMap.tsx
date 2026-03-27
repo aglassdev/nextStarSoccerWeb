@@ -198,7 +198,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ alumni }) => {
           const baseY = projY(38);
           const bothExist = collegiate > 0 && professional > 0;
           const leftX  = bothExist ? projX(-112) : projX(-95);
-          const rightX = projX(-82);
+          const rightX = projX(-88);
           return (
             <g fontFamily="system-ui,sans-serif">
               {collegiate > 0 && (
