@@ -17,6 +17,8 @@ import CalendarPage from './pages/CalendarPage';
 import CalendarEmbed from './pages/CalendarEmbed';
 import BillingPage from './pages/BillingPage';
 import ProfilePage from './pages/ProfilePage';
+import TermsPage from './pages/TermsPage';
+import PrivacyPage from './pages/PrivacyPage';
 import Layout from './components/layout/Layout';
 import LoadingScreen from './components/common/LoadingScreen';
 
@@ -50,7 +52,9 @@ function AppRoutes() {
       <Route path="/contact" element={<ContactPage />} />
       <Route path="/faq" element={<FAQPage />} />
       <Route path="/store" element={<StorePage />} />
-      
+      <Route path="/terms" element={<TermsPage />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
+
       {/* Auth routes */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />

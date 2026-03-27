@@ -250,6 +250,22 @@ const WorldMap: React.FC<WorldMapProps> = ({ alumni }) => {
           );
         })}
 
+        {/* Total player count — bottom-left corner */}
+        {(() => {
+          const total = alumni.length;
+          if (total === 0) return null;
+          return (
+            <g fontFamily="system-ui,sans-serif">
+              <text x={12} y={H - 18} fill="rgba(255,255,255,0.55)" fontSize="13" fontWeight="700">
+                {total}
+              </text>
+              <text x={12} y={H - 6} fill="rgba(255,255,255,0.3)" fontSize="9" letterSpacing="0.08em">
+                PLAYERS WORLDWIDE
+              </text>
+            </g>
+          );
+        })()}
+
       </svg>
     </div>
   );

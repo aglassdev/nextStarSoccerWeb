@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Navigation from '../components/layout/Navigation';
+import Footer from '../components/layout/Footer';
 import LoadingScreen from '../components/common/LoadingScreen';
 import WorldMap from '../components/WorldMap';
 
@@ -377,9 +378,8 @@ const AlumniPage = () => {
         <div className="pt-20">
 
           {/* Title */}
-          <div className="px-6 pt-8 pb-6">
+          <div className="px-6 pt-8 pb-6 text-center">
             <h1 className="text-white text-4xl font-bold font-lt-wave leading-tight">Players & Alumni</h1>
-            <p className="text-gray-500 text-sm mt-1 uppercase tracking-widest">{sorted.length} players worldwide</p>
           </div>
 
           {/* World map */}
@@ -475,13 +475,7 @@ const AlumniPage = () => {
         </div>
       </div>
 
-      <footer className="bg-black py-8 px-4 border-t border-gray-800">
-        <div className="max-w-6xl mx-auto text-center">
-          <p className="text-gray-400 text-sm">
-            © {new Date().getFullYear()} Next Star Soccer. All rights reserved.
-          </p>
-        </div>
-      </footer>
+      <Footer />
 
       <style>{`
         .scrollbar-hide::-webkit-scrollbar { display: none; }

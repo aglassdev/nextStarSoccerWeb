@@ -1,11 +1,8 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
+import { Link } from 'react-router-dom';
 import { images } from '../../constants/images';
 
 const Navigation = () => {
-  const { user } = useAuth();
-  const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const navLinks = [
@@ -16,25 +13,6 @@ const Navigation = () => {
     { name: 'Contact', path: '/contact' },
     { name: 'Store', path: '/store' },
   ];
-
-  const handleUserClick = () => {
-    if (user) {
-      navigate('/dashboard');
-    } else {
-      navigate('/login');
-    }
-  };
-
-  // Get user initials
-  const getUserInitials = () => {
-    if (!user || !user.name) return 'U';
-    
-    const nameParts = user.name.trim().split(' ');
-    if (nameParts.length >= 2) {
-      return (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase();
-    }
-    return nameParts[0][0].toUpperCase();
-  };
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-black border-b border-gray-800">
@@ -72,34 +50,8 @@ const Navigation = () => {
             ))}
           </div>
 
-          {/* User Icon */}
+          {/* Right side controls */}
           <div className="flex items-center">
-            <button
-              onClick={handleUserClick}
-              className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-800 hover:bg-gray-700 transition-colors"
-              aria-label={user ? 'Go to dashboard' : 'Login'}
-            >
-              {user ? (
-                <span className="text-white font-semibold text-sm">
-                  {getUserInitials()}
-                </span>
-              ) : (
-                <svg
-                  className="w-5 h-5 text-gray-300"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                  />
-                </svg>
-              )}
-            </button>
-
             {/* Mobile menu button */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
