@@ -161,13 +161,13 @@ const FlipCard: React.FC<{ player: Player }> = ({ player }) => {
 
           {/* Name + subtitle — pinned to bottom 22% */}
           <div className="absolute inset-x-0 bottom-0 px-3 pt-2 pb-2.5 flex flex-col justify-center" style={{ height: '22%' }}>
-            <p className="text-white text-sm font-bold leading-tight truncate">{player.name}</p>
+            <p className="text-white text-base font-bold leading-tight truncate">{player.name}</p>
             <div className="flex items-center gap-1.5 mt-1">
               {player.subtitleIcon && (
-                <img src={player.subtitleIcon} alt="" className="w-3.5 h-3.5 object-contain flex-shrink-0"
+                <img src={player.subtitleIcon} alt="" className="w-4 h-4 object-contain flex-shrink-0"
                   onError={(e) => { e.currentTarget.style.display = 'none'; }} />
               )}
-              <p className="text-gray-400 text-[11px] leading-tight line-clamp-2">{player.subtitle}</p>
+              <p className="text-gray-300 text-xs leading-tight line-clamp-2">{player.subtitle}</p>
             </div>
           </div>
 
@@ -185,42 +185,45 @@ const FlipCard: React.FC<{ player: Player }> = ({ player }) => {
           style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
         >
           {/* Header */}
-          <div className="flex items-center gap-2.5 mb-3 pb-3 border-b border-white/10">
+          <div className="flex items-start gap-2.5 mb-3 pb-3 border-b border-white/10">
             {player.image ? (
               <img src={player.image} alt={player.name}
-                className="w-9 h-9 rounded-full object-cover object-top flex-shrink-0"
+                className="w-10 h-10 rounded-full object-cover object-top flex-shrink-0"
                 onError={(e) => { e.currentTarget.style.display = 'none'; }} />
             ) : (
-              <div className="w-9 h-9 rounded-full bg-gray-700 flex-shrink-0" />
+              <div className="w-10 h-10 rounded-full bg-gray-700 flex-shrink-0" />
             )}
+            {/* Name + subtitle */}
             <div className="min-w-0 flex-1">
-              <div className="flex items-baseline justify-between gap-1">
-                <p className="text-white text-xs font-bold leading-tight truncate">{player.name}</p>
-                {player.position && player.position.trim() !== '' && (
-                  <span className="text-blue-400 text-xs font-bold flex-shrink-0">{player.position}</span>
-                )}
-              </div>
+              <p className="text-white text-sm font-bold leading-tight truncate">{player.name}</p>
               <div className="flex items-center gap-1 mt-0.5">
                 {player.subtitleIcon && (
-                  <img src={player.subtitleIcon} alt="" className="w-3 h-3 object-contain"
+                  <img src={player.subtitleIcon} alt="" className="w-3.5 h-3.5 object-contain"
                     onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                 )}
-                <p className="text-gray-400 text-[10px] truncate">{player.subtitle}</p>
+                <p className="text-gray-400 text-[11px] truncate">{player.subtitle}</p>
               </div>
             </div>
+            {/* Position block */}
+            {player.position && player.position.trim() !== '' && (
+              <div className="flex-shrink-0 text-right">
+                <p className="text-gray-500 text-[9px] uppercase tracking-wider">Position</p>
+                <p className="text-blue-400 text-sm font-bold leading-tight">{player.position}</p>
+              </div>
+            )}
           </div>
 
           {/* Info rows */}
-          <div className="flex-1 overflow-y-auto space-y-2.5 scrollbar-hide">
+          <div className="flex-1 overflow-y-auto space-y-3 scrollbar-hide">
             {infoItems.length > 0 ? infoItems.map((item, i) => (
               <div key={i}>
-                <p className="text-gray-500 text-[9px] uppercase tracking-wider">{item.label}</p>
+                <p className="text-gray-500 text-[10px] uppercase tracking-wider">{item.label}</p>
                 <div className="flex items-center gap-1.5 mt-0.5">
                   {item.icon && (
-                    <img src={item.icon} alt="" className="w-3.5 h-3.5 object-contain flex-shrink-0"
+                    <img src={item.icon} alt="" className="w-4 h-4 object-contain flex-shrink-0"
                       onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                   )}
-                  <p className="text-white text-[11px] leading-tight">{item.value}</p>
+                  <p className="text-white text-xs leading-tight">{item.value}</p>
                 </div>
               </div>
             )) : (
@@ -229,7 +232,7 @@ const FlipCard: React.FC<{ player: Player }> = ({ player }) => {
           </div>
 
           {/* Close hint */}
-          <p className="text-gray-600 text-[9px] text-center mt-3 uppercase tracking-widest">tap to flip back</p>
+          <p className="text-gray-600 text-[10px] text-center mt-3 uppercase tracking-widest">tap to flip back</p>
         </div>
       </div>
     </div>
