@@ -197,7 +197,7 @@ const FlipCard: React.FC<{ player: Player }> = ({ player }) => {
               <div className="flex items-baseline justify-between gap-1">
                 <p className="text-white text-xs font-bold leading-tight truncate">{player.name}</p>
                 {player.position && player.position.trim() !== '' && (
-                  <span className="text-blue-400 text-[10px] font-semibold flex-shrink-0">{player.position}</span>
+                  <span className="text-blue-400 text-xs font-bold flex-shrink-0">{player.position}</span>
                 )}
               </div>
               <div className="flex items-center gap-1 mt-0.5">
