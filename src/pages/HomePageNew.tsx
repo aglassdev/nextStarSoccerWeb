@@ -124,53 +124,66 @@ const HomePageNew = () => {
     }, []);
 
     /* ---------------- SOCIAL CARD FAN-OUT WITH GSAP ---------------- */
+    /* ---------------- SOCIAL CARD FAN-OUT WITH GSAP ---------------- */
     useEffect(() => {
         if (!socialSectionRef.current) return;
 
         const cards = gsap.utils.toArray<HTMLElement>('.social-card');
         if (cards.length === 0) return;
 
-        // Fan positions (x offset in px, rotation in degrees)
+        // Tighter spread — matches Lando reference
         const fanData = [
-            { x: -520, rotation: -32 },
-            { x: -255, rotation: -16 },
-            { x:    0, rotation:   0 },
-            { x:  255, rotation:  16 },
-            { x:  480, rotation:  28 },
+            { x: -330, rotation: -24, z: 1 },
+            { x: -162, rotation: -12, z: 2 },
+            { x:    0, rotation:   0, z: 5 },
+            { x:  162, rotation:  12, z: 2 },
+            { x:  312, rotation:  22, z: 1 },
         ];
 
-        // Start stacked: all at center, no rotation
-        gsap.set(cards, {
-            x: 0,
-            rotation: 0,
-            transformOrigin: 'center 85%',
-        });
+        // All stacked at start
+        gsap.set(cards, { x: 0, rotation: 0, transformOrigin: 'center 85%' });
 
-        // Pinned scroll fans the cards out
-        const tl = gsap.timeline({
-            scrollTrigger: {
-                trigger: socialSectionRef.current,
-                start: 'top top',
-                end: '+=700',
-                scrub: 1.4,
-                pin: true,
-                anticipatePin: 1,
+        // Trigger ONCE on enter — stays fanned forever
+        ScrollTrigger.create({
+            trigger: socialSectionRef.current,
+            start: 'top 65%',
+            once: true,
+            onEnter: () => {
+                cards.forEach((card, i) => {
+                    gsap.to(card, {
+                        x: fanData[i].x,
+                        rotation: fanData[i].rotation,
+                        duration: 0.9,
+                        ease: 'power3.out',
+                        delay: i * 0.04,
+                    });
+                });
             },
         });
 
+        // Hover: card pops up
         cards.forEach((card, i) => {
-            tl.to(
-                card,
-                {
-                    x: fanData[i].x,
-                    rotation: fanData[i].rotation,
+            card.addEventListener('mouseenter', () => {
+                gsap.to(card, {
+                    y: -22,
+                    scale: 1.05,
+                    zIndex: 20,
+                    duration: 0.28,
                     ease: 'power2.out',
-                },
-                0 // all start together
-            );
+                });
+            });
+            card.addEventListener('mouseleave', () => {
+                gsap.to(card, {
+                    y: 0,
+                    scale: 1,
+                    zIndex: fanData[i].z,
+                    duration: 0.35,
+                    ease: 'power2.out',
+                });
+            });
         });
 
-        return () => { tl.scrollTrigger?.kill(); };
+        return () => ScrollTrigger.killAll();
     }, []);
 
     /* ---------------- PARAGRAPH SLIDE IN ---------------- */
@@ -473,11 +486,11 @@ const HomePageNew = () => {
                         instagram
                     </a>
                     <a
-                        href="https://www.youtube.com/@nextstarsoccer"
+                        href="https://www.facebook.com/nextstarsoccer/"
                         target="_blank" rel="noopener noreferrer"
                         className="text-black text-lg font-light lowercase tracking-wide hover:opacity-40 transition-opacity duration-300"
                     >
-                        youtube
+                        facebook
                     </a>
                 </div>
             </section>
