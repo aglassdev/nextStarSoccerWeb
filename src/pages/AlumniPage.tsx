@@ -131,8 +131,8 @@ const FlipCard: React.FC<{ player: Player }> = ({ player }) => {
           className="flip-card-front absolute inset-0 rounded-2xl overflow-hidden bg-gray-900 border border-white/5"
           style={{ backfaceVisibility: 'hidden' }}
         >
-          {/* Photo */}
-          <div className="w-full aspect-[3/4] overflow-hidden">
+          {/* Photo — fixed height so name/subtitle always visible below */}
+          <div className="w-full overflow-hidden" style={{ height: '220px' }}>
             {player.image ? (
               <img
                 src={player.image}
@@ -150,14 +150,14 @@ const FlipCard: React.FC<{ player: Player }> = ({ player }) => {
           </div>
 
           {/* Name + subtitle */}
-          <div className="p-3">
-            <p className="text-white text-sm font-semibold leading-tight truncate">{player.name}</p>
-            <div className="flex items-center gap-1.5 mt-1">
+          <div className="px-3 pt-2 pb-3">
+            <p className="text-white text-sm font-bold leading-tight truncate">{player.name}</p>
+            <div className="flex items-center gap-1.5 mt-1.5">
               {player.subtitleIcon && (
-                <img src={player.subtitleIcon} alt="" className="w-3.5 h-3.5 object-contain flex-shrink-0"
+                <img src={player.subtitleIcon} alt="" className="w-4 h-4 object-contain flex-shrink-0"
                   onError={(e) => { e.currentTarget.style.display = 'none'; }} />
               )}
-              <p className="text-gray-400 text-xs truncate">{player.subtitle}</p>
+              <p className="text-gray-200 text-xs font-medium leading-tight" style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>{player.subtitle}</p>
             </div>
           </div>
 
@@ -443,9 +443,9 @@ const AlumniPage = () => {
                 <p className="text-gray-500 text-lg">No players found</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                 {sorted.map((alum, i) => (
-                  <div key={`alum-${i}`} style={{ height: '280px' }}>
+                  <div key={`alum-${i}`} style={{ height: '310px' }}>
                     <FlipCard player={alum} />
                   </div>
                 ))}

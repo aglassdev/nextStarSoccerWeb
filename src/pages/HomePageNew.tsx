@@ -22,6 +22,7 @@ const HomePageNew = () => {
     const collageTrackRef = useRef<HTMLDivElement>(null);
     const heroRef = useRef<HTMLDivElement>(null);
     const backgroundRef = useRef<HTMLDivElement>(null);
+    const socialSectionRef = useRef<HTMLDivElement>(null);
 
     const collageImages = [
         { src: images.collage1,  caption: 'Private Training' },
@@ -122,7 +123,55 @@ const HomePageNew = () => {
         return () => ScrollTrigger.killAll();
     }, []);
 
-    /* INSTAGRAM DECK removed — replaced with mosaic grid */
+    /* ---------------- SOCIAL CARD FAN-OUT WITH GSAP ---------------- */
+    useEffect(() => {
+        if (!socialSectionRef.current) return;
+
+        const cards = gsap.utils.toArray<HTMLElement>('.social-card');
+        if (cards.length === 0) return;
+
+        // Fan positions (x offset in px, rotation in degrees)
+        const fanData = [
+            { x: -520, rotation: -32 },
+            { x: -255, rotation: -16 },
+            { x:    0, rotation:   0 },
+            { x:  255, rotation:  16 },
+            { x:  480, rotation:  28 },
+        ];
+
+        // Start stacked: all at center, no rotation
+        gsap.set(cards, {
+            x: 0,
+            rotation: 0,
+            transformOrigin: 'center 85%',
+        });
+
+        // Pinned scroll fans the cards out
+        const tl = gsap.timeline({
+            scrollTrigger: {
+                trigger: socialSectionRef.current,
+                start: 'top top',
+                end: '+=700',
+                scrub: 1.4,
+                pin: true,
+                anticipatePin: 1,
+            },
+        });
+
+        cards.forEach((card, i) => {
+            tl.to(
+                card,
+                {
+                    x: fanData[i].x,
+                    rotation: fanData[i].rotation,
+                    ease: 'power2.out',
+                },
+                0 // all start together
+            );
+        });
+
+        return () => { tl.scrollTrigger?.kill(); };
+    }, []);
 
     /* ---------------- PARAGRAPH SLIDE IN ---------------- */
     useEffect(() => {
@@ -247,7 +296,7 @@ const HomePageNew = () => {
                         <div data-row="row1" className="grid grid-cols-3 gap-8">
                             <AnimatedCounter
                                 isVisible={visibleCounters.row1}
-                                endValue={1000}
+                                endValue={2500}
                                 label="Youth Players"
                                 suffix="+"
                             />
@@ -380,87 +429,56 @@ const HomePageNew = () => {
                 </div>
             </section>
 
-            {/* SOCIALS - Lando-style mosaic */}
-            <section className="relative z-10 py-28 px-8 section-container" data-section="instagram">
-                <div className="max-w-6xl mx-auto section-content">
+            {/* SOCIALS — GSAP fan-out card deck */}
+            <section ref={socialSectionRef} className="relative z-10 h-screen flex flex-col justify-center overflow-hidden" data-section="instagram">
 
-                    {/* Heading */}
-                    <div className="mb-12">
-                        <h2 className="text-[clamp(56px,8vw,96px)] font-black leading-none text-black uppercase tracking-tight">
-                            WHAT'S UP
-                        </h2>
-                        <p className="text-2xl text-black/50 font-light italic mt-1" style={{ fontFamily: 'Georgia, serif' }}>
-                            on socials
-                        </p>
-                    </div>
+                {/* Centered heading */}
+                <div className="text-center mb-12 relative z-10 pointer-events-none select-none">
+                    <h2 className="text-[clamp(44px,6.5vw,88px)] font-black leading-none text-black uppercase">
+                        WHAT'S UP
+                    </h2>
+                    <p className="text-[clamp(36px,5.5vw,72px)] font-black text-black uppercase leading-tight">
+                        ON SOCIALS
+                    </p>
+                </div>
 
-                    {/* Mosaic grid — 3 cols, 2 rows */}
-                    <div className="grid gap-3 mb-14" style={{
-                        gridTemplateColumns: '1.2fr 0.9fr 0.9fr',
-                        gridTemplateRows: '280px 280px',
-                    }}>
-                        {/* img1 — tall, spans 2 rows */}
+                {/* Card deck — stacked at scroll entry, fans out as section pins */}
+                <div className="relative flex items-center justify-center" style={{ height: '480px' }}>
+                    {instagramPosts.map((postUrl, i) => (
                         <a
-                            href={instagramPosts[0]}
-                            target="_blank" rel="noopener noreferrer"
-                            className="overflow-hidden rounded-xl group"
-                            style={{ gridRow: '1 / 3' }}
+                            key={i}
+                            href={postUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="social-card absolute w-[240px] h-[400px] md:w-[270px] md:h-[440px] rounded-3xl overflow-hidden shadow-2xl cursor-pointer"
+                            style={{ zIndex: i === 2 ? 10 : 5 - Math.abs(i - 2) }}
                         >
-                            <img src={instagramImages[0]} alt="Post 1"
-                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                            <img
+                                src={instagramImages[i]}
+                                alt={`Instagram post ${i + 1}`}
+                                className="w-full h-full object-cover"
+                            />
                         </a>
-                        {/* img2 — top right first col */}
-                        <a href={instagramPosts[1]} target="_blank" rel="noopener noreferrer"
-                            className="overflow-hidden rounded-xl group">
-                            <img src={instagramImages[1]} alt="Post 2"
-                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                        </a>
-                        {/* img3 — top right second col */}
-                        <a href={instagramPosts[2]} target="_blank" rel="noopener noreferrer"
-                            className="overflow-hidden rounded-xl group">
-                            <img src={instagramImages[2]} alt="Post 3"
-                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                        </a>
-                        {/* img4 — bottom spans last 2 cols */}
-                        <a href={instagramPosts[3]} target="_blank" rel="noopener noreferrer"
-                            className="overflow-hidden rounded-xl group" style={{ gridColumn: '2 / 4' }}>
-                            <img src={instagramImages[3]} alt="Post 4"
-                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                        </a>
-                    </div>
+                    ))}
+                </div>
 
-                    {/* Platform text links */}
-                    <div className="flex items-center gap-10 border-t border-black/10 pt-8">
-                        <span className="text-black/30 text-xs uppercase tracking-[0.2em]">Follow</span>
-                        <div className="flex gap-8">
-                            <a
-                                href="https://www.instagram.com/nextstarsoccer/"
-                                target="_blank" rel="noopener noreferrer"
-                                className="text-black text-xl font-light lowercase tracking-wide hover:opacity-40 transition-opacity duration-300"
-                            >
-                                instagram
-                            </a>
-                            <a
-                                href="https://www.youtube.com/@nextstarsoccer"
-                                target="_blank" rel="noopener noreferrer"
-                                className="text-black text-xl font-light lowercase tracking-wide hover:opacity-40 transition-opacity duration-300"
-                            >
-                                youtube
-                            </a>
-                        </div>
-                        <div className="ml-auto">
-                            <a
-                                href="https://www.instagram.com/nextstarsoccer/"
-                                target="_blank" rel="noopener noreferrer"
-                                className="text-xs uppercase tracking-[0.15em] text-black/40 hover:text-black transition-colors duration-300 flex items-center gap-2"
-                            >
-                                @nextstarsoccer
-                                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
-                                    <path d="M2 10L10 2M10 2H4M10 2V8" />
-                                </svg>
-                            </a>
-                        </div>
-                    </div>
+                {/* Platform links */}
+                <div className="flex justify-center items-center gap-10 mt-10 relative z-10">
+                    <span className="text-black/30 text-[10px] uppercase tracking-[0.25em]">Follow</span>
+                    <a
+                        href="https://www.instagram.com/nextstarsoccer/"
+                        target="_blank" rel="noopener noreferrer"
+                        className="text-black text-lg font-light lowercase tracking-wide hover:opacity-40 transition-opacity duration-300"
+                    >
+                        instagram
+                    </a>
+                    <a
+                        href="https://www.youtube.com/@nextstarsoccer"
+                        target="_blank" rel="noopener noreferrer"
+                        className="text-black text-lg font-light lowercase tracking-wide hover:opacity-40 transition-opacity duration-300"
+                    >
+                        youtube
+                    </a>
                 </div>
             </section>
 
