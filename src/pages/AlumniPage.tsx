@@ -161,14 +161,14 @@ const FlipCard: React.FC<{ player: Player }> = ({ player }) => {
           </div>
 
           {/* Name + subtitle — pinned to bottom 22% */}
-          <div className="absolute inset-x-0 bottom-0 px-2 pt-1.5 pb-2" style={{ height: '22%' }}>
-            <p className="text-white text-[11px] font-bold leading-tight truncate">{player.name}</p>
-            <div className="flex items-center gap-1 mt-0.5">
+          <div className="absolute inset-x-0 bottom-0 px-3 pt-2 pb-2.5 flex flex-col justify-center" style={{ height: '22%' }}>
+            <p className="text-white text-sm font-bold leading-tight truncate">{player.name}</p>
+            <div className="flex items-center gap-1.5 mt-1">
               {player.subtitleIcon && (
-                <img src={player.subtitleIcon} alt="" className="w-3 h-3 object-contain flex-shrink-0"
+                <img src={player.subtitleIcon} alt="" className="w-3.5 h-3.5 object-contain flex-shrink-0"
                   onError={(e) => { e.currentTarget.style.display = 'none'; }} />
               )}
-              <p className="text-gray-400 text-[9px] leading-tight line-clamp-2">{player.subtitle}</p>
+              <p className="text-gray-400 text-[11px] leading-tight line-clamp-2">{player.subtitle}</p>
             </div>
           </div>
 
@@ -186,46 +186,46 @@ const FlipCard: React.FC<{ player: Player }> = ({ player }) => {
           style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
         >
           {/* Header */}
-          <div className="flex items-center gap-2 mb-2 pb-2 border-b border-white/10">
+          <div className="flex items-center gap-2.5 mb-3 pb-3 border-b border-white/10">
             {player.image ? (
               <img src={player.image} alt={player.name}
-                className="w-7 h-7 rounded-full object-cover object-top flex-shrink-0"
+                className="w-9 h-9 rounded-full object-cover object-top flex-shrink-0"
                 onError={(e) => { e.currentTarget.style.display = 'none'; }} />
             ) : (
-              <div className="w-7 h-7 rounded-full bg-gray-700 flex-shrink-0" />
+              <div className="w-9 h-9 rounded-full bg-gray-700 flex-shrink-0" />
             )}
             <div className="min-w-0">
-              <p className="text-white text-[10px] font-bold leading-tight truncate">{player.name}</p>
+              <p className="text-white text-xs font-bold leading-tight truncate">{player.name}</p>
               <div className="flex items-center gap-1 mt-0.5">
                 {player.subtitleIcon && (
-                  <img src={player.subtitleIcon} alt="" className="w-2.5 h-2.5 object-contain"
+                  <img src={player.subtitleIcon} alt="" className="w-3 h-3 object-contain"
                     onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                 )}
-                <p className="text-gray-400 text-[9px] truncate">{player.subtitle}</p>
+                <p className="text-gray-400 text-[10px] truncate">{player.subtitle}</p>
               </div>
             </div>
           </div>
 
           {/* Info rows */}
-          <div className="flex-1 overflow-y-auto space-y-1.5 scrollbar-hide">
+          <div className="flex-1 overflow-y-auto space-y-2.5 scrollbar-hide">
             {infoItems.length > 0 ? infoItems.map((item, i) => (
               <div key={i}>
-                <p className="text-gray-500 text-[8px] uppercase tracking-wider">{item.label}</p>
-                <div className="flex items-center gap-1 mt-0.5">
+                <p className="text-gray-500 text-[9px] uppercase tracking-wider">{item.label}</p>
+                <div className="flex items-center gap-1.5 mt-0.5">
                   {item.icon && (
-                    <img src={item.icon} alt="" className="w-3 h-3 object-contain flex-shrink-0"
+                    <img src={item.icon} alt="" className="w-3.5 h-3.5 object-contain flex-shrink-0"
                       onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                   )}
-                  <p className="text-white text-[10px] leading-tight">{item.value}</p>
+                  <p className="text-white text-[11px] leading-tight">{item.value}</p>
                 </div>
               </div>
             )) : (
-              <p className="text-gray-500 text-[10px] italic mt-4 text-center">No additional info</p>
+              <p className="text-gray-500 text-xs italic mt-4 text-center">No additional info</p>
             )}
           </div>
 
           {/* Close hint */}
-          <p className="text-gray-600 text-[8px] text-center mt-2 uppercase tracking-widest">tap to flip back</p>
+          <p className="text-gray-600 text-[9px] text-center mt-3 uppercase tracking-widest">tap to flip back</p>
         </div>
       </div>
     </div>
