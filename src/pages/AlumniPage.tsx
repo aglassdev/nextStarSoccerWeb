@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Navigation from '../components/layout/Navigation';
 import LoadingScreen from '../components/common/LoadingScreen';
-import { images } from '../constants/images';
+import WorldMap from '../components/WorldMap';
 
 const SHEET_ID = "1SnLA2-p6zBPOP4DvgYV4hlaloX6w6FA0kWMMWtcyEk8";
 const API_KEY = "AIzaSyAZPGNU3kwQG9xqrUrm3idVmHhgZz0PfY0";
@@ -358,13 +358,15 @@ const AlumniPage = () => {
       <div className={filterOpen || sortOpen ? 'cursor-pointer' : ''} onClick={closeMenus}>
         <div className="pt-20">
 
-          {/* Header banner */}
-          <div className="relative mb-8">
-            <img src={images.alumniHeader} alt="Alumni Header" className="w-full h-64 object-cover" style={{ objectPosition: '50% 30%' }} />
-            <div className="absolute inset-0 bg-black bg-opacity-40 flex flex-col items-center justify-center">
-              <h1 className="text-white text-4xl font-bold font-lt-wave">Players & Alumni</h1>
-              <p className="text-white/50 text-sm mt-2 uppercase tracking-widest">{sorted.length} players</p>
-            </div>
+          {/* Title */}
+          <div className="px-6 pt-8 pb-6">
+            <h1 className="text-white text-4xl font-bold font-lt-wave leading-tight">Players & Alumni</h1>
+            <p className="text-gray-500 text-sm mt-1 uppercase tracking-widest">{sorted.length} players worldwide</p>
+          </div>
+
+          {/* World map */}
+          <div className="px-6 mb-8">
+            <WorldMap alumni={alumni} />
           </div>
 
           {/* Controls */}
