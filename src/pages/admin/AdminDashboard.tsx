@@ -17,218 +17,157 @@ const ALLOWED_EMAILS = [
   'info@nextstarsoccer.com',
 ];
 
-// ─── Types ─────────────────────────────────────────────────────────────────
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
 type Section = 'players' | 'coaches' | 'parents' | 'bills' | 'payments' | 'messages';
 
 interface CalEvent {
   id: string; title: string; startDateTime: string;
   endDateTime: string; location?: string | null; dateOnly?: boolean;
 }
-interface SignupCounts { [id: string]: { players: number; coaches: number } }
 
-// ─── EventsPreviewCard ─────────────────────────────────────────────────────
-const EventsPreviewCard = () => {
-  const [publicEvents, setPublicEvents] = useState<CalEvent[]>([]);
-  const [privateEvents, setPrivateEvents] = useState<CalEvent[]>([]);
-  const [signups, setSignups] = useState<SignupCounts>({});
-  const [loading, setLoading] = useState(true);
+// ─── SVG Bar Chart ──────────────────────────────────────────────────────────
+const BarChart = ({ data }: { data: { label: string; value: number; highlight?: boolean }[] }) => {
+  const max = Math.max(...data.map(d => d.value), 1);
+  const chartH = 80;
+  const barW = 34;
+  const gap = 10;
+  const svgW = data.length * (barW + gap) - gap;
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const now = new Date();
-        const todayStr = now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
-        const y = now.getFullYear();
-        const m = now.getMonth();
-
-        const [pubAll, privAll] = await Promise.all([
-          googleCalendarService.getEventsForMonth(y, m, 'public'),
-          googleCalendarService.getEventsForMonth(y, m, 'private').catch(() => []),
-        ]);
-
-        const toDateStr = (dt: string) =>
-          new Date(dt).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
-
-        const todayPub = (pubAll as CalEvent[]).filter(e => toDateStr(e.startDateTime) === todayStr);
-        const todayPriv = (privAll as CalEvent[]).filter(e => toDateStr(e.startDateTime) === todayStr);
-
-        setPublicEvents(todayPub);
-        setPrivateEvents(todayPriv);
-
-        const allIds = [...todayPub.map(e => e.id), ...todayPriv.map(e => e.id)];
-        if (allIds.length > 0 && collections.signups && collections.coachSignups) {
-          const counts: SignupCounts = {};
-          await Promise.all(allIds.map(async id => {
-            const [p, c] = await Promise.all([
-              databases.listDocuments(databaseId, collections.signups!, [Query.equal('eventID', id)]).catch(() => ({ total: 0 })),
-              databases.listDocuments(databaseId, collections.coachSignups!, [Query.equal('eventID', id)]).catch(() => ({ total: 0 })),
-            ]);
-            counts[id] = { players: (p as any).total, coaches: (c as any).total };
-          }));
-          setSignups(counts);
-        }
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
-
-  const fmtTime = (start: string, end: string, dateOnly?: boolean) => {
-    if (dateOnly) return 'All Day';
-    const fmt = (d: string) => new Date(d).toLocaleTimeString('en-US', {
-      hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/New_York',
-    });
-    return `${fmt(start)} – ${fmt(end)}`;
-  };
-  const fmtLoc = (loc?: string | null) => loc ? loc.split(',')[0].trim() : 'TBD';
-  const isPast = (end: string) => new Date() > new Date(end);
-
-  if (loading) return (
-    <div className="bg-[#111] rounded-xl p-5 min-h-[120px] flex items-center justify-center">
-      <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-    </div>
-  );
-
-  const EventCol = ({ label, events }: { label: string; events: CalEvent[] }) => (
-    <div className="flex-1 min-w-0">
-      <div className="flex items-center justify-between mb-3 pb-2 border-b border-[#2a2a2a]">
-        <span className="text-gray-300 text-xs font-medium uppercase tracking-wider">{label}</span>
-        <span className="text-gray-400 text-xs">{events.length}</span>
-      </div>
-      {events.length === 0 ? (
-        <p className="text-gray-600 text-xs italic py-3">No events today</p>
-      ) : events.map(ev => {
-        const past = isPast(ev.endDateTime);
-        const s = signups[ev.id] || { players: 0, coaches: 0 };
+  return (
+    <svg viewBox={`0 0 ${svgW} ${chartH + 28}`} className="w-full" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="barGradH" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#60a5fa" />
+          <stop offset="100%" stopColor="#2563eb" />
+        </linearGradient>
+        <linearGradient id="barGradN" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#374151" />
+          <stop offset="100%" stopColor="#1e2535" />
+        </linearGradient>
+      </defs>
+      {/* Horizontal grid lines */}
+      {[0.25, 0.5, 0.75, 1].map(pct => (
+        <line
+          key={pct}
+          x1={0} y1={chartH - pct * chartH}
+          x2={svgW} y2={chartH - pct * chartH}
+          stroke="#1f2937" strokeWidth={1}
+        />
+      ))}
+      {data.map((d, i) => {
+        const barH = Math.max((d.value / max) * chartH, 3);
+        const x = i * (barW + gap);
+        const y = chartH - barH;
         return (
-          <div key={ev.id} className={`pb-3 mb-3 border-b border-[#1e1e1e] last:border-0 ${past ? 'opacity-40' : ''}`}>
-            <p className="text-white text-sm font-medium mb-1 leading-tight">{ev.title}</p>
-            <p className="text-gray-500 text-xs">{s.players}p · {s.coaches}c · {fmtTime(ev.startDateTime, ev.endDateTime, ev.dateOnly)}</p>
-            <p className="text-gray-600 text-xs">{fmtLoc(ev.location)}</p>
-          </div>
+          <g key={i}>
+            <rect x={x} y={y} width={barW} height={barH} rx={5}
+              fill={d.highlight ? 'url(#barGradH)' : 'url(#barGradN)'} />
+            <text x={x + barW / 2} y={chartH + 18}
+              textAnchor="middle" fill="#4b5563" fontSize={10} fontFamily="system-ui">
+              {d.label}
+            </text>
+            {d.value > 0 && (
+              <text x={x + barW / 2} y={y - 5}
+                textAnchor="middle" fill={d.highlight ? '#93c5fd' : '#6b7280'} fontSize={8} fontFamily="system-ui">
+                ${d.value >= 1000 ? `${(d.value / 1000).toFixed(0)}k` : d.value}
+              </text>
+            )}
+          </g>
         );
       })}
-    </div>
-  );
-
-  return (
-    <div className="bg-[#111] rounded-xl p-5">
-      <div className="flex gap-5">
-        <EventCol label="Public" events={publicEvents} />
-        <div className="w-px bg-[#2a2a2a]" />
-        <EventCol label="Private" events={privateEvents} />
-      </div>
-    </div>
+    </svg>
   );
 };
 
-// ─── InboxPreviewCard ──────────────────────────────────────────────────────
-const InboxPreviewCard = () => {
-  const [stats, setStats] = useState({ sessions: 0, messages: 0, analysis: 0, teamTraining: 0, loading: true });
+// ─── SVG Donut Chart ────────────────────────────────────────────────────────
+const DonutChart = ({
+  segments, centerLabel, centerSub,
+}: {
+  segments: { label: string; value: number; color: string }[];
+  centerLabel: string;
+  centerSub: string;
+}) => {
+  const total = segments.reduce((s, seg) => s + seg.value, 0) || 1;
+  const r = 38;
+  const cx = 55, cy = 55;
+  const circ = 2 * Math.PI * r;
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const [msg, tt] = await Promise.all([
-          collections.messages
-            ? databases.listDocuments(databaseId, collections.messages, [Query.equal('read', false), Query.limit(1)]).catch(() => ({ total: 0 }))
-            : { total: 0 },
-          collections.teamTraining
-            ? databases.listDocuments(databaseId, collections.teamTraining, [Query.equal('read', false), Query.limit(1)]).catch(() => ({ total: 0 }))
-            : { total: 0 },
-        ]);
-        setStats({ sessions: 0, messages: (msg as any).total, analysis: 0, teamTraining: (tt as any).total, loading: false });
-      } catch { setStats(p => ({ ...p, loading: false })); }
-    })();
-  }, []);
-
-  if (stats.loading) return (
-    <div className="bg-[#111] rounded-xl p-4 min-h-[80px] flex items-center justify-center">
-      <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-    </div>
+  let cumulative = 0;
+  return (
+    <svg width="110" height="110" viewBox="0 0 110 110">
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#1c1c1c" strokeWidth={14} />
+      {segments.filter(s => s.value > 0).map((seg, i) => {
+        const pct = seg.value / total;
+        const dash = pct * circ;
+        const gap = circ - dash;
+        const rot = (cumulative / total) * 360 - 90;
+        cumulative += seg.value;
+        return (
+          <circle
+            key={i} cx={cx} cy={cy} r={r}
+            fill="none" stroke={seg.color} strokeWidth={14}
+            strokeDasharray={`${dash} ${gap}`}
+            transform={`rotate(${rot} ${cx} ${cy})`}
+            strokeLinecap="butt"
+          />
+        );
+      })}
+      <text x={cx} y={cy - 5} textAnchor="middle" fill="white"
+        fontSize={15} fontWeight="700" fontFamily="system-ui">{centerLabel}</text>
+      <text x={cx} y={cy + 12} textAnchor="middle" fill="#6b7280"
+        fontSize={8} fontFamily="system-ui">{centerSub}</text>
+    </svg>
   );
+};
 
-  const S = ({ label, value }: { label: string; value: number }) => (
+// ─── Sparkline ──────────────────────────────────────────────────────────────
+const Sparkline = ({ values, color = '#3b82f6' }: { values: number[]; color?: string }) => {
+  if (values.length < 2) return null;
+  const max = Math.max(...values, 1);
+  const w = 60, h = 24;
+  const step = w / (values.length - 1);
+  const pts = values.map((v, i) => `${i * step},${h - (v / max) * h}`).join(' ');
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
+      <polyline points={pts} fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+};
+
+// ─── KPI Card ────────────────────────────────────────────────────────────────
+const KPICard = ({
+  label, value, sub, color, icon, trend,
+}: {
+  label: string; value: string | number; sub?: string;
+  color: string; icon: React.ReactNode; trend?: number[];
+}) => (
+  <div className="bg-[#0e0e0e] rounded-xl p-4 border border-[#1c1c1c] flex flex-col gap-3">
+    <div className="flex items-center justify-between">
+      <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${color}`}>
+        {icon}
+      </div>
+      {trend && <Sparkline values={trend} color={color.includes('blue') ? '#3b82f6' : color.includes('green') ? '#10b981' : color.includes('purple') ? '#a855f7' : color.includes('yellow') ? '#f59e0b' : color.includes('red') ? '#ef4444' : '#06b6d4'} />}
+    </div>
     <div>
-      <p className="text-gray-500 text-xs mb-1">{label}</p>
-      <p className="text-white text-xl font-medium">{value}</p>
+      <p className="text-white text-2xl font-semibold leading-none">{value}</p>
+      <p className="text-gray-600 text-xs mt-1.5">{label}{sub ? ` · ${sub}` : ''}</p>
     </div>
-  );
+  </div>
+);
 
-  return (
-    <div className="bg-[#111] rounded-xl p-4">
-      <div className="grid grid-cols-2 gap-x-4 gap-y-4">
-        <S label="Session Requests" value={stats.sessions} />
-        <S label="Messages" value={stats.messages} />
-        <S label="Analysis Requests" value={stats.analysis} />
-        <S label="Team Training" value={stats.teamTraining} />
-      </div>
-    </div>
-  );
-};
-
-// ─── PaymentsPreviewCard ───────────────────────────────────────────────────
-const PaymentsPreviewCard = () => {
-  const [stats, setStats] = useState({ paidBills: 0, outstandingBills: 0, paymentsGross: 0, billsGross: 0, loading: true });
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const now = new Date();
-        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
-
-        const [paid, pending, allPayments, allBills] = await Promise.all([
-          collections.bills ? databases.listDocuments(databaseId, collections.bills, [Query.equal('status', 'paid'), Query.limit(1)]).catch(() => ({ total: 0, documents: [] })) : { total: 0, documents: [] },
-          collections.bills ? databases.listDocuments(databaseId, collections.bills, [Query.equal('status', 'pending'), Query.limit(1)]).catch(() => ({ total: 0, documents: [] })) : { total: 0, documents: [] },
-          collections.payments ? databases.listDocuments(databaseId, collections.payments, [Query.limit(5000)]).catch(() => ({ documents: [] })) : { documents: [] },
-          collections.bills ? databases.listDocuments(databaseId, collections.bills, [Query.equal('status', 'paid'), Query.limit(5000)]).catch(() => ({ documents: [] })) : { documents: [] },
-        ]);
-
-        const paymentsGross = (allPayments as any).documents
-          .filter((p: any) => p.$createdAt >= monthStart && p.$createdAt <= monthEnd)
-          .reduce((s: number, p: any) => s + (p.price || 0), 0);
-        const billsGross = (allBills as any).documents
-          .filter((b: any) => b.$createdAt >= monthStart && b.$createdAt <= monthEnd)
-          .reduce((s: number, b: any) => s + ((b.totalAmount || 0) - (b.couponValue || 0)), 0);
-
-        setStats({ paidBills: (paid as any).total, outstandingBills: (pending as any).total, paymentsGross, billsGross, loading: false });
-      } catch { setStats(p => ({ ...p, loading: false })); }
-    })();
-  }, []);
-
-  if (stats.loading) return (
-    <div className="bg-[#111] rounded-xl p-4 min-h-[80px] flex items-center justify-center">
-      <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-    </div>
-  );
-
-  const S = ({ label, value }: { label: string; value: string | number }) => (
-    <div>
-      <p className="text-gray-500 text-xs mb-1">{label}</p>
-      <p className="text-white text-xl font-medium">{value}</p>
-    </div>
-  );
-
-  return (
-    <div className="bg-[#111] rounded-xl p-4">
-      <div className="grid grid-cols-2 gap-x-4 gap-y-4">
-        <S label="Paid Bills" value={stats.paidBills} />
-        <S label="Payments Gross" value={`$${stats.paymentsGross.toLocaleString()}`} />
-        <S label="Outstanding Bills" value={stats.outstandingBills} />
-        <S label="Bills Gross" value={`$${stats.billsGross.toLocaleString()}`} />
-      </div>
-    </div>
-  );
-};
-
-// ─── Sidebar ───────────────────────────────────────────────────────────────
+// ─── Sidebar nav items ────────────────────────────────────────────────────────
 const navItems: { section: Section | null; label: string; icon: React.ReactNode }[] = [
   {
     section: null, label: 'Dashboard',
-    icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>,
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <rect x="3" y="3" width="7" height="7" rx="1.5" strokeWidth={1.5} />
+        <rect x="14" y="3" width="7" height="7" rx="1.5" strokeWidth={1.5} />
+        <rect x="3" y="14" width="7" height="7" rx="1.5" strokeWidth={1.5} />
+        <rect x="14" y="14" width="7" height="7" rx="1.5" strokeWidth={1.5} />
+      </svg>
+    ),
   },
   {
     section: 'players', label: 'Players',
@@ -256,13 +195,25 @@ const navItems: { section: Section | null; label: string; icon: React.ReactNode 
   },
 ];
 
-// ─── Main Dashboard ────────────────────────────────────────────────────────
+// ─── Main Dashboard ───────────────────────────────────────────────────────────
 const AdminDashboard = () => {
   const { user, logout, initialized } = useAuth();
   const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState<Section | null>(null);
-  const [counts, setCounts] = useState({ players: 0, coaches: 0, parents: 0, loading: true });
 
+  // Stats
+  const [stats, setStats] = useState({
+    players: 0, coaches: 0, parents: 0,
+    unreadMessages: 0, outstandingBills: 0, todaySignups: 0,
+    loading: true,
+  });
+  const [revenueData, setRevenueData] = useState<{ label: string; value: number; highlight: boolean }[]>([]);
+  const [billsStatus, setBillsStatus] = useState({ paid: 0, pending: 0, overdue: 0 });
+  const [todayEvents, setTodayEvents] = useState<(CalEvent & { signups: number; coaches: number })[]>([]);
+  const [recentMessages, setRecentMessages] = useState<any[]>([]);
+  const [dataLoading, setDataLoading] = useState(true);
+
+  // Auth guard
   useEffect(() => {
     if (!initialized) return;
     if (!user) { navigate('/admin'); return; }
@@ -271,23 +222,114 @@ const AdminDashboard = () => {
     }
   }, [user, initialized]);
 
+  // Fetch all dashboard data
   useEffect(() => {
     (async () => {
       try {
-        const [y, col, pro, coach, parent] = await Promise.all([
+        const now = new Date();
+        const todayStr = now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+
+        // ── User counts + messages + bills
+        const [y, col, pro, coach, parent, unread, outstanding] = await Promise.all([
           databases.listDocuments(databaseId, collections.youthPlayers!, [Query.limit(1)]).catch(() => ({ total: 0 })),
           databases.listDocuments(databaseId, collections.collegiatePlayers!, [Query.limit(1)]).catch(() => ({ total: 0 })),
           databases.listDocuments(databaseId, collections.professionalPlayers!, [Query.limit(1)]).catch(() => ({ total: 0 })),
           databases.listDocuments(databaseId, collections.coaches!, [Query.limit(1)]).catch(() => ({ total: 0 })),
           databases.listDocuments(databaseId, collections.parentUsers!, [Query.limit(1)]).catch(() => ({ total: 0 })),
+          collections.messages
+            ? databases.listDocuments(databaseId, collections.messages, [Query.equal('read', false), Query.limit(1)]).catch(() => ({ total: 0 }))
+            : { total: 0 },
+          collections.bills
+            ? databases.listDocuments(databaseId, collections.bills, [Query.equal('status', 'pending'), Query.limit(1)]).catch(() => ({ total: 0 }))
+            : { total: 0 },
         ]);
-        setCounts({
+
+        // ── Today's signups
+        const todayStart = new Date(todayStr + 'T00:00:00').toISOString();
+        const todayEnd = new Date(todayStr + 'T23:59:59').toISOString();
+        const todaySignupsResult = collections.signups
+          ? await databases.listDocuments(databaseId, collections.signups, [
+              Query.greaterThanEqual('$createdAt', todayStart),
+              Query.lessThanEqual('$createdAt', todayEnd),
+              Query.limit(1),
+            ]).catch(() => ({ total: 0 }))
+          : { total: 0 };
+
+        setStats({
           players: (y as any).total + (col as any).total + (pro as any).total,
           coaches: (coach as any).total,
           parents: (parent as any).total,
+          unreadMessages: (unread as any).total,
+          outstandingBills: (outstanding as any).total,
+          todaySignups: (todaySignupsResult as any).total,
           loading: false,
         });
-      } catch { setCounts(p => ({ ...p, loading: false })); }
+
+        // ── Revenue — last 6 months
+        const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1).toISOString();
+        const allPayments = collections.payments
+          ? await databases.listDocuments(databaseId, collections.payments, [
+              Query.greaterThanEqual('$createdAt', sixMonthsAgo),
+              Query.limit(5000),
+            ]).catch(() => ({ documents: [] }))
+          : { documents: [] };
+
+        const monthly: Record<string, number> = {};
+        for (let i = 5; i >= 0; i--) {
+          const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+          monthly[key] = 0;
+        }
+        (allPayments as any).documents.forEach((p: any) => {
+          const d = new Date(p.$createdAt);
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+          if (key in monthly) monthly[key] += (p.price || 0);
+        });
+        const currentKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        setRevenueData(Object.entries(monthly).map(([k, v]) => ({
+          label: MONTHS[parseInt(k.split('-')[1]) - 1],
+          value: v,
+          highlight: k === currentKey,
+        })));
+
+        // ── Bills status
+        const [paidB, pendingB, overdueB] = await Promise.all([
+          collections.bills ? databases.listDocuments(databaseId, collections.bills, [Query.equal('status', 'paid'), Query.limit(1)]).catch(() => ({ total: 0 })) : { total: 0 },
+          collections.bills ? databases.listDocuments(databaseId, collections.bills, [Query.equal('status', 'pending'), Query.limit(1)]).catch(() => ({ total: 0 })) : { total: 0 },
+          collections.bills ? databases.listDocuments(databaseId, collections.bills, [Query.equal('status', 'overdue'), Query.limit(1)]).catch(() => ({ total: 0 })) : { total: 0 },
+        ]);
+        setBillsStatus({ paid: (paidB as any).total, pending: (pendingB as any).total, overdue: (overdueB as any).total });
+
+        // ── Today's calendar events
+        const [pubAll, privAll] = await Promise.all([
+          googleCalendarService.getEventsForMonth(now.getFullYear(), now.getMonth(), 'public').catch(() => []),
+          googleCalendarService.getEventsForMonth(now.getFullYear(), now.getMonth(), 'private').catch(() => []),
+        ]);
+        const toDate = (dt: string) => new Date(dt).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+        const todayAll = [...(pubAll as CalEvent[]), ...(privAll as CalEvent[])].filter(e => toDate(e.startDateTime) === todayStr);
+
+        const eventsWithCounts = await Promise.all(todayAll.map(async ev => {
+          const [s, c] = await Promise.all([
+            collections.signups ? databases.listDocuments(databaseId, collections.signups, [Query.equal('eventID', ev.id), Query.limit(1)]).catch(() => ({ total: 0 })) : { total: 0 },
+            collections.coachSignups ? databases.listDocuments(databaseId, collections.coachSignups, [Query.equal('eventID', ev.id), Query.limit(1)]).catch(() => ({ total: 0 })) : { total: 0 },
+          ]);
+          return { ...ev, signups: (s as any).total, coaches: (c as any).total };
+        }));
+        setTodayEvents(eventsWithCounts);
+
+        // ── Recent messages
+        if (collections.messages) {
+          const msgs = await databases.listDocuments(databaseId, collections.messages, [
+            Query.orderDesc('$createdAt'), Query.limit(5),
+          ]).catch(() => ({ documents: [] }));
+          setRecentMessages((msgs as any).documents);
+        }
+
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setDataLoading(false);
+      }
     })();
   }, []);
 
@@ -300,7 +342,9 @@ const AdminDashboard = () => {
   );
 
   const now = new Date();
-  const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/New_York' });
+  const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'America/New_York' });
+  const hour = now.getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
   const sectionComponents: Record<Section, React.ReactNode> = {
     players: <PlayersSection />,
@@ -311,156 +355,324 @@ const AdminDashboard = () => {
     messages: <MessagesSection />,
   };
 
-  const ActionBtn = ({ label, section }: { label: string; section: Section }) => (
-    <button
-      onClick={() => setActiveSection(section)}
-      className="flex-1 h-14 bg-[#1a1a1a] rounded-lg flex items-center justify-center hover:bg-[#222] transition-colors"
-    >
-      <span className="text-gray-300 text-xs font-medium">{label}</span>
-    </button>
-  );
-
-  const DirectoryCard = ({ label, count, section }: { label: string; count: number; section: Section }) => (
-    <button
-      onClick={() => setActiveSection(section)}
-      className="flex-1 aspect-square bg-[#111] rounded-xl flex flex-col items-center justify-center gap-2 hover:bg-[#1a1a1a] transition-colors p-4 border border-[#1e1e1e]"
-    >
-      <span className="text-gray-400 text-xs font-medium uppercase tracking-wider">{label}</span>
-      {counts.loading
-        ? <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-        : <span className="text-white text-4xl font-medium">{count}</span>
-      }
-    </button>
-  );
+  const totalRevenue = revenueData.reduce((s, d) => s + d.value, 0);
 
   return (
-    <div className="flex h-screen bg-black text-white overflow-hidden">
+    <div className="flex h-screen bg-[#050505] text-white overflow-hidden">
 
-      {/* ── Sidebar ─────────────────────────────────────────────────────── */}
-      <aside className="w-52 bg-[#080808] border-r border-[#1a1a1a] flex flex-col flex-shrink-0">
-        {/* Logo / title */}
-        <div className="px-5 py-6 border-b border-[#1a1a1a]">
+      {/* ── Sidebar ─────────────────────────────────────────────────────────── */}
+      <aside className="w-52 bg-[#080808] border-r border-[#161616] flex flex-col flex-shrink-0">
+        {/* Brand */}
+        <div className="px-5 pt-6 pb-5 border-b border-[#161616]">
           <button
             onClick={() => setActiveSection(null)}
-            className="text-white font-semibold text-sm leading-tight hover:text-gray-300 transition-colors text-left"
+            className="text-left hover:opacity-80 transition-opacity"
           >
-            Admin<br />
-            <span className="text-gray-500 font-normal">Next Star Soccer</span>
+            <p className="text-white font-semibold text-sm">NSS Admin</p>
+            <p className="text-gray-600 text-xs mt-0.5">Next Star Soccer</p>
           </button>
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+        <nav className="flex-1 px-2.5 py-3 space-y-0.5 overflow-y-auto">
           {navItems.map(({ section, label, icon }) => {
             const active = activeSection === section;
             return (
               <button
                 key={label}
                 onClick={() => setActiveSection(section)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors text-left ${
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all text-left ${
                   active
-                    ? 'bg-white/[0.08] text-white border-l-2 border-blue-500 pl-[10px]'
-                    : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.04]'
+                    ? 'bg-white/[0.07] text-white border-l-2 border-blue-500 pl-[10px]'
+                    : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.03]'
                 }`}
               >
                 {icon}
-                {label}
+                <span>{label}</span>
+                {label === 'Messages' && stats.unreadMessages > 0 && !active && (
+                  <span className="ml-auto text-[10px] bg-blue-500 text-white rounded-full px-1.5 py-0.5 font-medium">
+                    {stats.unreadMessages}
+                  </span>
+                )}
+                {label === 'Bills' && stats.outstandingBills > 0 && !active && (
+                  <span className="ml-auto text-[10px] bg-amber-500 text-black rounded-full px-1.5 py-0.5 font-medium">
+                    {stats.outstandingBills}
+                  </span>
+                )}
               </button>
             );
           })}
         </nav>
 
         {/* Logout */}
-        <div className="px-3 py-4 border-t border-[#1a1a1a]">
+        <div className="px-2.5 py-3 border-t border-[#161616]">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-500 hover:text-red-400 hover:bg-red-500/[0.06] transition-colors"
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-600 hover:text-red-400 hover:bg-red-500/[0.06] transition-all"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             </svg>
             Logout
           </button>
         </div>
       </aside>
 
-      {/* ── Main content ─────────────────────────────────────────────────── */}
-      <main className="flex-1 overflow-y-auto">
+      {/* ── Main ──────────────────────────────────────────────────────────────── */}
+      <main className="flex-1 overflow-y-auto bg-[#060606]">
 
         {activeSection ? (
-          /* Section view */
+          /* ── Section view ── */
           <div>
-            <div className="sticky top-0 z-10 bg-black/90 backdrop-blur border-b border-[#1a1a1a] px-6 h-12 flex items-center gap-3">
-              <button
-                onClick={() => setActiveSection(null)}
-                className="text-gray-500 hover:text-white transition-colors"
-              >
+            <div className="sticky top-0 z-10 bg-[#060606]/90 backdrop-blur border-b border-[#161616] px-6 h-12 flex items-center gap-3">
+              <button onClick={() => setActiveSection(null)} className="text-gray-600 hover:text-white transition-colors">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
-              <span className="text-gray-400 text-xs">/</span>
+              <span className="text-gray-700 text-xs">/</span>
               <span className="text-white text-sm font-medium">
                 {navItems.find(n => n.section === activeSection)?.label}
               </span>
             </div>
             {sectionComponents[activeSection]}
           </div>
+
         ) : (
-          /* Hub view */
-          <div className="px-8 py-8 max-w-5xl mx-auto space-y-6">
+          /* ── Dashboard Hub ── */
+          <div className="px-7 py-7 max-w-6xl mx-auto space-y-5">
 
             {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-end justify-between">
               <div>
-                <h1 className="text-white text-2xl font-semibold">Dashboard</h1>
+                <h1 className="text-white text-2xl font-semibold tracking-tight">{greeting}</h1>
                 <p className="text-gray-600 text-sm mt-0.5">{dateStr}</p>
               </div>
+              <div className="text-right">
+                <p className="text-gray-700 text-xs">Signed in as</p>
+                <p className="text-gray-500 text-xs">{user?.email}</p>
+              </div>
             </div>
 
-            {/* Row 1: Event Management (full width) */}
-            <section>
-              <h2 className="text-gray-400 text-xs font-medium uppercase tracking-wider mb-3">Event Management</h2>
-              <EventsPreviewCard />
-              <div className="flex gap-3 mt-3">
-                <ActionBtn label="Calendar Centre" section="messages" />
-                <ActionBtn label="Event Assistant" section="messages" />
-              </div>
-            </section>
-
-            {/* Row 2: Message Management + Financial Management side by side */}
-            <div className="grid grid-cols-2 gap-5">
-
-              <section>
-                <h2 className="text-gray-400 text-xs font-medium uppercase tracking-wider mb-3">Message Management</h2>
-                <InboxPreviewCard />
-                <div className="flex gap-2 mt-3">
-                  <ActionBtn label="Message Inbox" section="messages" />
-                  <ActionBtn label="Request Inbox" section="messages" />
-                </div>
-              </section>
-
-              <section>
-                <h2 className="text-gray-400 text-xs font-medium uppercase tracking-wider mb-3">Financial Management</h2>
-                <PaymentsPreviewCard />
-                <div className="flex gap-2 mt-3">
-                  <ActionBtn label="Payment Log" section="payments" />
-                  <ActionBtn label="Bill Manager" section="bills" />
-                </div>
-              </section>
-
+            {/* ── KPI Cards ── */}
+            <div className="grid grid-cols-6 gap-3">
+              <KPICard
+                label="Players" sub="registered"
+                value={stats.loading ? '—' : stats.players}
+                color="bg-blue-500/10 text-blue-400"
+                icon={<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>}
+              />
+              <KPICard
+                label="Coaches" sub="active"
+                value={stats.loading ? '—' : stats.coaches}
+                color="bg-emerald-500/10 text-emerald-400"
+                icon={<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+              />
+              <KPICard
+                label="Parents" sub="accounts"
+                value={stats.loading ? '—' : stats.parents}
+                color="bg-violet-500/10 text-violet-400"
+                icon={<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>}
+              />
+              <KPICard
+                label="Unread Messages"
+                value={stats.loading ? '—' : stats.unreadMessages}
+                color="bg-yellow-500/10 text-yellow-400"
+                icon={<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>}
+              />
+              <KPICard
+                label="Outstanding Bills"
+                value={stats.loading ? '—' : stats.outstandingBills}
+                color="bg-red-500/10 text-red-400"
+                icon={<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+              />
+              <KPICard
+                label="Signups Today"
+                value={stats.loading ? '—' : stats.todaySignups}
+                color="bg-cyan-500/10 text-cyan-400"
+                icon={<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>}
+              />
             </div>
 
-            {/* Row 3: User Management */}
-            <section>
-              <h2 className="text-gray-400 text-xs font-medium uppercase tracking-wider mb-3">User Management</h2>
-              <div className="flex gap-4">
-                <DirectoryCard label="Players" count={counts.players} section="players" />
-                <DirectoryCard label="Coaches" count={counts.coaches} section="coaches" />
-                <DirectoryCard label="Parents" count={counts.parents} section="parents" />
-              </div>
-            </section>
+            {/* ── Charts Row ── */}
+            <div className="grid grid-cols-3 gap-4">
 
+              {/* Revenue bar chart */}
+              <div className="col-span-2 bg-[#0e0e0e] rounded-xl p-5 border border-[#1c1c1c]">
+                <div className="flex items-start justify-between mb-5">
+                  <div>
+                    <p className="text-white text-sm font-medium">Revenue</p>
+                    <p className="text-gray-600 text-xs mt-0.5">Last 6 months</p>
+                  </div>
+                  <div className="text-right">
+                    {!dataLoading && (
+                      <>
+                        <p className="text-white text-lg font-semibold">
+                          ${totalRevenue >= 1000 ? `${(totalRevenue / 1000).toFixed(1)}k` : totalRevenue.toLocaleString()}
+                        </p>
+                        <p className="text-gray-600 text-xs">total collected</p>
+                      </>
+                    )}
+                  </div>
+                </div>
+                {dataLoading ? (
+                  <div className="h-28 flex items-center justify-center">
+                    <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                  </div>
+                ) : (
+                  <BarChart data={revenueData} />
+                )}
+              </div>
+
+              {/* Bills donut */}
+              <div className="bg-[#0e0e0e] rounded-xl p-5 border border-[#1c1c1c]">
+                <p className="text-white text-sm font-medium mb-4">Bills Status</p>
+                {dataLoading ? (
+                  <div className="h-28 flex items-center justify-center">
+                    <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-4">
+                    <DonutChart
+                      segments={[
+                        { label: 'Paid', value: billsStatus.paid, color: '#10b981' },
+                        { label: 'Pending', value: billsStatus.pending, color: '#f59e0b' },
+                        { label: 'Overdue', value: billsStatus.overdue, color: '#ef4444' },
+                      ]}
+                      centerLabel={String(billsStatus.paid + billsStatus.pending + billsStatus.overdue)}
+                      centerSub="total"
+                    />
+                    <div className="w-full space-y-2">
+                      {[
+                        { label: 'Paid', value: billsStatus.paid, dot: 'bg-emerald-500' },
+                        { label: 'Pending', value: billsStatus.pending, dot: 'bg-amber-500' },
+                        { label: 'Overdue', value: billsStatus.overdue, dot: 'bg-red-500' },
+                      ].map(s => (
+                        <div key={s.label} className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${s.dot}`} />
+                            <span className="text-gray-500 text-xs">{s.label}</span>
+                          </div>
+                          <span className="text-white text-xs font-medium tabular-nums">{s.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* ── Today's Events + Recent Messages ── */}
+            <div className="grid grid-cols-2 gap-4">
+
+              {/* Today's Events */}
+              <div className="bg-[#0e0e0e] rounded-xl border border-[#1c1c1c] overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-[#1a1a1a]">
+                  <p className="text-white text-sm font-medium">Today's Events</p>
+                  <span className="text-xs text-gray-600 bg-[#1a1a1a] px-2 py-0.5 rounded-full">
+                    {dataLoading ? '…' : `${todayEvents.length} scheduled`}
+                  </span>
+                </div>
+                <div className="px-5 py-3">
+                  {dataLoading ? (
+                    <div className="h-20 flex items-center justify-center">
+                      <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                    </div>
+                  ) : todayEvents.length === 0 ? (
+                    <div className="h-20 flex flex-col items-center justify-center gap-1">
+                      <p className="text-gray-700 text-sm">No events today</p>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-[#1a1a1a]">
+                      {todayEvents.map(ev => {
+                        const past = new Date() > new Date(ev.endDateTime);
+                        const fmtTime = ev.dateOnly
+                          ? 'All Day'
+                          : new Date(ev.startDateTime).toLocaleTimeString('en-US', {
+                              hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/New_York',
+                            });
+                        return (
+                          <div key={ev.id} className={`flex items-center justify-between py-3 ${past ? 'opacity-35' : ''}`}>
+                            <div className="min-w-0 flex-1 mr-4">
+                              <p className="text-white text-sm truncate leading-snug">{ev.title}</p>
+                              <p className="text-gray-600 text-xs mt-0.5">{fmtTime}</p>
+                            </div>
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                              <span className="text-[11px] bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded font-medium">
+                                {ev.signups}p
+                              </span>
+                              <span className="text-[11px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded font-medium">
+                                {ev.coaches}c
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Recent Messages */}
+              <div className="bg-[#0e0e0e] rounded-xl border border-[#1c1c1c] overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-[#1a1a1a]">
+                  <p className="text-white text-sm font-medium">Recent Messages</p>
+                  <button
+                    onClick={() => setActiveSection('messages')}
+                    className="text-blue-500 text-xs hover:text-blue-400 transition-colors"
+                  >
+                    View all →
+                  </button>
+                </div>
+                <div className="px-5 py-3">
+                  {dataLoading ? (
+                    <div className="h-20 flex items-center justify-center">
+                      <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                    </div>
+                  ) : recentMessages.length === 0 ? (
+                    <div className="h-20 flex items-center justify-center">
+                      <p className="text-gray-700 text-sm">No messages</p>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-[#1a1a1a]">
+                      {recentMessages.map(msg => {
+                        const diff = Date.now() - new Date(msg.$createdAt).getTime();
+                        const d = Math.floor(diff / 86400000);
+                        const h = Math.floor(diff / 3600000);
+                        const m = Math.floor(diff / 60000);
+                        const ago = d > 0 ? `${d}d` : h > 0 ? `${h}h` : m > 0 ? `${m}m` : 'now';
+                        const name = msg.senderName || msg.userName || msg.name || msg.parentName || 'Unknown';
+                        const preview = msg.message || msg.content || msg.body || '';
+                        const unread = msg.read === false;
+                        return (
+                          <div key={msg.$id} className="flex items-start gap-3 py-3">
+                            <div className="w-7 h-7 rounded-full bg-[#1e1e1e] flex items-center justify-center flex-shrink-0 mt-0.5 border border-[#2a2a2a]">
+                              <span className="text-gray-400 text-xs font-medium">
+                                {(name[0] || '?').toUpperCase()}
+                              </span>
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className={`text-xs font-medium truncate ${unread ? 'text-white' : 'text-gray-500'}`}>
+                                  {name}
+                                </span>
+                                <span className="text-gray-700 text-xs flex-shrink-0">{ago}</span>
+                              </div>
+                              <p className="text-gray-600 text-xs mt-0.5 truncate">{preview || '—'}</p>
+                            </div>
+                            {unread && (
+                              <div className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0 mt-2" />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+            </div>
           </div>
         )}
       </main>
