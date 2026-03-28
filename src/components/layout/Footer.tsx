@@ -9,7 +9,7 @@ const Footer = () => {
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-10 lg:gap-8">
 
           {/* ── Left: Logo + App Store buttons ───────────────────────── */}
-          <div className="col-span-2 md:col-span-1 lg:col-span-1 flex flex-col gap-5">
+          <div className="col-span-2 md:col-span-1 lg:col-span-1 flex flex-col items-center gap-5">
             <Link to="/" className="inline-flex items-center hover:opacity-80 transition-opacity">
               <img
                 src={images.logo}
@@ -19,25 +19,25 @@ const Footer = () => {
               />
             </Link>
 
-            {/* App store badges — centered, evenly spaced */}
-            <div className="flex items-center justify-center gap-4 w-full">
+            {/* App store badges — equal height, mirrored/centered under logo */}
+            <div className="flex items-center justify-center gap-3">
               <a
                 href="https://apps.apple.com/us/app/next-star-soccer/id6754170423"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="hover:opacity-80 transition-opacity"
+                className="hover:opacity-80 transition-opacity flex-shrink-0"
                 aria-label="Download on the App Store"
               >
-                <img src="/assets/images/badge-app-store.svg" alt="Download on the App Store" className="h-8 w-auto" />
+                <img src="/assets/images/badge-app-store.svg" alt="Download on the App Store" className="h-9 w-auto" />
               </a>
               <a
                 href="https://play.google.com/store/apps/details?id=com.nextstarsoccer.nextstar&hl=en_US"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="hover:opacity-80 transition-opacity"
+                className="hover:opacity-80 transition-opacity flex-shrink-0"
                 aria-label="Get it on Google Play"
               >
-                <img src="/assets/images/badge-google-play.png" alt="Get it on Google Play" className="h-8 w-auto" />
+                <img src="/assets/images/badge-google-play.png" alt="Get it on Google Play" className="h-9 w-auto" />
               </a>
             </div>
           </div>
