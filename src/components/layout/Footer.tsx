@@ -6,35 +6,30 @@ const Footer = () => {
     <footer className="bg-black border-t border-white/10">
       {/* Main grid */}
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-10 lg:gap-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-10 lg:gap-8">
 
-          {/* ── Left: Logo + Locations ───────────────────────────────── */}
-          <div className="col-span-2 md:col-span-1 lg:col-span-1 flex flex-col gap-8">
-            {/* Logo */}
+          {/* ── Left: Logo only ──────────────────────────────────────── */}
+          <div className="col-span-2 md:col-span-1 lg:col-span-1 flex flex-col">
             <Link to="/" className="inline-flex items-center hover:opacity-80 transition-opacity">
               <img
                 src={images.logo}
                 alt="Next Star Soccer"
                 className="h-9 w-auto"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                }}
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
               />
             </Link>
+          </div>
 
-            {/* Locations */}
-            <div>
-              <p className="text-gray-500 text-[11px] uppercase tracking-[0.15em] font-semibold mb-3">
-                Locations
-              </p>
-              <ul className="space-y-2">
-                {['Maryland', 'Virginia', 'Washington D.C.'].map((loc) => (
-                  <li key={loc} className="text-gray-400 text-sm hover:text-white transition-colors">
-                    {loc}
-                  </li>
-                ))}
-              </ul>
-            </div>
+          {/* ── Locations ────────────────────────────────────────────── */}
+          <div>
+            <p className="text-gray-500 text-[11px] uppercase tracking-[0.15em] font-semibold mb-4">
+              Locations
+            </p>
+            <ul className="space-y-3">
+              {['Maryland', 'Virginia', 'Washington D.C.'].map((loc) => (
+                <li key={loc} className="text-gray-400 text-sm">{loc}</li>
+              ))}
+            </ul>
           </div>
 
           {/* ── Products ─────────────────────────────────────────────── */}
@@ -82,43 +77,16 @@ const Footer = () => {
             </p>
             <ul className="space-y-3">
               <li>
-                <a
-                  href="https://www.instagram.com/nextstarsoccer/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-gray-400 text-sm hover:text-white transition-colors"
-                >
+                <a href="https://www.instagram.com/nextstarsoccer/" target="_blank" rel="noopener noreferrer"
+                  className="text-gray-400 text-sm hover:text-white transition-colors">
                   Instagram
                 </a>
               </li>
               <li>
-                <a
-                  href="https://www.facebook.com/nextstarsoccer/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-gray-400 text-sm hover:text-white transition-colors"
-                >
+                <a href="https://www.facebook.com/nextstarsoccer/" target="_blank" rel="noopener noreferrer"
+                  className="text-gray-400 text-sm hover:text-white transition-colors">
                   Facebook
                 </a>
-              </li>
-            </ul>
-          </div>
-
-          {/* ── Legal ────────────────────────────────────────────────── */}
-          <div>
-            <p className="text-gray-500 text-[11px] uppercase tracking-[0.15em] font-semibold mb-4">
-              Legal
-            </p>
-            <ul className="space-y-3">
-              <li>
-                <Link to="/terms" className="text-gray-400 text-sm hover:text-white transition-colors">
-                  Terms of Service
-                </Link>
-              </li>
-              <li>
-                <Link to="/privacy" className="text-gray-400 text-sm hover:text-white transition-colors">
-                  Privacy Policy
-                </Link>
               </li>
             </ul>
           </div>
