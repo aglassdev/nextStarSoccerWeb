@@ -22,7 +22,12 @@ const AdminLoginPage = () => {
       await login(email, password);
       navigate('/admin/dashboard');
     } catch (err: any) {
-      setError(err.message || 'Failed to login');
+      const msg = err.message || '';
+      if (msg.toLowerCase().includes('fetch') || msg.toLowerCase().includes('network')) {
+        setError('Cannot reach the server. Make sure this site is added as a Web Platform in the Appwrite Console (Settings → Platforms).');
+      } else {
+        setError(msg || 'Failed to login');
+      }
     }
   };
 
