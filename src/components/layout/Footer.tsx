@@ -28,7 +28,7 @@ const Footer = () => {
                 className="hover:opacity-80 transition-opacity flex-shrink-0"
                 aria-label="Download on the App Store"
               >
-                <img src="/assets/images/badge-app-store.svg" alt="Download on the App Store" className="h-9 w-auto" />
+                <img src="/assets/images/badge-app-store.svg" alt="Download on the App Store" className="h-6 w-auto" />
               </a>
               <a
                 href="https://play.google.com/store/apps/details?id=com.nextstarsoccer.nextstar&hl=en_US"
@@ -37,7 +37,7 @@ const Footer = () => {
                 className="hover:opacity-80 transition-opacity flex-shrink-0"
                 aria-label="Get it on Google Play"
               >
-                <img src="/assets/images/badge-google-play.png" alt="Get it on Google Play" className="h-9 w-auto" />
+                <img src="/assets/images/badge-google-play.png" alt="Get it on Google Play" className="h-6 w-auto" />
               </a>
             </div>
           </div>
