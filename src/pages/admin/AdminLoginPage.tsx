@@ -2,29 +2,36 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
+const ALLOWED_EMAILS = [
+  'amartyaglasses@gmail.com',
+  'seba@taso-group.com',
+  'info@nextstarsoccer.com',
+];
+
 const AdminLoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const { login, loading } = useAuth();
+  const { login, logout, loading } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-
-    if (!email || !password) {
-      setError('Please fill in all fields');
-      return;
-    }
-
+    if (!email || !password) { setError('Please fill in all fields'); return; }
     try {
       await login(email, password);
+      // Check allowlist
+      if (!ALLOWED_EMAILS.includes(email.toLowerCase().trim())) {
+        await logout();
+        setError('Access denied. This account is not authorized for admin access.');
+        return;
+      }
       navigate('/admin/dashboard');
     } catch (err: any) {
       const msg = err.message || '';
       if (msg.toLowerCase().includes('fetch') || msg.toLowerCase().includes('network')) {
-        setError('Cannot reach the server. Make sure this site is added as a Web Platform in the Appwrite Console (Settings → Platforms).');
+        setError('Cannot reach the server. Make sure this site is added as a Web Platform in the Appwrite Console.');
       } else {
         setError(msg || 'Failed to login');
       }
@@ -34,59 +41,32 @@ const AdminLoginPage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-block">
-            <span className="text-6xl">🛡️</span>
-          </div>
+          <span className="text-6xl">🛡️</span>
           <h1 className="text-3xl font-bold text-white mt-4">Admin Portal</h1>
           <p className="text-gray-400 mt-2">Admin access only</p>
         </div>
-
-        {/* Login Form */}
         <div className="bg-gray-800 rounded-lg shadow-xl p-6 md:p-8 border border-gray-700">
           {error && (
             <div className="mb-4 p-4 bg-red-500/10 border border-red-500 rounded-lg">
               <p className="text-red-500 text-sm">{error}</p>
             </div>
           )}
-
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
-                placeholder="admin@email.com"
-                disabled={loading}
-              />
+              <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">Email</label>
+              <input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)}
+                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                placeholder="admin@email.com" disabled={loading} />
             </div>
-
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
-                placeholder="••••••••"
-                disabled={loading}
-              />
+              <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">Password</label>
+              <input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)}
+                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                placeholder="••••••••" disabled={loading} />
             </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
+            <button type="submit" disabled={loading}
+              className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>

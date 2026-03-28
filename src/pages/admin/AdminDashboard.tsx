@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { databases, databaseId, collections } from '../../services/appwrite';
+import { Query } from 'appwrite';
+import { googleCalendarService } from '../../services/googleCalendar';
 import PlayersSection from './sections/PlayersSection';
 import CoachesSection from './sections/CoachesSection';
 import ParentsSection from './sections/ParentsSection';
@@ -8,161 +11,372 @@ import BillsSection from './sections/BillsSection';
 import PaymentsSection from './sections/PaymentsSection';
 import MessagesSection from './sections/MessagesSection';
 
+const ALLOWED_EMAILS = [
+  'amartyaglasses@gmail.com',
+  'seba@taso-group.com',
+  'info@nextstarsoccer.com',
+];
+
+// ─── EventsPreviewCard ─────────────────────────────────────────────────────
+interface CalEvent { id: string; title: string; startDateTime: string; endDateTime: string; location?: string | null; dateOnly?: boolean; }
+interface SignupCounts { [id: string]: { players: number; coaches: number } }
+
+const EventsPreviewCard = () => {
+  const [publicEvents, setPublicEvents] = useState<CalEvent[]>([]);
+  const [privateEvents, setPrivateEvents] = useState<CalEvent[]>([]);
+  const [signups, setSignups] = useState<SignupCounts>({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const now = new Date();
+        const todayStr = now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' }); // YYYY-MM-DD
+        const y = now.getFullYear();
+        const m = now.getMonth(); // 0-indexed
+
+        const [pubAll, privAll] = await Promise.all([
+          googleCalendarService.getEventsForMonth(y, m, 'public'),
+          googleCalendarService.getEventsForMonth(y, m, 'private').catch(() => []),
+        ]);
+
+        const toDateStr = (dt: string) => new Date(dt).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+        const todayPub = (pubAll as CalEvent[]).filter(e => toDateStr(e.startDateTime) === todayStr);
+        const todayPriv = (privAll as CalEvent[]).filter(e => toDateStr(e.startDateTime) === todayStr);
+
+        setPublicEvents(todayPub);
+        setPrivateEvents(todayPriv);
+
+        // Fetch signups for today's events
+        const allIds = [...todayPub.map(e => e.id), ...todayPriv.map(e => e.id)];
+        if (allIds.length > 0 && collections.signups && collections.coachSignups) {
+          const counts: SignupCounts = {};
+          await Promise.all(allIds.map(async id => {
+            const [p, c] = await Promise.all([
+              databases.listDocuments(databaseId, collections.signups!, [Query.equal('eventID', id)]).catch(() => ({ total: 0 })),
+              databases.listDocuments(databaseId, collections.coachSignups!, [Query.equal('eventID', id)]).catch(() => ({ total: 0 })),
+            ]);
+            counts[id] = { players: (p as any).total, coaches: (c as any).total };
+          }));
+          setSignups(counts);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const fmtTime = (start: string, end: string, dateOnly?: boolean) => {
+    if (dateOnly) return 'All Day';
+    const fmt = (d: string) => new Date(d).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/New_York' });
+    return `${fmt(start)} – ${fmt(end)}`;
+  };
+  const fmtLoc = (loc?: string | null) => loc ? loc.split(',')[0].trim() : 'TBD';
+  const isPast = (end: string) => new Date() > new Date(end);
+
+  if (loading) return (
+    <div className="bg-[#1a1a1a] rounded-xl p-5 mb-4 min-h-[140px] flex items-center justify-center">
+      <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+    </div>
+  );
+
+  const EventCol = ({ label, events }: { label: string; events: CalEvent[] }) => (
+    <div className="flex-1 min-w-0">
+      <div className="flex items-center justify-between mb-3 pb-2 border-b border-[#333]">
+        <span className="text-white text-sm font-medium">{label}</span>
+        <span className="text-white text-sm font-medium">{events.length}</span>
+      </div>
+      {events.length === 0 ? (
+        <p className="text-gray-500 text-sm italic text-center py-4">No events</p>
+      ) : events.map(ev => {
+        const past = isPast(ev.endDateTime);
+        const s = signups[ev.id] || { players: 0, coaches: 0 };
+        return (
+          <div key={ev.id} className={`pb-3 mb-3 border-b border-[#2a2a2a] last:border-0 ${past ? 'opacity-50' : ''}`}>
+            <p className={`text-sm font-medium mb-1 ${past ? 'text-gray-400' : 'text-white'}`}>{ev.title}</p>
+            <p className="text-gray-400 text-xs mb-1">{s.players} {s.players === 1 ? 'player' : 'players'} | {s.coaches} {s.coaches === 1 ? 'coach' : 'coaches'}</p>
+            <p className="text-gray-400 text-xs">{fmtTime(ev.startDateTime, ev.endDateTime, ev.dateOnly)} | {fmtLoc(ev.location)}</p>
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  return (
+    <div className="bg-[#1a1a1a] rounded-xl p-5 mb-4">
+      <div className="flex gap-4">
+        <EventCol label="Public" events={publicEvents} />
+        <div className="w-px bg-[#333]" />
+        <EventCol label="Private" events={privateEvents} />
+      </div>
+    </div>
+  );
+};
+
+// ─── InboxPreviewCard ──────────────────────────────────────────────────────
+const InboxPreviewCard = () => {
+  const [stats, setStats] = useState({ sessions: 0, messages: 0, analysis: 0, teamTraining: 0, loading: true });
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const msgCount = collections.messages
+          ? await databases.listDocuments(databaseId, collections.messages, [Query.equal('read', false), Query.limit(1)]).catch(() => ({ total: 0 }))
+          : { total: 0 };
+        const ttCount = collections.teamTraining
+          ? await databases.listDocuments(databaseId, collections.teamTraining, [Query.equal('read', false), Query.limit(1)]).catch(() => ({ total: 0 }))
+          : { total: 0 };
+        setStats({ sessions: 0, messages: (msgCount as any).total, analysis: 0, teamTraining: (ttCount as any).total, loading: false });
+      } catch { setStats(p => ({ ...p, loading: false })); }
+    })();
+  }, []);
+
+  if (stats.loading) return (
+    <div className="bg-[#1a1a1a] rounded-xl p-4 mb-4 min-h-[100px] flex items-center justify-center">
+      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+    </div>
+  );
+
+  const StatBox = ({ label, value }: { label: string; value: number }) => (
+    <div className="flex-1">
+      <p className="text-white text-sm mb-2">{label}</p>
+      <p className="text-white text-2xl font-medium">{value}</p>
+    </div>
+  );
+
+  return (
+    <div className="bg-[#1a1a1a] rounded-xl p-4 mb-4">
+      <div className="flex gap-4 mb-5">
+        <StatBox label="Session Requests" value={stats.sessions} />
+        <StatBox label="Messages" value={stats.messages} />
+      </div>
+      <div className="flex gap-4">
+        <StatBox label="Analysis Requests" value={stats.analysis} />
+        <StatBox label="Team Training Requests" value={stats.teamTraining} />
+      </div>
+    </div>
+  );
+};
+
+// ─── PaymentsPreviewCard ───────────────────────────────────────────────────
+const PaymentsPreviewCard = () => {
+  const [stats, setStats] = useState({ paidBills: 0, outstandingBills: 0, paymentsGross: 0, billsGross: 0, loading: true });
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const now = new Date();
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
+
+        const [paid, pending, allPayments, allBills] = await Promise.all([
+          collections.bills ? databases.listDocuments(databaseId, collections.bills, [Query.equal('status', 'paid'), Query.limit(1)]).catch(() => ({ total: 0, documents: [] })) : { total: 0, documents: [] },
+          collections.bills ? databases.listDocuments(databaseId, collections.bills, [Query.equal('status', 'pending'), Query.limit(1)]).catch(() => ({ total: 0, documents: [] })) : { total: 0, documents: [] },
+          collections.payments ? databases.listDocuments(databaseId, collections.payments, [Query.limit(5000)]).catch(() => ({ documents: [] })) : { documents: [] },
+          collections.bills ? databases.listDocuments(databaseId, collections.bills, [Query.equal('status', 'paid'), Query.limit(5000)]).catch(() => ({ documents: [] })) : { documents: [] },
+        ]);
+
+        const paymentsGross = (allPayments as any).documents
+          .filter((p: any) => p.$createdAt >= monthStart && p.$createdAt <= monthEnd)
+          .reduce((s: number, p: any) => s + (p.price || 0), 0);
+        const billsGross = (allBills as any).documents
+          .filter((b: any) => b.$createdAt >= monthStart && b.$createdAt <= monthEnd)
+          .reduce((s: number, b: any) => s + ((b.totalAmount || 0) - (b.couponValue || 0)), 0);
+
+        setStats({ paidBills: (paid as any).total, outstandingBills: (pending as any).total, paymentsGross, billsGross, loading: false });
+      } catch { setStats(p => ({ ...p, loading: false })); }
+    })();
+  }, []);
+
+  if (stats.loading) return (
+    <div className="bg-[#1a1a1a] rounded-xl p-4 mb-4 min-h-[100px] flex items-center justify-center">
+      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+    </div>
+  );
+
+  return (
+    <div className="bg-[#1a1a1a] rounded-xl p-4 mb-4">
+      <div className="flex gap-4 mb-5">
+        <div style={{ flex: 0.4 }}>
+          <p className="text-white text-sm mb-2">Paid Bills</p>
+          <p className="text-white text-2xl font-medium">{stats.paidBills}</p>
+        </div>
+        <div style={{ flex: 0.6 }}>
+          <p className="text-white text-sm mb-2">Payments, Monthly Gross</p>
+          <p className="text-white text-2xl font-medium">${stats.paymentsGross.toLocaleString()}</p>
+        </div>
+      </div>
+      <div className="flex gap-4">
+        <div style={{ flex: 0.4 }}>
+          <p className="text-white text-sm mb-2">Outstanding Bills</p>
+          <p className="text-white text-2xl font-medium">{stats.outstandingBills}</p>
+        </div>
+        <div style={{ flex: 0.6 }}>
+          <p className="text-white text-sm mb-2">Bills, Monthly Gross</p>
+          <p className="text-white text-2xl font-medium">${stats.billsGross.toLocaleString()}</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Main Dashboard ────────────────────────────────────────────────────────
 type Section = 'players' | 'coaches' | 'parents' | 'bills' | 'payments' | 'messages';
 
-const UsersIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-  </svg>
-);
-
-const BadgeIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-  </svg>
-);
-
-const PeopleIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-  </svg>
-);
-
-const DocumentIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-  </svg>
-);
-
-const CreditCardIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-  </svg>
-);
-
-const MailIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-  </svg>
-);
-
-const LogoutIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-  </svg>
-);
-
-const navItems: { id: Section; label: string; icon: JSX.Element }[] = [
-  { id: 'players', label: 'Players', icon: <UsersIcon /> },
-  { id: 'coaches', label: 'Coaches', icon: <BadgeIcon /> },
-  { id: 'parents', label: 'Parents', icon: <PeopleIcon /> },
-  { id: 'bills', label: 'Bills', icon: <DocumentIcon /> },
-  { id: 'payments', label: 'Payments', icon: <CreditCardIcon /> },
-  { id: 'messages', label: 'Messages', icon: <MailIcon /> },
-];
+const sectionLabels: Record<Section, string> = {
+  players: 'Player Directory',
+  coaches: 'Coach Directory',
+  parents: 'Parent Directory',
+  bills: 'Bill Manager',
+  payments: 'Payment Log',
+  messages: 'Message Inbox',
+};
 
 const AdminDashboard = () => {
   const { user, logout, initialized } = useAuth();
   const navigate = useNavigate();
-  const [activeSection, setActiveSection] = useState<Section>('players');
+  const [activeSection, setActiveSection] = useState<Section | null>(null);
+  const [counts, setCounts] = useState({ players: 0, coaches: 0, parents: 0, loading: true });
 
   useEffect(() => {
-    if (initialized && !user) {
-      navigate('/admin');
+    if (!initialized) return;
+    if (!user) { navigate('/admin'); return; }
+    if (!ALLOWED_EMAILS.includes(user.email.toLowerCase().trim())) {
+      logout().then(() => navigate('/admin'));
     }
-  }, [user, initialized, navigate]);
+  }, [user, initialized]);
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-      navigate('/admin');
-    } catch {
-      navigate('/admin');
-    }
-  };
+  useEffect(() => {
+    (async () => {
+      try {
+        const [y, col, pro, coach, parent] = await Promise.all([
+          databases.listDocuments(databaseId, collections.youthPlayers!, [Query.limit(1)]).catch(() => ({ total: 0 })),
+          databases.listDocuments(databaseId, collections.collegiatePlayers!, [Query.limit(1)]).catch(() => ({ total: 0 })),
+          databases.listDocuments(databaseId, collections.professionalPlayers!, [Query.limit(1)]).catch(() => ({ total: 0 })),
+          databases.listDocuments(databaseId, collections.coaches!, [Query.limit(1)]).catch(() => ({ total: 0 })),
+          databases.listDocuments(databaseId, collections.parentUsers!, [Query.limit(1)]).catch(() => ({ total: 0 })),
+        ]);
+        setCounts({ players: (y as any).total + (col as any).total + (pro as any).total, coaches: (coach as any).total, parents: (parent as any).total, loading: false });
+      } catch { setCounts(p => ({ ...p, loading: false })); }
+    })();
+  }, []);
 
-  if (!initialized) {
+  const handleLogout = async () => { await logout(); navigate('/admin'); };
+
+  if (!initialized) return (
+    <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+    </div>
+  );
+
+  // ── Section view ──
+  if (activeSection) {
+    const sectionMap: Record<Section, React.ReactNode> = {
+      players: <PlayersSection />,
+      coaches: <CoachesSection />,
+      parents: <ParentsSection />,
+      bills: <BillsSection />,
+      payments: <PaymentsSection />,
+      messages: <MessagesSection />,
+    };
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-black text-white">
+        <div className="sticky top-0 z-10 bg-black border-b border-gray-800 px-4 h-14 flex items-center gap-4">
+          <button onClick={() => setActiveSection(null)} className="text-white hover:text-gray-300 transition-colors flex items-center gap-2">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            <span className="text-sm">Dashboard</span>
+          </button>
+          <h1 className="text-white font-medium">{sectionLabels[activeSection]}</h1>
+        </div>
+        <div>{sectionMap[activeSection]}</div>
       </div>
     );
   }
 
-  if (!user) {
-    return null;
-  }
+  // ── Hub view ──
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/New_York' });
 
-  const renderSection = () => {
-    switch (activeSection) {
-      case 'players':
-        return <PlayersSection />;
-      case 'coaches':
-        return <CoachesSection />;
-      case 'parents':
-        return <ParentsSection />;
-      case 'bills':
-        return <BillsSection />;
-      case 'payments':
-        return <PaymentsSection />;
-      case 'messages':
-        return <MessagesSection />;
-    }
-  };
+  const ActionBtn = ({ label, section }: { label: string; section: Section }) => (
+    <button
+      onClick={() => setActiveSection(section)}
+      className="flex-1 h-[72px] bg-[#1a1a1a] rounded-xl flex items-center justify-center hover:bg-[#242424] transition-colors cursor-pointer"
+    >
+      <span className="text-white text-sm font-medium">{label}</span>
+    </button>
+  );
+
+  const DirectoryCard = ({ label, count, section }: { label: string; count: number; section: Section }) => (
+    <button
+      onClick={() => setActiveSection(section)}
+      className="flex-1 aspect-square bg-[#1a1a1a] rounded-xl flex flex-col items-center justify-center gap-2 hover:bg-[#242424] transition-colors cursor-pointer p-4"
+    >
+      <span className="text-white text-sm font-medium">{label}</span>
+      {counts.loading
+        ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+        : <span className="text-white text-4xl font-medium">{count}</span>
+      }
+    </button>
+  );
 
   return (
-    <div className="flex h-screen bg-black overflow-hidden">
-      {/* Sidebar */}
-      <aside className="w-64 flex-shrink-0 bg-black border-r border-gray-800 flex flex-col">
-        {/* Logo */}
-        <div className="px-6 py-5 border-b border-gray-800">
-          <div className="flex items-center gap-2">
-            <span className="text-xl">🛡️</span>
-            <div>
-              <p className="text-white font-bold text-sm leading-tight">NSS Admin</p>
-              <p className="text-gray-500 text-xs">Next Star Soccer</p>
-            </div>
+    <div className="min-h-screen bg-black text-white">
+      {/* Top bar */}
+      <div className="sticky top-0 z-10 bg-black border-b border-gray-800 px-4 h-14 flex items-center justify-between">
+        <h1 className="text-white font-medium">Admin Dashboard</h1>
+        <button onClick={handleLogout} className="text-gray-400 hover:text-white text-sm transition-colors">Logout</button>
+      </div>
+
+      <div className="max-w-2xl mx-auto px-4 py-8 space-y-8">
+
+        {/* ── Event Management ── */}
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-white text-xl font-medium">Event Management</h2>
+            <span className="text-gray-400 text-sm">{dateStr}</span>
           </div>
-        </div>
-
-        {/* Nav items */}
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          {navItems.map(item => (
-            <button
-              key={item.id}
-              onClick={() => setActiveSection(item.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                activeSection === item.id
-                  ? 'bg-blue-600/20 text-blue-400 border-l-2 border-blue-500 pl-[10px]'
-                  : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
-              }`}
-            >
-              {item.icon}
-              {item.label}
-            </button>
-          ))}
-        </nav>
-
-        {/* User info + Logout */}
-        <div className="px-3 py-4 border-t border-gray-800 space-y-2">
-          <div className="px-3 py-2">
-            <p className="text-white text-sm font-medium truncate">{user.name || user.email}</p>
-            <p className="text-gray-500 text-xs truncate">{user.email}</p>
+          <EventsPreviewCard />
+          <div className="flex gap-3">
+            <ActionBtn label="Calendar Centre" section="messages" />
+            <ActionBtn label="Event Assistant" section="messages" />
           </div>
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-          >
-            <LogoutIcon />
-            Logout
-          </button>
-        </div>
-      </aside>
+        </section>
 
-      {/* Main content */}
-      <main className="flex-1 overflow-y-auto bg-gray-950">
-        {renderSection()}
-      </main>
+        {/* ── Message Management ── */}
+        <section>
+          <h2 className="text-white text-xl font-medium mb-4">Message Management</h2>
+          <InboxPreviewCard />
+          <div className="flex gap-3">
+            <ActionBtn label="Message Inbox" section="messages" />
+            <ActionBtn label="Request Inbox" section="messages" />
+          </div>
+        </section>
+
+        {/* ── Financial Management ── */}
+        <section>
+          <h2 className="text-white text-xl font-medium mb-4">Financial Management</h2>
+          <PaymentsPreviewCard />
+          <div className="flex gap-3">
+            <ActionBtn label="Payment Log" section="payments" />
+            <ActionBtn label="Bill Manager" section="bills" />
+          </div>
+        </section>
+
+        {/* ── User Management ── */}
+        <section>
+          <h2 className="text-white text-xl font-medium mb-4">User Management</h2>
+          <div className="flex gap-3">
+            <DirectoryCard label="Players" count={counts.players} section="players" />
+            <DirectoryCard label="Coaches" count={counts.coaches} section="coaches" />
+            <DirectoryCard label="Parents" count={counts.parents} section="parents" />
+          </div>
+        </section>
+
+      </div>
     </div>
   );
 };
