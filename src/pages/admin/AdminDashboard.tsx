@@ -17,10 +17,16 @@ const ALLOWED_EMAILS = [
   'info@nextstarsoccer.com',
 ];
 
-// ─── EventsPreviewCard ─────────────────────────────────────────────────────
-interface CalEvent { id: string; title: string; startDateTime: string; endDateTime: string; location?: string | null; dateOnly?: boolean; }
+// ─── Types ─────────────────────────────────────────────────────────────────
+type Section = 'players' | 'coaches' | 'parents' | 'bills' | 'payments' | 'messages';
+
+interface CalEvent {
+  id: string; title: string; startDateTime: string;
+  endDateTime: string; location?: string | null; dateOnly?: boolean;
+}
 interface SignupCounts { [id: string]: { players: number; coaches: number } }
 
+// ─── EventsPreviewCard ─────────────────────────────────────────────────────
 const EventsPreviewCard = () => {
   const [publicEvents, setPublicEvents] = useState<CalEvent[]>([]);
   const [privateEvents, setPrivateEvents] = useState<CalEvent[]>([]);
@@ -31,23 +37,24 @@ const EventsPreviewCard = () => {
     (async () => {
       try {
         const now = new Date();
-        const todayStr = now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' }); // YYYY-MM-DD
+        const todayStr = now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
         const y = now.getFullYear();
-        const m = now.getMonth(); // 0-indexed
+        const m = now.getMonth();
 
         const [pubAll, privAll] = await Promise.all([
           googleCalendarService.getEventsForMonth(y, m, 'public'),
           googleCalendarService.getEventsForMonth(y, m, 'private').catch(() => []),
         ]);
 
-        const toDateStr = (dt: string) => new Date(dt).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+        const toDateStr = (dt: string) =>
+          new Date(dt).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+
         const todayPub = (pubAll as CalEvent[]).filter(e => toDateStr(e.startDateTime) === todayStr);
         const todayPriv = (privAll as CalEvent[]).filter(e => toDateStr(e.startDateTime) === todayStr);
 
         setPublicEvents(todayPub);
         setPrivateEvents(todayPriv);
 
-        // Fetch signups for today's events
         const allIds = [...todayPub.map(e => e.id), ...todayPriv.map(e => e.id)];
         if (allIds.length > 0 && collections.signups && collections.coachSignups) {
           const counts: SignupCounts = {};
@@ -70,34 +77,36 @@ const EventsPreviewCard = () => {
 
   const fmtTime = (start: string, end: string, dateOnly?: boolean) => {
     if (dateOnly) return 'All Day';
-    const fmt = (d: string) => new Date(d).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/New_York' });
+    const fmt = (d: string) => new Date(d).toLocaleTimeString('en-US', {
+      hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/New_York',
+    });
     return `${fmt(start)} – ${fmt(end)}`;
   };
   const fmtLoc = (loc?: string | null) => loc ? loc.split(',')[0].trim() : 'TBD';
   const isPast = (end: string) => new Date() > new Date(end);
 
   if (loading) return (
-    <div className="bg-[#1a1a1a] rounded-xl p-5 mb-4 min-h-[140px] flex items-center justify-center">
-      <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+    <div className="bg-[#111] rounded-xl p-5 min-h-[120px] flex items-center justify-center">
+      <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
     </div>
   );
 
   const EventCol = ({ label, events }: { label: string; events: CalEvent[] }) => (
     <div className="flex-1 min-w-0">
-      <div className="flex items-center justify-between mb-3 pb-2 border-b border-[#333]">
-        <span className="text-white text-sm font-medium">{label}</span>
-        <span className="text-white text-sm font-medium">{events.length}</span>
+      <div className="flex items-center justify-between mb-3 pb-2 border-b border-[#2a2a2a]">
+        <span className="text-gray-300 text-xs font-medium uppercase tracking-wider">{label}</span>
+        <span className="text-gray-400 text-xs">{events.length}</span>
       </div>
       {events.length === 0 ? (
-        <p className="text-gray-500 text-sm italic text-center py-4">No events</p>
+        <p className="text-gray-600 text-xs italic py-3">No events today</p>
       ) : events.map(ev => {
         const past = isPast(ev.endDateTime);
         const s = signups[ev.id] || { players: 0, coaches: 0 };
         return (
-          <div key={ev.id} className={`pb-3 mb-3 border-b border-[#2a2a2a] last:border-0 ${past ? 'opacity-50' : ''}`}>
-            <p className={`text-sm font-medium mb-1 ${past ? 'text-gray-400' : 'text-white'}`}>{ev.title}</p>
-            <p className="text-gray-400 text-xs mb-1">{s.players} {s.players === 1 ? 'player' : 'players'} | {s.coaches} {s.coaches === 1 ? 'coach' : 'coaches'}</p>
-            <p className="text-gray-400 text-xs">{fmtTime(ev.startDateTime, ev.endDateTime, ev.dateOnly)} | {fmtLoc(ev.location)}</p>
+          <div key={ev.id} className={`pb-3 mb-3 border-b border-[#1e1e1e] last:border-0 ${past ? 'opacity-40' : ''}`}>
+            <p className="text-white text-sm font-medium mb-1 leading-tight">{ev.title}</p>
+            <p className="text-gray-500 text-xs">{s.players}p · {s.coaches}c · {fmtTime(ev.startDateTime, ev.endDateTime, ev.dateOnly)}</p>
+            <p className="text-gray-600 text-xs">{fmtLoc(ev.location)}</p>
           </div>
         );
       })}
@@ -105,10 +114,10 @@ const EventsPreviewCard = () => {
   );
 
   return (
-    <div className="bg-[#1a1a1a] rounded-xl p-5 mb-4">
-      <div className="flex gap-4">
+    <div className="bg-[#111] rounded-xl p-5">
+      <div className="flex gap-5">
         <EventCol label="Public" events={publicEvents} />
-        <div className="w-px bg-[#333]" />
+        <div className="w-px bg-[#2a2a2a]" />
         <EventCol label="Private" events={privateEvents} />
       </div>
     </div>
@@ -122,39 +131,39 @@ const InboxPreviewCard = () => {
   useEffect(() => {
     (async () => {
       try {
-        const msgCount = collections.messages
-          ? await databases.listDocuments(databaseId, collections.messages, [Query.equal('read', false), Query.limit(1)]).catch(() => ({ total: 0 }))
-          : { total: 0 };
-        const ttCount = collections.teamTraining
-          ? await databases.listDocuments(databaseId, collections.teamTraining, [Query.equal('read', false), Query.limit(1)]).catch(() => ({ total: 0 }))
-          : { total: 0 };
-        setStats({ sessions: 0, messages: (msgCount as any).total, analysis: 0, teamTraining: (ttCount as any).total, loading: false });
+        const [msg, tt] = await Promise.all([
+          collections.messages
+            ? databases.listDocuments(databaseId, collections.messages, [Query.equal('read', false), Query.limit(1)]).catch(() => ({ total: 0 }))
+            : { total: 0 },
+          collections.teamTraining
+            ? databases.listDocuments(databaseId, collections.teamTraining, [Query.equal('read', false), Query.limit(1)]).catch(() => ({ total: 0 }))
+            : { total: 0 },
+        ]);
+        setStats({ sessions: 0, messages: (msg as any).total, analysis: 0, teamTraining: (tt as any).total, loading: false });
       } catch { setStats(p => ({ ...p, loading: false })); }
     })();
   }, []);
 
   if (stats.loading) return (
-    <div className="bg-[#1a1a1a] rounded-xl p-4 mb-4 min-h-[100px] flex items-center justify-center">
-      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+    <div className="bg-[#111] rounded-xl p-4 min-h-[80px] flex items-center justify-center">
+      <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
     </div>
   );
 
-  const StatBox = ({ label, value }: { label: string; value: number }) => (
-    <div className="flex-1">
-      <p className="text-white text-sm mb-2">{label}</p>
-      <p className="text-white text-2xl font-medium">{value}</p>
+  const S = ({ label, value }: { label: string; value: number }) => (
+    <div>
+      <p className="text-gray-500 text-xs mb-1">{label}</p>
+      <p className="text-white text-xl font-medium">{value}</p>
     </div>
   );
 
   return (
-    <div className="bg-[#1a1a1a] rounded-xl p-4 mb-4">
-      <div className="flex gap-4 mb-5">
-        <StatBox label="Session Requests" value={stats.sessions} />
-        <StatBox label="Messages" value={stats.messages} />
-      </div>
-      <div className="flex gap-4">
-        <StatBox label="Analysis Requests" value={stats.analysis} />
-        <StatBox label="Team Training Requests" value={stats.teamTraining} />
+    <div className="bg-[#111] rounded-xl p-4">
+      <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+        <S label="Session Requests" value={stats.sessions} />
+        <S label="Messages" value={stats.messages} />
+        <S label="Analysis Requests" value={stats.analysis} />
+        <S label="Team Training" value={stats.teamTraining} />
       </div>
     </div>
   );
@@ -191,49 +200,63 @@ const PaymentsPreviewCard = () => {
   }, []);
 
   if (stats.loading) return (
-    <div className="bg-[#1a1a1a] rounded-xl p-4 mb-4 min-h-[100px] flex items-center justify-center">
-      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+    <div className="bg-[#111] rounded-xl p-4 min-h-[80px] flex items-center justify-center">
+      <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+    </div>
+  );
+
+  const S = ({ label, value }: { label: string; value: string | number }) => (
+    <div>
+      <p className="text-gray-500 text-xs mb-1">{label}</p>
+      <p className="text-white text-xl font-medium">{value}</p>
     </div>
   );
 
   return (
-    <div className="bg-[#1a1a1a] rounded-xl p-4 mb-4">
-      <div className="flex gap-4 mb-5">
-        <div style={{ flex: 0.4 }}>
-          <p className="text-white text-sm mb-2">Paid Bills</p>
-          <p className="text-white text-2xl font-medium">{stats.paidBills}</p>
-        </div>
-        <div style={{ flex: 0.6 }}>
-          <p className="text-white text-sm mb-2">Payments, Monthly Gross</p>
-          <p className="text-white text-2xl font-medium">${stats.paymentsGross.toLocaleString()}</p>
-        </div>
-      </div>
-      <div className="flex gap-4">
-        <div style={{ flex: 0.4 }}>
-          <p className="text-white text-sm mb-2">Outstanding Bills</p>
-          <p className="text-white text-2xl font-medium">{stats.outstandingBills}</p>
-        </div>
-        <div style={{ flex: 0.6 }}>
-          <p className="text-white text-sm mb-2">Bills, Monthly Gross</p>
-          <p className="text-white text-2xl font-medium">${stats.billsGross.toLocaleString()}</p>
-        </div>
+    <div className="bg-[#111] rounded-xl p-4">
+      <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+        <S label="Paid Bills" value={stats.paidBills} />
+        <S label="Payments Gross" value={`$${stats.paymentsGross.toLocaleString()}`} />
+        <S label="Outstanding Bills" value={stats.outstandingBills} />
+        <S label="Bills Gross" value={`$${stats.billsGross.toLocaleString()}`} />
       </div>
     </div>
   );
 };
 
+// ─── Sidebar ───────────────────────────────────────────────────────────────
+const navItems: { section: Section | null; label: string; icon: React.ReactNode }[] = [
+  {
+    section: null, label: 'Dashboard',
+    icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>,
+  },
+  {
+    section: 'players', label: 'Players',
+    icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>,
+  },
+  {
+    section: 'coaches', label: 'Coaches',
+    icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" /></svg>,
+  },
+  {
+    section: 'parents', label: 'Parents',
+    icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>,
+  },
+  {
+    section: 'messages', label: 'Messages',
+    icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>,
+  },
+  {
+    section: 'payments', label: 'Payments',
+    icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>,
+  },
+  {
+    section: 'bills', label: 'Bills',
+    icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>,
+  },
+];
+
 // ─── Main Dashboard ────────────────────────────────────────────────────────
-type Section = 'players' | 'coaches' | 'parents' | 'bills' | 'payments' | 'messages';
-
-const sectionLabels: Record<Section, string> = {
-  players: 'Player Directory',
-  coaches: 'Coach Directory',
-  parents: 'Parent Directory',
-  bills: 'Bill Manager',
-  payments: 'Payment Log',
-  messages: 'Message Inbox',
-};
-
 const AdminDashboard = () => {
   const { user, logout, initialized } = useAuth();
   const navigate = useNavigate();
@@ -258,7 +281,12 @@ const AdminDashboard = () => {
           databases.listDocuments(databaseId, collections.coaches!, [Query.limit(1)]).catch(() => ({ total: 0 })),
           databases.listDocuments(databaseId, collections.parentUsers!, [Query.limit(1)]).catch(() => ({ total: 0 })),
         ]);
-        setCounts({ players: (y as any).total + (col as any).total + (pro as any).total, coaches: (coach as any).total, parents: (parent as any).total, loading: false });
+        setCounts({
+          players: (y as any).total + (col as any).total + (pro as any).total,
+          coaches: (coach as any).total,
+          parents: (parent as any).total,
+          loading: false,
+        });
       } catch { setCounts(p => ({ ...p, loading: false })); }
     })();
   }, []);
@@ -267,116 +295,175 @@ const AdminDashboard = () => {
 
   if (!initialized) return (
     <div className="min-h-screen bg-black flex items-center justify-center">
-      <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+      <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
     </div>
   );
 
-  // ── Section view ──
-  if (activeSection) {
-    const sectionMap: Record<Section, React.ReactNode> = {
-      players: <PlayersSection />,
-      coaches: <CoachesSection />,
-      parents: <ParentsSection />,
-      bills: <BillsSection />,
-      payments: <PaymentsSection />,
-      messages: <MessagesSection />,
-    };
-    return (
-      <div className="min-h-screen bg-black text-white">
-        <div className="sticky top-0 z-10 bg-black border-b border-gray-800 px-4 h-14 flex items-center gap-4">
-          <button onClick={() => setActiveSection(null)} className="text-white hover:text-gray-300 transition-colors flex items-center gap-2">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-            <span className="text-sm">Dashboard</span>
-          </button>
-          <h1 className="text-white font-medium">{sectionLabels[activeSection]}</h1>
-        </div>
-        <div>{sectionMap[activeSection]}</div>
-      </div>
-    );
-  }
-
-  // ── Hub view ──
   const now = new Date();
   const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/New_York' });
+
+  const sectionComponents: Record<Section, React.ReactNode> = {
+    players: <PlayersSection />,
+    coaches: <CoachesSection />,
+    parents: <ParentsSection />,
+    bills: <BillsSection />,
+    payments: <PaymentsSection />,
+    messages: <MessagesSection />,
+  };
 
   const ActionBtn = ({ label, section }: { label: string; section: Section }) => (
     <button
       onClick={() => setActiveSection(section)}
-      className="flex-1 h-[72px] bg-[#1a1a1a] rounded-xl flex items-center justify-center hover:bg-[#242424] transition-colors cursor-pointer"
+      className="flex-1 h-14 bg-[#1a1a1a] rounded-lg flex items-center justify-center hover:bg-[#222] transition-colors"
     >
-      <span className="text-white text-sm font-medium">{label}</span>
+      <span className="text-gray-300 text-xs font-medium">{label}</span>
     </button>
   );
 
   const DirectoryCard = ({ label, count, section }: { label: string; count: number; section: Section }) => (
     <button
       onClick={() => setActiveSection(section)}
-      className="flex-1 aspect-square bg-[#1a1a1a] rounded-xl flex flex-col items-center justify-center gap-2 hover:bg-[#242424] transition-colors cursor-pointer p-4"
+      className="flex-1 aspect-square bg-[#111] rounded-xl flex flex-col items-center justify-center gap-2 hover:bg-[#1a1a1a] transition-colors p-4 border border-[#1e1e1e]"
     >
-      <span className="text-white text-sm font-medium">{label}</span>
+      <span className="text-gray-400 text-xs font-medium uppercase tracking-wider">{label}</span>
       {counts.loading
-        ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+        ? <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
         : <span className="text-white text-4xl font-medium">{count}</span>
       }
     </button>
   );
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      {/* Top bar */}
-      <div className="sticky top-0 z-10 bg-black border-b border-gray-800 px-4 h-14 flex items-center justify-between">
-        <h1 className="text-white font-medium">Admin Dashboard</h1>
-        <button onClick={handleLogout} className="text-gray-400 hover:text-white text-sm transition-colors">Logout</button>
-      </div>
+    <div className="flex h-screen bg-black text-white overflow-hidden">
 
-      <div className="max-w-2xl mx-auto px-4 py-8 space-y-8">
+      {/* ── Sidebar ─────────────────────────────────────────────────────── */}
+      <aside className="w-52 bg-[#080808] border-r border-[#1a1a1a] flex flex-col flex-shrink-0">
+        {/* Logo / title */}
+        <div className="px-5 py-6 border-b border-[#1a1a1a]">
+          <button
+            onClick={() => setActiveSection(null)}
+            className="text-white font-semibold text-sm leading-tight hover:text-gray-300 transition-colors text-left"
+          >
+            Admin<br />
+            <span className="text-gray-500 font-normal">Next Star Soccer</span>
+          </button>
+        </div>
 
-        {/* ── Event Management ── */}
-        <section>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-white text-xl font-medium">Event Management</h2>
-            <span className="text-gray-400 text-sm">{dateStr}</span>
+        {/* Nav */}
+        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+          {navItems.map(({ section, label, icon }) => {
+            const active = activeSection === section;
+            return (
+              <button
+                key={label}
+                onClick={() => setActiveSection(section)}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors text-left ${
+                  active
+                    ? 'bg-white/[0.08] text-white border-l-2 border-blue-500 pl-[10px]'
+                    : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.04]'
+                }`}
+              >
+                {icon}
+                {label}
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Logout */}
+        <div className="px-3 py-4 border-t border-[#1a1a1a]">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-500 hover:text-red-400 hover:bg-red-500/[0.06] transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            Logout
+          </button>
+        </div>
+      </aside>
+
+      {/* ── Main content ─────────────────────────────────────────────────── */}
+      <main className="flex-1 overflow-y-auto">
+
+        {activeSection ? (
+          /* Section view */
+          <div>
+            <div className="sticky top-0 z-10 bg-black/90 backdrop-blur border-b border-[#1a1a1a] px-6 h-12 flex items-center gap-3">
+              <button
+                onClick={() => setActiveSection(null)}
+                className="text-gray-500 hover:text-white transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <span className="text-gray-400 text-xs">/</span>
+              <span className="text-white text-sm font-medium">
+                {navItems.find(n => n.section === activeSection)?.label}
+              </span>
+            </div>
+            {sectionComponents[activeSection]}
           </div>
-          <EventsPreviewCard />
-          <div className="flex gap-3">
-            <ActionBtn label="Calendar Centre" section="messages" />
-            <ActionBtn label="Event Assistant" section="messages" />
-          </div>
-        </section>
+        ) : (
+          /* Hub view */
+          <div className="px-8 py-8 max-w-5xl mx-auto space-y-6">
 
-        {/* ── Message Management ── */}
-        <section>
-          <h2 className="text-white text-xl font-medium mb-4">Message Management</h2>
-          <InboxPreviewCard />
-          <div className="flex gap-3">
-            <ActionBtn label="Message Inbox" section="messages" />
-            <ActionBtn label="Request Inbox" section="messages" />
-          </div>
-        </section>
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-white text-2xl font-semibold">Dashboard</h1>
+                <p className="text-gray-600 text-sm mt-0.5">{dateStr}</p>
+              </div>
+            </div>
 
-        {/* ── Financial Management ── */}
-        <section>
-          <h2 className="text-white text-xl font-medium mb-4">Financial Management</h2>
-          <PaymentsPreviewCard />
-          <div className="flex gap-3">
-            <ActionBtn label="Payment Log" section="payments" />
-            <ActionBtn label="Bill Manager" section="bills" />
-          </div>
-        </section>
+            {/* Row 1: Event Management (full width) */}
+            <section>
+              <h2 className="text-gray-400 text-xs font-medium uppercase tracking-wider mb-3">Event Management</h2>
+              <EventsPreviewCard />
+              <div className="flex gap-3 mt-3">
+                <ActionBtn label="Calendar Centre" section="messages" />
+                <ActionBtn label="Event Assistant" section="messages" />
+              </div>
+            </section>
 
-        {/* ── User Management ── */}
-        <section>
-          <h2 className="text-white text-xl font-medium mb-4">User Management</h2>
-          <div className="flex gap-3">
-            <DirectoryCard label="Players" count={counts.players} section="players" />
-            <DirectoryCard label="Coaches" count={counts.coaches} section="coaches" />
-            <DirectoryCard label="Parents" count={counts.parents} section="parents" />
-          </div>
-        </section>
+            {/* Row 2: Message Management + Financial Management side by side */}
+            <div className="grid grid-cols-2 gap-5">
 
-      </div>
+              <section>
+                <h2 className="text-gray-400 text-xs font-medium uppercase tracking-wider mb-3">Message Management</h2>
+                <InboxPreviewCard />
+                <div className="flex gap-2 mt-3">
+                  <ActionBtn label="Message Inbox" section="messages" />
+                  <ActionBtn label="Request Inbox" section="messages" />
+                </div>
+              </section>
+
+              <section>
+                <h2 className="text-gray-400 text-xs font-medium uppercase tracking-wider mb-3">Financial Management</h2>
+                <PaymentsPreviewCard />
+                <div className="flex gap-2 mt-3">
+                  <ActionBtn label="Payment Log" section="payments" />
+                  <ActionBtn label="Bill Manager" section="bills" />
+                </div>
+              </section>
+
+            </div>
+
+            {/* Row 3: User Management */}
+            <section>
+              <h2 className="text-gray-400 text-xs font-medium uppercase tracking-wider mb-3">User Management</h2>
+              <div className="flex gap-4">
+                <DirectoryCard label="Players" count={counts.players} section="players" />
+                <DirectoryCard label="Coaches" count={counts.coaches} section="coaches" />
+                <DirectoryCard label="Parents" count={counts.parents} section="parents" />
+              </div>
+            </section>
+
+          </div>
+        )}
+      </main>
     </div>
   );
 };
