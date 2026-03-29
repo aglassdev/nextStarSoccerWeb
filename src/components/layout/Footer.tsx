@@ -6,10 +6,10 @@ const Footer = () => {
     <footer className="bg-black border-t border-white/10">
       {/* Main grid */}
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-10 lg:gap-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 lg:gap-8">
 
           {/* ── Left: Logo + App Store buttons ───────────────────────── */}
-          <div className="col-span-2 md:col-span-1 lg:col-span-1 flex flex-col items-center gap-5">
+          <div className="col-span-2 md:col-span-1 lg:col-span-1 flex flex-col items-center gap-5 mb-2 md:mb-0">
             <Link to="/" className="inline-flex items-center hover:opacity-80 transition-opacity">
               <img
                 src={images.logo}
@@ -43,7 +43,7 @@ const Footer = () => {
           </div>
 
           {/* ── Locations ────────────────────────────────────────────── */}
-          <div>
+          <div className="flex flex-col items-center md:items-start">
             <p className="text-gray-500 text-[11px] uppercase tracking-[0.15em] font-semibold mb-4">
               Locations
             </p>
@@ -55,7 +55,7 @@ const Footer = () => {
           </div>
 
           {/* ── Products ─────────────────────────────────────────────── */}
-          <div>
+          <div className="flex flex-col items-center md:items-start">
             <p className="text-gray-500 text-[11px] uppercase tracking-[0.15em] font-semibold mb-4">
               Products
             </p>
@@ -74,7 +74,7 @@ const Footer = () => {
           </div>
 
           {/* ── Company ──────────────────────────────────────────────── */}
-          <div>
+          <div className="flex flex-col items-center md:items-start">
             <p className="text-gray-500 text-[11px] uppercase tracking-[0.15em] font-semibold mb-4">
               Company
             </p>
@@ -93,7 +93,7 @@ const Footer = () => {
           </div>
 
           {/* ── Connect ──────────────────────────────────────────────── */}
-          <div>
+          <div className="flex flex-col items-center md:items-start">
             <p className="text-gray-500 text-[11px] uppercase tracking-[0.15em] font-semibold mb-4">
               Connect
             </p>

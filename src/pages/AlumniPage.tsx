@@ -388,7 +388,7 @@ const AlumniPage = () => {
           </div>
 
           {/* Controls */}
-          <div className="flex gap-4 px-6 mb-8 items-center">
+          <div className="flex flex-wrap gap-3 px-4 md:px-6 mb-6 md:mb-8 items-center">
             {/* Filter */}
             <div className="relative">
               <button
@@ -440,7 +440,7 @@ const AlumniPage = () => {
             </div>
 
             {/* Search */}
-            <div className="flex-1 max-w-md relative">
+            <div className="w-full sm:flex-1 sm:max-w-md relative">
               <input
                 type="text"
                 placeholder="Search players..."
@@ -457,7 +457,7 @@ const AlumniPage = () => {
           </div>
 
           {/* Cards grid */}
-          <div className="px-6 pb-16">
+          <div className="px-3 md:px-6 pb-16">
             {sorted.length === 0 ? (
               <div className="text-center py-16">
                 <p className="text-gray-500 text-lg">No players found</p>
