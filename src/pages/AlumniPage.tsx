@@ -132,15 +132,14 @@ const FlipCard: React.FC<{ player: Player }> = ({ player }) => {
           className="absolute inset-0 rounded-xl overflow-hidden bg-gray-900 border border-white/5"
           style={{ backfaceVisibility: 'hidden' }}
         >
-          {/* Photo area — fills ~78% of card height */}
-          <div className="absolute inset-x-0 top-0 overflow-hidden" style={{ height: '78%' }}>
+          {/* Photo area — fills ~74% of card height */}
+          <div className="absolute inset-x-0 top-0 overflow-hidden" style={{ height: '74%' }}>
             {/* Dimmed subtitle icon watermark */}
             {player.subtitleIcon && (
               <img
                 src={player.subtitleIcon}
                 alt=""
-                className="absolute inset-0 w-full h-full object-contain p-5 opacity-[0.08]"
-                style={{ filter: 'blur(1px)' }}
+                className="absolute inset-0 w-full h-full object-contain p-5 opacity-[0.18]"
                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
               />
             )}
@@ -160,9 +159,9 @@ const FlipCard: React.FC<{ player: Player }> = ({ player }) => {
             )}
           </div>
 
-          {/* Name + subtitle — pinned to bottom 22% */}
-          <div className="absolute inset-x-0 bottom-0 px-3 pt-2 pb-2.5 flex flex-col justify-center" style={{ height: '22%' }}>
-            <p className="text-white text-base font-bold leading-tight truncate">{player.name}</p>
+          {/* Name + subtitle — pinned to bottom 26% */}
+          <div className="absolute inset-x-0 bottom-0 px-3 pt-2 pb-2.5 flex flex-col justify-center" style={{ height: '26%' }}>
+            <p className="text-white text-sm font-bold leading-tight line-clamp-2">{player.name}</p>
             <div className="flex items-center gap-1.5 mt-1">
               {player.subtitleIcon && (
                 <img src={player.subtitleIcon} alt="" className="w-4 h-4 object-contain flex-shrink-0"
