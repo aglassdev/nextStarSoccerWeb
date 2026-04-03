@@ -19,6 +19,7 @@ import BillingPage from './pages/BillingPage';
 import ProfilePage from './pages/ProfilePage';
 import Layout from './components/layout/Layout';
 import LoadingScreen from './components/common/LoadingScreen';
+import AppDownloadPopup from './components/common/AppDownloadPopup';
 
 // Protected route wrapper
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -82,6 +83,7 @@ function App() {
     <AuthProvider>
       <BrowserRouter>
         <AppRoutes />
+        <AppDownloadPopup />
       </BrowserRouter>
     </AuthProvider>
   );

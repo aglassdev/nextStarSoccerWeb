@@ -95,7 +95,7 @@ const ServiceCard: React.FC<{ service: Service }> = ({ service }) => {
 
     return (
         <div
-            className={`relative w-full h-96 cursor-pointer transition-transform duration-300 ${
+            className={`relative w-full h-52 sm:h-72 md:h-96 cursor-pointer transition-transform duration-300 ${
                 isHovered && !isFlipped ? 'scale-105' : 'scale-100'
             }`}
             style={{ perspective: '1000px' }}
@@ -120,6 +120,8 @@ const ServiceCard: React.FC<{ service: Service }> = ({ service }) => {
                         src={service.frontImage}
                         alt={service.name}
                         className="w-full h-full object-cover"
+                        loading="lazy"
+                        decoding="async"
                         onError={(e) => {
                             e.currentTarget.style.display = 'none';
                             const parent = e.currentTarget.parentElement;
@@ -128,14 +130,14 @@ const ServiceCard: React.FC<{ service: Service }> = ({ service }) => {
                             }
                         }}
                     />
-                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/80 to-transparent p-6">
-                        <h3 className="text-white text-2xl font-bold">{service.name}</h3>
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/80 to-transparent p-3 md:p-6">
+                        <h3 className="text-white text-sm md:text-2xl font-bold leading-snug">{service.name}</h3>
                     </div>
                 </div>
 
                 {/* Back of card */}
                 <div
-                    className="absolute inset-0 rounded-2xl overflow-hidden shadow-2xl bg-gradient-to-br from-gray-900 to-black p-8"
+                    className="absolute inset-0 rounded-2xl overflow-hidden shadow-2xl bg-gradient-to-br from-gray-900 to-black p-4 md:p-8"
                     style={{
                         backfaceVisibility: 'hidden',
                         transform: 'rotateY(180deg)',
@@ -143,21 +145,20 @@ const ServiceCard: React.FC<{ service: Service }> = ({ service }) => {
                 >
                     <div className="h-full flex flex-col justify-between">
                         <div>
-                            <h3 className="text-white text-2xl font-bold mb-4">{service.name}</h3>
-                            <p className="text-green-400 text-sm font-semibold mb-4 whitespace-pre-line">
+                            <h3 className="text-white text-sm md:text-2xl font-bold mb-2 md:mb-4 leading-snug">{service.name}</h3>
+                            <p className="text-green-400 text-[10px] md:text-sm font-semibold mb-2 md:mb-4 whitespace-pre-line">
                                 {service.pricing}
                             </p>
-                            <div className="overflow-y-auto max-h-56 pr-2 custom-scrollbar">
-                                <p className="text-gray-300 text-sm leading-relaxed">
+                            <div className="overflow-y-auto max-h-20 md:max-h-56 pr-1 md:pr-2 custom-scrollbar">
+                                <p className="text-gray-300 text-[10px] md:text-sm leading-relaxed">
                                     {service.description}
                                 </p>
                             </div>
                         </div>
                         <button
-                            className="mt-4 w-full bg-white text-black py-3 rounded-lg font-bold hover:bg-gray-200 transition-colors"
+                            className="mt-2 md:mt-4 w-full bg-white text-black py-1.5 md:py-3 rounded-lg text-[10px] md:text-sm font-bold hover:bg-gray-200 transition-colors"
                             onClick={(e) => {
                                 e.stopPropagation();
-                                // Handle request service action
                                 console.log('Request service:', service.name);
                             }}
                         >
@@ -172,7 +173,7 @@ const ServiceCard: React.FC<{ service: Service }> = ({ service }) => {
 
 const ServicesPage = () => {
     return (
-        <div className="min-h-screen bg-black">
+        <div className="min-h-screen bg-black flex flex-col">
             <Navigation />
 
             <div className="pt-20 pb-16 px-4">
@@ -182,35 +183,67 @@ const ServicesPage = () => {
                         <h1 className="text-white text-3xl font-bold">Our Services</h1>
                     </div>
 
-                    {/* Services Grid with Custom Layout */}
-                    <div className="space-y-8">
-                        {/* Row 1: 2 cards - Individual & Two Person */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {/* MOBILE LAYOUT (< md) */}
+                    <div className="md:hidden space-y-3">
+                        {/* Row 1: Individual — full width */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="col-span-2"><ServiceCard service={services[0]} /></div>
+                        </div>
+                        {/* Row 2: Two Person + Small Group — half */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <ServiceCard service={services[1]} />
+                            <ServiceCard service={services[2]} />
+                        </div>
+                        {/* Row 3: Large Group — full width */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="col-span-2"><ServiceCard service={services[3]} /></div>
+                        </div>
+                        {/* Row 4: Parent Consultation + Player Report — half */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <ServiceCard service={services[4]} />
+                            <ServiceCard service={services[6]} />
+                        </div>
+                        {/* Row 5: Game Analysis — full width */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="col-span-2"><ServiceCard service={services[5]} /></div>
+                        </div>
+                        {/* Row 6: Camps + Team Training — half */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <ServiceCard service={services[7]} />
+                            <ServiceCard service={services[8]} />
+                        </div>
+                        {/* Row 7: Pro Clinics + Showcases — half */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <ServiceCard service={services[9]} />
+                            <ServiceCard service={services[10]} />
+                        </div>
+                    </div>
+
+                    {/* DESKTOP LAYOUT (>= md) */}
+                    <div className="hidden md:block space-y-8">
+                        {/* Row 1: Individual & Two Person */}
+                        <div className="grid grid-cols-2 gap-8">
                             <ServiceCard service={services[0]} />
                             <ServiceCard service={services[1]} />
                         </div>
-
-                        {/* Row 2: 2 cards - Small Group & Large Group */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {/* Row 2: Small Group & Large Group */}
+                        <div className="grid grid-cols-2 gap-8">
                             <ServiceCard service={services[2]} />
                             <ServiceCard service={services[3]} />
                         </div>
-
-                        {/* Row 3: 3 cards - Parent Consultation, Game Analysis & Player Report */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        {/* Row 3: Parent Consultation, Game Analysis & Player Report */}
+                        <div className="grid grid-cols-2 lg:grid-cols-3 gap-8">
                             <ServiceCard service={services[4]} />
                             <ServiceCard service={services[5]} />
                             <ServiceCard service={services[6]} />
                         </div>
-
-                        {/* Row 4: 2 cards - Camps & Team Training */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {/* Row 4: Camps & Team Training */}
+                        <div className="grid grid-cols-2 gap-8">
                             <ServiceCard service={services[7]} />
                             <ServiceCard service={services[8]} />
                         </div>
-
-                        {/* Row 5: 2 cards - Professional Clinics & Showcases */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {/* Row 5: Professional Clinics & Showcases */}
+                        <div className="grid grid-cols-2 gap-8">
                             <ServiceCard service={services[9]} />
                             <ServiceCard service={services[10]} />
                         </div>
@@ -218,7 +251,6 @@ const ServicesPage = () => {
                 </div>
             </div>
 
-            {/* Footer */}
             <footer className="bg-black py-8 px-4 border-t border-gray-800">
                 <div className="max-w-6xl mx-auto text-center">
                     <p className="text-gray-400 text-sm">

@@ -19,8 +19,8 @@ const HomePageNew = () => {
     const statsRef = useRef<HTMLDivElement>(null);
     const aboutRef = useRef<HTMLDivElement>(null);
     const collageSectionRef = useRef<HTMLDivElement>(null);
-    const collageTrackRef = useRef<HTMLDivElement>(null);
     const heroRef = useRef<HTMLDivElement>(null);
+    const heroImageRef = useRef<HTMLImageElement>(null);
     const backgroundRef = useRef<HTMLDivElement>(null);
     const socialSectionRef = useRef<HTMLDivElement>(null);
 
@@ -43,7 +43,7 @@ const HomePageNew = () => {
         images.instagram3,
         images.instagram4,
         images.instagram5,
-    ]
+    ];
 
     const instagramPosts = [
         'https://www.instagram.com/p/C9N0qy5PKh0/?img_index=1',
@@ -53,77 +53,34 @@ const HomePageNew = () => {
         'https://www.instagram.com/p/C_Q_ZEwvaEn/?img_index=1',
     ];
 
-    /* ---------------- COLLAGE HORIZONTAL SCROLL WITH GSAP ---------------- */
+    /* ---------------- HERO IMAGE OPACITY + BACKGROUND COLOR ---------------- */
     useEffect(() => {
-        if (!collageSectionRef.current || !collageTrackRef.current) return;
+        const heroImg = heroImageRef.current;
+        const bg = backgroundRef.current;
+        if (!heroImg || !bg) return;
 
-        const track = collageTrackRef.current;
-        const imgs = gsap.utils.toArray<HTMLElement>('.collage-img');
-        const scrollDistance = track.scrollWidth - window.innerWidth;
+        const handleScroll = () => {
+            // Fade hero image as user scrolls
+            const opacity = Math.max(0, 1 - (window.scrollY / (window.innerHeight * 1.5)));
+            heroImg.style.opacity = String(opacity);
 
-        // Horizontal scroll + snap to each image
-        gsap.to(track, {
-            x: -scrollDistance,
-            ease: 'none',
-            scrollTrigger: {
-                trigger: collageSectionRef.current,
-                start: 'top top',
-                end: () => `+=${scrollDistance * 2}`,
-                scrub: 1.3,
-                pin: true,
-                anticipatePin: 1,
-                snap: {
-                    snapTo: 1 / (imgs.length - 1),
-                    duration: 0.6,
-                    ease: 'expo.out',
-                },
-            },
-        });
-
-        // Immediate black → eggshell background switch when entering collage
-        ScrollTrigger.create({
-            trigger: collageSectionRef.current,
-            start: 'top top',
-            end: '+=1',
-            onEnter: () =>
-                gsap.to(backgroundRef.current, {
-                    backgroundColor: 'rgb(240,234,214)',
-                    duration: 0.25,
-                    ease: 'power1.out',
-                }),
-            onLeaveBack: () =>
-                gsap.to(backgroundRef.current, {
-                    backgroundColor: 'black',
-                    duration: 0.25,
-                    ease: 'power1.out',
-                }),
-        });
-
-        // Parallax effect on images
-        imgs.forEach((img, i) => {
-            const depth = i % 3 === 0 ? 1 : i % 3 === 1 ? 0.7 : 0.45;
-            const yOffset = (i % 2 === 0 ? -1 : 1) * (50 + i * 6);
-
-            gsap.fromTo(
-                img,
-                { y: yOffset },
-                {
-                    y: -yOffset,
-                    ease: 'none',
-                    scrollTrigger: {
-                        trigger: collageSectionRef.current,
-                        start: 'top bottom',
-                        end: 'bottom top',
-                        scrub: depth,
-                    },
+            // Switch background to eggshell when collage section enters view
+            const collageEl = collageSectionRef.current;
+            if (collageEl) {
+                const collageTop = collageEl.getBoundingClientRect().top;
+                if (collageTop < window.innerHeight * 0.9) {
+                    bg.style.backgroundColor = 'rgb(240,234,214)';
+                } else {
+                    bg.style.backgroundColor = 'black';
                 }
-            );
-        });
+            }
+        };
 
-        return () => ScrollTrigger.killAll();
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        handleScroll();
+        return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
-    /* ---------------- SOCIAL CARD FAN-OUT WITH GSAP ---------------- */
     /* ---------------- SOCIAL CARD FAN-OUT WITH GSAP ---------------- */
     useEffect(() => {
         if (!socialSectionRef.current) return;
@@ -131,19 +88,16 @@ const HomePageNew = () => {
         const cards = gsap.utils.toArray<HTMLElement>('.social-card');
         if (cards.length === 0) return;
 
-        // Tighter spread — matches Lando reference
         const fanData = [
-            { x: -330, rotation: -24, z: 1 },
-            { x: -162, rotation: -12, z: 2 },
+            { x: -220, rotation: -24, z: 1 },
+            { x: -110, rotation: -12, z: 2 },
             { x:    0, rotation:   0, z: 5 },
-            { x:  162, rotation:  12, z: 2 },
-            { x:  312, rotation:  22, z: 1 },
+            { x:  110, rotation:  12, z: 2 },
+            { x:  208, rotation:  22, z: 1 },
         ];
 
-        // All stacked at start
         gsap.set(cards, { x: 0, rotation: 0, transformOrigin: 'center 85%' });
 
-        // Trigger ONCE on enter — stays fanned forever
         ScrollTrigger.create({
             trigger: socialSectionRef.current,
             start: 'top 65%',
@@ -161,13 +115,10 @@ const HomePageNew = () => {
             },
         });
 
-        // Hover: pop card up AND nudge neighbours outward so nothing clips
-        const NUDGE = 38; // px each neighbour shifts away
+        const NUDGE = 28;
         cards.forEach((card, i) => {
             card.addEventListener('mouseenter', () => {
-                // Pop the hovered card
                 gsap.to(card, { y: -22, scale: 1.05, zIndex: 20, duration: 0.28, ease: 'power2.out' });
-                // Push neighbours away
                 cards.forEach((other, j) => {
                     if (j === i) return;
                     const shift = j < i ? -NUDGE : NUDGE;
@@ -175,9 +126,7 @@ const HomePageNew = () => {
                 });
             });
             card.addEventListener('mouseleave', () => {
-                // Return hovered card
                 gsap.to(card, { y: 0, scale: 1, zIndex: fanData[i].z, duration: 0.35, ease: 'power2.out' });
-                // Return all neighbours to fanned positions
                 cards.forEach((other, j) => {
                     if (j === i) return;
                     gsap.to(other, { x: fanData[j].x, duration: 0.35, ease: 'power2.out' });
@@ -265,19 +214,17 @@ const HomePageNew = () => {
             {/* GLOBAL BACKGROUND */}
             <div
                 ref={backgroundRef}
-                className="fixed inset-0 z-0 transition-colors duration-500"
-                style={{ backgroundColor: 'black' }}
+                className="fixed inset-0 z-0"
+                style={{ backgroundColor: 'black', transition: 'background-color 0.4s ease' }}
             />
 
             <div className="fixed inset-0 z-0">
                 <img
+                    ref={heroImageRef}
                     src={images.homeHero}
                     alt="Next Star Soccer Background"
                     className="w-full h-full object-cover"
-                    style={{
-                        opacity: Math.max(0, 1 - (window.scrollY / (window.innerHeight * 1.5))),
-                        transition: 'opacity 0.3s ease-out'
-                    }}
+                    style={{ opacity: 1 }}
                     onError={(e) => {
                         e.currentTarget.style.display = 'none';
                     }}
@@ -420,22 +367,24 @@ const HomePageNew = () => {
                 </div>
             </section>
 
-            {/* COLLAGE - GSAP Horizontal Scroll */}
-            <section ref={collageSectionRef} className="relative h-screen z-10">
-                <div className="sticky top-0 h-screen overflow-hidden">
-                    <div ref={collageTrackRef} className="flex items-center h-full gap-24 px-[15vw]">
+            {/* COLLAGE - Vertical staggered 2-column grid */}
+            <section ref={collageSectionRef} className="relative z-10 py-16 px-4 md:px-16">
+                <div className="max-w-5xl mx-auto">
+                    <div className="grid grid-cols-2 gap-3 md:gap-6">
                         {collageImages.map((item, i) => (
                             <div
                                 key={i}
-                                className="collage-img flex-shrink-0 flex flex-col gap-3"
-                                style={{ marginTop: i % 2 === 0 ? '6vh' : '-4vh' }}
+                                className="flex flex-col gap-2"
+                                style={{ marginTop: i % 2 !== 0 ? '48px' : '0' }}
                             >
                                 <img
                                     src={item.src}
                                     alt={item.caption}
-                                    className="w-[320px] h-[48vh] object-cover rounded-xl shadow-2xl"
+                                    className="w-full h-[160px] sm:h-[240px] md:h-[340px] object-cover rounded-xl shadow-2xl"
+                                    loading="lazy"
+                                    decoding="async"
                                 />
-                                <p className="text-[11px] uppercase tracking-[0.18em] text-gray-500 font-medium pl-1">
+                                <p className="text-[9px] sm:text-[11px] uppercase tracking-[0.18em] text-gray-600 font-medium pl-1">
                                     {item.caption}
                                 </p>
                             </div>
@@ -445,27 +394,27 @@ const HomePageNew = () => {
             </section>
 
             {/* SOCIALS — GSAP fan-out card deck */}
-            <section ref={socialSectionRef} className="relative z-10 h-screen flex flex-col justify-center overflow-hidden" data-section="instagram">
+            <section ref={socialSectionRef} className="relative z-10 py-16 flex flex-col justify-center overflow-hidden" data-section="instagram">
 
                 {/* Centered heading */}
-                <div className="text-center mb-12 relative z-10 pointer-events-none select-none">
-                    <h2 className="text-[clamp(44px,6.5vw,88px)] font-black leading-none text-black uppercase">
+                <div className="text-center mb-10 relative z-10 pointer-events-none select-none">
+                    <h2 className="text-[clamp(36px,5.5vw,88px)] font-black leading-none text-black uppercase">
                         WHAT'S UP
                     </h2>
-                    <p className="text-[clamp(36px,5.5vw,72px)] font-black text-black uppercase leading-tight">
+                    <p className="text-[clamp(28px,4.5vw,72px)] font-black text-black uppercase leading-tight">
                         ON SOCIALS
                     </p>
                 </div>
 
-                {/* Card deck — stacked at scroll entry, fans out as section pins */}
-                <div className="relative flex items-center justify-center" style={{ height: '480px' }}>
+                {/* Card deck */}
+                <div className="relative flex items-center justify-center" style={{ height: '320px' }}>
                     {instagramPosts.map((postUrl, i) => (
                         <a
                             key={i}
                             href={postUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="social-card absolute w-[240px] h-[400px] md:w-[270px] md:h-[440px] rounded-3xl overflow-hidden shadow-2xl cursor-pointer"
+                            className="social-card absolute w-[150px] h-[250px] md:w-[170px] md:h-[290px] rounded-3xl overflow-hidden shadow-2xl cursor-pointer"
                             style={{ zIndex: i === 2 ? 10 : 5 - Math.abs(i - 2) }}
                         >
                             <img
@@ -478,7 +427,7 @@ const HomePageNew = () => {
                 </div>
 
                 {/* Platform links */}
-                <div className="flex justify-center items-center gap-10 mt-10 relative z-10">
+                <div className="flex justify-center items-center gap-10 mt-8 relative z-10">
                     <span className="text-black/30 text-[10px] uppercase tracking-[0.25em]">Follow</span>
                     <a
                         href="https://www.instagram.com/nextstarsoccer/"
