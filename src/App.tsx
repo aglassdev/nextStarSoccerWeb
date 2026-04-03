@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import HomePage from './pages/HomePageNew';
 import AboutPage from './pages/AboutPage';
 import CoachesPage from './pages/CoachesPage';
@@ -92,6 +94,8 @@ function App() {
     <AuthProvider>
       <BrowserRouter>
         <AppRoutes />
+        <Analytics />
+        <SpeedInsights />
       </BrowserRouter>
     </AuthProvider>
   );
