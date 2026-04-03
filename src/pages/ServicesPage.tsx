@@ -121,6 +121,8 @@ const ServiceCard: React.FC<{ service: Service }> = ({ service }) => {
                         src={service.frontImage}
                         alt={service.name}
                         className="w-full h-full object-cover"
+                        loading="lazy"
+                        decoding="async"
                         onError={(e) => {
                             e.currentTarget.style.display = 'none';
                             const parent = e.currentTarget.parentElement;

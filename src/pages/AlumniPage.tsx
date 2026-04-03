@@ -149,6 +149,8 @@ const FlipCard: React.FC<{ player: Player }> = ({ player }) => {
                 src={player.image}
                 alt={player.name}
                 className="absolute inset-0 w-full h-full object-cover object-top"
+                loading="lazy"
+                decoding="async"
                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
               />
             ) : (
@@ -190,6 +192,7 @@ const FlipCard: React.FC<{ player: Player }> = ({ player }) => {
             {player.image ? (
               <img src={player.image} alt={player.name}
                 className="w-10 h-10 rounded-full object-cover object-top flex-shrink-0"
+                loading="lazy" decoding="async"
                 onError={(e) => { e.currentTarget.style.display = 'none'; }} />
             ) : (
               <div className="w-10 h-10 rounded-full bg-gray-700 flex-shrink-0" />

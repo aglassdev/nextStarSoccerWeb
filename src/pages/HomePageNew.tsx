@@ -229,6 +229,8 @@ const HomePageNew = () => {
                     src={images.homeHero}
                     alt="Next Star Soccer Background"
                     className="w-full h-full object-cover"
+                    fetchPriority="high"
+                    decoding="async"
                     style={{ opacity: Math.max(0, 1 - (window.scrollY / (window.innerHeight * 1.5))), transition: 'opacity 0.3s ease-out' }}
                     onError={(e) => { e.currentTarget.style.display = 'none'; }}
                 />
@@ -318,6 +320,8 @@ const HomePageNew = () => {
                                     src={item.src}
                                     alt={item.caption}
                                     className="w-full h-36 object-cover rounded-xl shadow-md"
+                                    loading="lazy"
+                                    decoding="async"
                                     onError={(e) => { e.currentTarget.style.display = 'none'; }}
                                 />
                                 <p className="text-[10px] uppercase tracking-[0.15em] text-gray-500 font-medium pl-0.5">
@@ -342,6 +346,8 @@ const HomePageNew = () => {
                                         src={item.src}
                                         alt={item.caption}
                                         className="w-[320px] h-[48vh] object-cover rounded-xl shadow-2xl"
+                                        loading="lazy"
+                                        decoding="async"
                                     />
                                     <p className="text-[11px] uppercase tracking-[0.18em] text-gray-500 font-medium pl-1">
                                         {item.caption}
@@ -382,6 +388,8 @@ const HomePageNew = () => {
                                     src={instagramImages[i]}
                                     alt={`Instagram post ${i + 1}`}
                                     className="w-full h-full object-cover"
+                                    loading="lazy"
+                                    decoding="async"
                                 />
                             </a>
                         ))}
@@ -435,6 +443,8 @@ const HomePageNew = () => {
                                     src={instagramImages[i]}
                                     alt={`Instagram post ${i + 1}`}
                                     className="w-full h-full object-cover"
+                                    loading="lazy"
+                                    decoding="async"
                                 />
                             </a>
                         ))}
