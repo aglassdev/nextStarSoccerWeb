@@ -139,7 +139,8 @@ const FlipCard: React.FC<{ player: Player }> = ({ player }) => {
               <img
                 src={player.subtitleIcon}
                 alt=""
-                className="absolute inset-0 w-full h-full object-contain p-5 opacity-[0.18]"
+                className="absolute inset-0 w-full h-full object-contain p-5 opacity-[0.08]"
+                style={{ filter: 'blur(1px)' }}
                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
               />
             )}
