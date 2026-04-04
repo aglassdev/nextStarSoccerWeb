@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Query } from 'appwrite';
 import { databases, databaseId, collections } from '../../../services/appwrite';
 
-type MessageTab = 'unread' | 'read' | 'all';
+type MessageTab = 'unread' | 'read' | 'all' | 'trash';
 
 interface InquiryRecord {
   $id: string;
@@ -14,9 +14,14 @@ interface InquiryRecord {
   message: string;
   timestamp: string;
   read: boolean;
+  trashed?: boolean;
+  trashedAt?: string | null;
 }
 
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+
 const MessagesSection = () => {
+  const [allDocs, setAllDocs] = useState<InquiryRecord[]>([]);
   const [messages, setMessages] = useState<InquiryRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -24,10 +29,14 @@ const MessagesSection = () => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchMessages();
-  }, [activeTab]);
+    fetchAll();
+  }, []);
 
-  const fetchMessages = async () => {
+  useEffect(() => {
+    filterMessages();
+  }, [activeTab, allDocs]);
+
+  const fetchAll = async () => {
     setLoading(true);
     setError('');
     try {
@@ -35,15 +44,25 @@ const MessagesSection = () => {
         Query.orderDesc('$createdAt'),
         Query.limit(5000),
       ]);
-      let docs = res.documents as unknown as InquiryRecord[];
+      const docs = res.documents as unknown as InquiryRecord[];
 
-      if (activeTab === 'unread') {
-        docs = docs.filter(d => d.read === false);
-      } else if (activeTab === 'read') {
-        docs = docs.filter(d => d.read === true);
+      // Auto-delete items trashed more than 30 days ago
+      const now = Date.now();
+      const toDelete: string[] = [];
+      const kept: InquiryRecord[] = [];
+      for (const doc of docs) {
+        if (doc.trashed && doc.trashedAt && now - new Date(doc.trashedAt).getTime() > THIRTY_DAYS_MS) {
+          toDelete.push(doc.$id);
+        } else {
+          kept.push(doc);
+        }
       }
+      // Fire-and-forget deletions
+      toDelete.forEach(id => {
+        databases.deleteDocument(databaseId, collections.websiteInquiries, id).catch(() => {});
+      });
 
-      setMessages(docs);
+      setAllDocs(kept);
     } catch (err: any) {
       setError('Failed to load inquiries: ' + (err.message || 'Unknown error'));
     } finally {
@@ -51,25 +70,73 @@ const MessagesSection = () => {
     }
   };
 
+  const filterMessages = () => {
+    const notTrashed = allDocs.filter(d => !d.trashed);
+    const trashed = allDocs.filter(d => d.trashed);
+
+    switch (activeTab) {
+      case 'unread':
+        setMessages(notTrashed.filter(d => d.read === false));
+        break;
+      case 'read':
+        setMessages(notTrashed.filter(d => d.read === true));
+        break;
+      case 'all':
+        setMessages(notTrashed);
+        break;
+      case 'trash':
+        setMessages(trashed);
+        break;
+    }
+  };
+
   const markAsRead = async (id: string) => {
     try {
       await databases.updateDocument(databaseId, collections.websiteInquiries, id, { read: true });
-      setMessages(prev => prev.map(m => m.$id === id ? { ...m, read: true } : m));
+      setAllDocs(prev => prev.map(m => m.$id === id ? { ...m, read: true } : m));
     } catch { /* ignore */ }
   };
 
-  const buildGmailUrl = (msg: InquiryRecord) => {
+  const moveToTrash = async (id: string) => {
+    try {
+      const trashedAt = new Date().toISOString();
+      await databases.updateDocument(databaseId, collections.websiteInquiries, id, { trashed: true, trashedAt });
+      setAllDocs(prev => prev.map(m => m.$id === id ? { ...m, trashed: true, trashedAt } : m));
+      setExpandedId(null);
+    } catch { /* ignore */ }
+  };
+
+  const restoreFromTrash = async (id: string) => {
+    try {
+      await databases.updateDocument(databaseId, collections.websiteInquiries, id, { trashed: false, trashedAt: null });
+      setAllDocs(prev => prev.map(m => m.$id === id ? { ...m, trashed: false, trashedAt: null } : m));
+      setExpandedId(null);
+    } catch { /* ignore */ }
+  };
+
+  const permanentDelete = async (id: string) => {
+    try {
+      await databases.deleteDocument(databaseId, collections.websiteInquiries, id);
+      setAllDocs(prev => prev.filter(m => m.$id !== id));
+      setExpandedId(null);
+    } catch { /* ignore */ }
+  };
+
+  const buildReplyUrl = (msg: InquiryRecord) => {
     const name = `${msg.firstName} ${msg.lastName}`.trim();
     const subject = `Re: ${msg.subject || 'Your Inquiry'}`;
     const body = `\n\n\n────────────────────\nOriginal message from ${name} (${msg.email}):\nSubject: ${msg.subject || '—'}\n\n${msg.message || ''}`;
     return `mailto:${msg.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
-  const tabLabel: Record<MessageTab, string> = {
-    unread: 'Unread',
-    read: 'Read',
-    all: 'All',
-  };
+  const tabConfig: { key: MessageTab; label: string }[] = [
+    { key: 'unread', label: 'Unread' },
+    { key: 'read', label: 'Read' },
+    { key: 'all', label: 'All' },
+    { key: 'trash', label: 'Trash' },
+  ];
+
+  const trashCount = allDocs.filter(d => d.trashed).length;
 
   return (
     <div className="p-6">
@@ -77,20 +144,25 @@ const MessagesSection = () => {
 
       {/* Tabs */}
       <div className="flex gap-1 mb-6 bg-gray-900 rounded-lg p-1 w-fit border border-gray-800">
-        {(['unread', 'read', 'all'] as MessageTab[]).map(tab => (
+        {tabConfig.map(({ key, label }) => (
           <button
-            key={tab}
+            key={key}
             onClick={() => {
-              setActiveTab(tab);
+              setActiveTab(key);
               setExpandedId(null);
             }}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              activeTab === tab
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
+              activeTab === key
                 ? 'bg-blue-600 text-white'
                 : 'text-gray-400 hover:text-white'
             }`}
           >
-            {tabLabel[tab]}
+            {label}
+            {key === 'trash' && trashCount > 0 && (
+              <span className="text-[10px] bg-gray-700 text-gray-300 rounded-full px-1.5 py-0.5">
+                {trashCount}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -111,23 +183,24 @@ const MessagesSection = () => {
         <div className="bg-gray-900 rounded-lg border border-gray-800 divide-y divide-gray-800">
           {messages.length === 0 ? (
             <div className="px-4 py-8 text-center text-gray-500">
-              No {tabLabel[activeTab].toLowerCase()} inquiries
+              {activeTab === 'trash' ? 'Trash is empty' : `No ${activeTab} inquiries`}
             </div>
           ) : (
             messages.map(msg => {
               const name = `${msg.firstName} ${msg.lastName}`.trim() || 'Unknown';
               const isExpanded = expandedId === msg.$id;
+              const isTrash = activeTab === 'trash';
 
               return (
                 <div key={msg.$id}>
                   <div
                     onClick={() => {
                       setExpandedId(isExpanded ? null : msg.$id);
-                      if (!msg.read) markAsRead(msg.$id);
+                      if (!msg.read && !isTrash) markAsRead(msg.$id);
                     }}
                     className="px-4 py-4 hover:bg-gray-800/50 cursor-pointer transition-colors"
                   >
-                    {/* Top row: name, email, date */}
+                    {/* Top row: name, email, date, trash button */}
                     <div className="flex items-center justify-between gap-4">
                       <div className="flex items-center gap-3 min-w-0 flex-1">
                         <div className="w-8 h-8 rounded-full bg-[#1a1a1a] border border-[#2a2a2a] flex items-center justify-center flex-shrink-0">
@@ -137,26 +210,39 @@ const MessagesSection = () => {
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
-                            <span className={`text-sm font-medium truncate ${!msg.read ? 'text-white' : 'text-gray-400'}`}>
+                            <span className={`text-sm font-medium truncate ${!msg.read && !isTrash ? 'text-white' : 'text-gray-400'}`}>
                               {name}
                             </span>
-                            {!msg.read && (
+                            {!msg.read && !isTrash && (
                               <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
                             )}
                           </div>
                           <p className="text-gray-600 text-xs truncate">{msg.email}</p>
                         </div>
                       </div>
-                      <div className="text-gray-600 text-xs flex-shrink-0">
-                        {new Date(msg.$createdAt).toLocaleDateString('en-US', {
-                          month: 'short', day: 'numeric', year: 'numeric',
-                        })}
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        <span className="text-gray-600 text-xs">
+                          {new Date(msg.$createdAt).toLocaleDateString('en-US', {
+                            month: 'short', day: 'numeric', year: 'numeric',
+                          })}
+                        </span>
+                        {!isTrash && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); moveToTrash(msg.$id); }}
+                            className="text-gray-700 hover:text-red-400 transition-colors p-1"
+                            title="Move to trash"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        )}
                       </div>
                     </div>
 
                     {/* Subject + preview */}
                     <div className="mt-2 pl-11">
-                      <p className={`text-sm truncate ${!msg.read ? 'text-gray-300' : 'text-gray-500'}`}>
+                      <p className={`text-sm truncate ${!msg.read && !isTrash ? 'text-gray-300' : 'text-gray-500'}`}>
                         {msg.subject || '(No subject)'}
                       </p>
                       <p className="text-gray-600 text-xs mt-0.5 truncate">{msg.message || ''}</p>
@@ -190,6 +276,16 @@ const MessagesSection = () => {
                               })}
                             </p>
                           </div>
+                          {isTrash && msg.trashedAt && (
+                            <div>
+                              <span className="text-gray-600 text-xs">Auto-deletes</span>
+                              <p className="text-red-400 text-sm">
+                                {new Date(new Date(msg.trashedAt).getTime() + THIRTY_DAYS_MS).toLocaleDateString('en-US', {
+                                  month: 'short', day: 'numeric', year: 'numeric',
+                                })}
+                              </p>
+                            </div>
+                          )}
                         </div>
 
                         {/* Full message */}
@@ -197,19 +293,53 @@ const MessagesSection = () => {
                           {msg.message || '(No message body)'}
                         </p>
 
-                        {/* Reply button */}
-                        <a
-                          href={buildGmailUrl(msg)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 px-4 py-2 bg-white hover:bg-gray-200 text-black text-sm font-medium rounded-lg transition-colors"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10l9 6 9-6M21 10v8a2 2 0 01-2 2H5a2 2 0 01-2-2v-8" />
-                          </svg>
-                          Reply
-                        </a>
+                        {/* Action buttons */}
+                        <div className="flex items-center gap-3">
+                          {isTrash ? (
+                            <>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); restoreFromTrash(msg.$id); }}
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-white hover:bg-gray-200 text-black text-sm font-medium rounded-lg transition-colors"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                                </svg>
+                                Restore
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); permanentDelete(msg.$id); }}
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-sm font-medium rounded-lg transition-colors border border-red-500/20"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                                Delete permanently
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <a
+                                href={buildReplyUrl(msg)}
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-white hover:bg-gray-200 text-black text-sm font-medium rounded-lg transition-colors"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10l9 6 9-6M21 10v8a2 2 0 01-2 2H5a2 2 0 01-2-2v-8" />
+                                </svg>
+                                Reply
+                              </a>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); moveToTrash(msg.$id); }}
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-sm font-medium rounded-lg transition-colors border border-red-500/20"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                                Trash
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                   )}

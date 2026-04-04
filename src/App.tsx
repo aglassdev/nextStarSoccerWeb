@@ -91,6 +91,12 @@ function AppRoutes() {
       {/* Admin routes */}
       <Route path="/admin" element={<AdminLoginPage />} />
       <Route path="/admin/dashboard" element={<AdminDashboard />} />
+      <Route path="/admin/players" element={<AdminDashboard />} />
+      <Route path="/admin/coaches" element={<AdminDashboard />} />
+      <Route path="/admin/parents" element={<AdminDashboard />} />
+      <Route path="/admin/messages" element={<AdminDashboard />} />
+      <Route path="/admin/payments" element={<AdminDashboard />} />
+      <Route path="/admin/bills" element={<AdminDashboard />} />
 
       {/* Catch all - redirect to home */}
       <Route path="*" element={<Navigate to="/" replace />} />

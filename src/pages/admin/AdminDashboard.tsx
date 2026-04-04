@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { databases, databaseId, collections } from '../../services/appwrite';
 import { Query } from 'appwrite';
@@ -225,10 +225,21 @@ const EventCard = ({
 );
 
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
+const SECTION_FROM_PATH: Record<string, Section> = {
+  '/admin/players': 'players',
+  '/admin/coaches': 'coaches',
+  '/admin/parents': 'parents',
+  '/admin/messages': 'messages',
+  '/admin/payments': 'payments',
+  '/admin/bills': 'bills',
+};
+
 const AdminDashboard = () => {
   const { user, logout, initialized } = useAuth();
   const navigate = useNavigate();
-  const [activeSection, setActiveSection] = useState<Section | null>(null);
+  const location = useLocation();
+  const activeSection: Section | null = SECTION_FROM_PATH[location.pathname] || null;
+  const setActiveSection = (s: Section | null) => navigate(s ? `/admin/${s}` : '/admin/dashboard');
 
   // Stats
   const [stats, setStats] = useState({
@@ -302,17 +313,27 @@ const AdminDashboard = () => {
           highlight: k === currentKey,
         })));
 
-        // ── Bills status — fetch ALL bills and count client-side to avoid query mismatches
+        // ── Bills status — fetch ALL bills, derive overdue from dueDate
         if (collections.bills) {
           const allBills = await databases.listDocuments(databaseId, collections.bills, [
             Query.limit(5000),
           ]).catch(() => ({ documents: [] }));
           const docs = (allBills as any).documents as any[];
-          setBillsStatus({
-            paid: docs.filter(b => b.status === 'paid').length,
-            pending: docs.filter(b => b.status === 'pending').length,
-            overdue: docs.filter(b => b.status === 'overdue').length,
+          let paid = 0, pending = 0, overdue = 0;
+          docs.forEach((b: any) => {
+            if (b.status === 'paid' || b.status === 'cancelled') {
+              if (b.status === 'paid') paid++;
+            } else {
+              // If dueDate has passed, it's overdue regardless of Appwrite status
+              const due = b.dueDate ? new Date(b.dueDate) : null;
+              if (due && due < now) {
+                overdue++;
+              } else {
+                pending++;
+              }
+            }
           });
+          setBillsStatus({ paid, pending, overdue });
         }
 
         // ── Today's calendar events — separate public and private
@@ -340,12 +361,13 @@ const AdminDashboard = () => {
         setTodayPublicEvents(enrichedPublic);
         setTodayPrivateEvents(enrichedPrivate);
 
-        // ── Recent messages (from Website Inquiries)
+        // ── Recent messages (from Website Inquiries, exclude trashed)
         if (collections.websiteInquiries) {
           const msgs = await databases.listDocuments(databaseId, collections.websiteInquiries, [
-            Query.orderDesc('$createdAt'), Query.limit(8),
+            Query.orderDesc('$createdAt'), Query.limit(50),
           ]).catch(() => ({ documents: [] }));
-          setRecentMessages((msgs as any).documents);
+          const nonTrashed = (msgs as any).documents.filter((m: any) => !m.trashed);
+          setRecentMessages(nonTrashed.slice(0, 8));
         }
 
         // ── Request type counts (try from websiteInquiries by subject/type)
