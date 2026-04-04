@@ -19,10 +19,13 @@ interface BillRecord {
   [key: string]: any;
 }
 
-const statusMap: Record<string, BillStatus> = {
-  pending: 'outstanding',
-  paid: 'settled',
-  overdue: 'overdue',
+const deriveBillStatus = (b: BillRecord): BillStatus => {
+  if (b.status === 'paid') return 'settled';
+  if (b.status === 'cancelled') return 'settled';
+  // If due date has passed, it's overdue regardless of Appwrite status
+  const dueMs = b.dueDate ? Date.parse(b.dueDate) : NaN;
+  if (!isNaN(dueMs) && dueMs < Date.now()) return 'overdue';
+  return 'outstanding';
 };
 
 const BillsSection = () => {
@@ -50,10 +53,7 @@ const BillsSection = () => {
     }
   };
 
-  const tabBills = bills.filter(b => {
-    const mapped = statusMap[b.status] || 'outstanding';
-    return mapped === activeTab;
-  });
+  const tabBills = bills.filter(b => deriveBillStatus(b) === activeTab);
 
   const filtered = tabBills.filter(b => {
     const name = (b.name || b.names || b.parentId || '').toLowerCase();
@@ -148,7 +148,7 @@ const BillsSection = () => {
                       {bill.dueDate ? new Date(bill.dueDate).toLocaleDateString() : '—'}
                     </td>
                     <td className="px-4 py-3 text-white">
-                      {bill.amount != null ? `$${Number(bill.amount).toFixed(2)}` : '—'}
+                      {(bill.totalAmount ?? bill.amount) != null ? `$${Number(bill.totalAmount ?? bill.amount).toFixed(2)}` : '—'}
                     </td>
                     <td className="px-4 py-3">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusBadge(activeTab)}`}>
@@ -186,8 +186,8 @@ const BillsSection = () => {
 
               <div className="space-y-4">
                 <div>
-                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusBadge(statusMap[selectedBill.status] || 'outstanding')}`}>
-                    {tabLabel[statusMap[selectedBill.status] || 'outstanding']}
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusBadge(deriveBillStatus(selectedBill))}`}>
+                    {tabLabel[deriveBillStatus(selectedBill)]}
                   </span>
                 </div>
 
@@ -199,7 +199,7 @@ const BillsSection = () => {
                 />
                 <DetailRow
                   label="Amount"
-                  value={selectedBill.amount != null ? `$${Number(selectedBill.amount).toFixed(2)}` : undefined}
+                  value={(selectedBill.totalAmount ?? selectedBill.amount) != null ? `$${Number(selectedBill.totalAmount ?? selectedBill.amount).toFixed(2)}` : undefined}
                 />
                 <DetailRow label="Description" value={selectedBill.description} />
                 <DetailRow
