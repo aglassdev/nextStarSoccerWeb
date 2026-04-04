@@ -285,29 +285,46 @@ const HomePageNew = () => {
                 </div>
             </section>
 
-            {/* ── COLLAGE — vertical staggered 2-col grid (same on mobile & desktop) ── */}
+            {/* ── COLLAGE — two independent columns, natural image aspect ratios ── */}
             <section ref={collageSectionRef} className="relative z-10 py-16 px-4 md:px-16">
                 <div className="max-w-5xl mx-auto">
-                    <div className="grid grid-cols-2 gap-3 md:gap-6">
-                        {collageImages.map((item, i) => (
-                            <div
-                                key={i}
-                                className="flex flex-col gap-2"
-                                style={{ marginTop: i % 2 !== 0 ? '48px' : '0' }}
-                            >
-                                <img
-                                    src={item.src}
-                                    alt={item.caption}
-                                    className="w-full h-[140px] sm:h-[220px] md:h-[320px] object-cover rounded-xl shadow-2xl"
-                                    loading="lazy"
-                                    decoding="async"
-                                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                                />
-                                <p className="text-[9px] sm:text-[11px] uppercase tracking-[0.18em] text-gray-600 font-medium pl-1">
-                                    {item.caption}
-                                </p>
-                            </div>
-                        ))}
+                    <div className="flex gap-3 md:gap-6">
+                        {/* Left column */}
+                        <div className="flex-1 flex flex-col gap-3 md:gap-6">
+                            {collageImages.filter((_, i) => i % 2 === 0).map((item, idx) => (
+                                <div key={idx} className="flex flex-col gap-1.5">
+                                    <img
+                                        src={item.src}
+                                        alt={item.caption}
+                                        className="w-full h-auto rounded-xl shadow-2xl"
+                                        loading="lazy"
+                                        decoding="async"
+                                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                    />
+                                    <p className="text-[9px] sm:text-[11px] uppercase tracking-[0.18em] text-gray-600 font-medium pl-1">
+                                        {item.caption}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+                        {/* Right column — offset down for stagger */}
+                        <div className="flex-1 flex flex-col gap-3 md:gap-6 mt-12 md:mt-20">
+                            {collageImages.filter((_, i) => i % 2 !== 0).map((item, idx) => (
+                                <div key={idx} className="flex flex-col gap-1.5">
+                                    <img
+                                        src={item.src}
+                                        alt={item.caption}
+                                        className="w-full h-auto rounded-xl shadow-2xl"
+                                        loading="lazy"
+                                        decoding="async"
+                                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                    />
+                                    <p className="text-[9px] sm:text-[11px] uppercase tracking-[0.18em] text-gray-600 font-medium pl-1">
+                                        {item.caption}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
             </section>
