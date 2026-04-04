@@ -264,6 +264,10 @@ const ContactPage = () => {
   };
 
   const handleReset = () => {
+    if (lottieInstance.current) {
+      lottieInstance.current.destroy();
+      lottieInstance.current = null;
+    }
     setInquirySent(false);
   };
 
@@ -506,6 +510,27 @@ const ContactPage = () => {
                 </div>
               </div>
             )}
+
+            {/* Contact Info */}
+            <div className="mt-12 pt-8 border-t border-zinc-800">
+              <div className="flex gap-8">
+                <div>
+                  <p className="text-gray-400 text-sm mb-1">Phone</p>
+                  <a href="tel:+15551234567" className="text-white hover:text-gray-300 transition-colors">
+                    (555) 123-4567
+                  </a>
+                </div>
+                <div>
+                  <p className="text-gray-400 text-sm mb-1">Email</p>
+                  <a
+                    href="mailto:info@nextstarsoccer.com"
+                    className="text-white hover:text-gray-300 transition-colors"
+                  >
+                    info@nextstarsoccer.com
+                  </a>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* ── Right: FAQ ── */}
@@ -548,26 +573,6 @@ const ContactPage = () => {
           </div>
         </div>
 
-        {/* Contact Information Footer */}
-        <div className="mt-20 pt-12 border-t border-zinc-800 text-center">
-          <div className="space-y-4">
-            <div>
-              <p className="text-gray-400 text-sm mb-1">Phone</p>
-              <a href="tel:+15551234567" className="text-white text-lg hover:text-gray-300 transition-colors">
-                (555) 123-4567
-              </a>
-            </div>
-            <div>
-              <p className="text-gray-400 text-sm mb-1">Email</p>
-              <a
-                href="mailto:info@nextstarsoccer.com"
-                className="text-white text-lg hover:text-gray-300 transition-colors"
-              >
-                info@nextstarsoccer.com
-              </a>
-            </div>
-          </div>
-        </div>
       </div>
       <Footer />
     </div>
