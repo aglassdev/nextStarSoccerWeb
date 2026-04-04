@@ -10,6 +10,7 @@ import ParentsSection from './sections/ParentsSection';
 import BillsSection from './sections/BillsSection';
 import PaymentsSection from './sections/PaymentsSection';
 import MessagesSection from './sections/MessagesSection';
+import RequestsSection from './sections/RequestsSection';
 
 const ALLOWED_EMAILS = [
   'amartyaglasses@gmail.com',
@@ -28,7 +29,7 @@ const REQUEST_TYPES = [
   'Player Report',
 ];
 
-type Section = 'players' | 'coaches' | 'parents' | 'bills' | 'payments' | 'messages';
+type Section = 'players' | 'coaches' | 'parents' | 'bills' | 'payments' | 'messages' | 'requests';
 
 interface CalEvent {
   id: string; title: string; startDateTime: string;
@@ -159,6 +160,10 @@ const navItems: { section: Section | null; label: string; icon: React.ReactNode 
     icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>,
   },
   {
+    section: 'requests', label: 'Requests',
+    icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>,
+  },
+  {
     section: 'payments', label: 'Payments',
     icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>,
   },
@@ -232,6 +237,7 @@ const SECTION_FROM_PATH: Record<string, Section> = {
   '/admin/messages': 'messages',
   '/admin/payments': 'payments',
   '/admin/bills': 'bills',
+  '/admin/requests': 'requests',
 };
 
 const AdminDashboard = () => {
@@ -456,6 +462,7 @@ const AdminDashboard = () => {
     bills: <BillsSection />,
     payments: <PaymentsSection />,
     messages: <MessagesSection />,
+    requests: <RequestsSection />,
   };
 
   const totalRevenue = revenueData.reduce((s, d) => s + d.value, 0);
