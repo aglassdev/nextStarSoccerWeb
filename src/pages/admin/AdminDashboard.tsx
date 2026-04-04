@@ -629,8 +629,8 @@ const AdminDashboard = () => {
                         const unread = msg.read === false;
                         const senderEmail = msg.email || '';
 
-                        const gmailUrl = senderEmail
-                          ? `https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(senderEmail)}&su=${encodeURIComponent('Re: ' + (msg.subject || 'Your Inquiry'))}&body=${encodeURIComponent('\n\n\n────────────────────\nOriginal message from ' + name + ' (' + senderEmail + '):\nSubject: ' + (msg.subject || '—') + '\n\n' + (msg.message || ''))}`
+                        const replyUrl = senderEmail
+                          ? `mailto:${senderEmail}?subject=${encodeURIComponent('Re: ' + (msg.subject || 'Your Inquiry'))}&body=${encodeURIComponent('\n\n\n────────────────────\nOriginal message from ' + name + ' (' + senderEmail + '):\nSubject: ' + (msg.subject || '—') + '\n\n' + (msg.message || ''))}`
                           : '';
 
                         return (
@@ -648,11 +648,9 @@ const AdminDashboard = () => {
                                 <span className="text-gray-700 text-xs flex-shrink-0">{ago}</span>
                               </div>
                               <p className="text-gray-600 text-xs mt-0.5 truncate">{preview || '—'}</p>
-                              {gmailUrl && (
+                              {replyUrl && (
                                 <a
-                                  href={gmailUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
+                                  href={replyUrl}
                                   className="inline-flex items-center gap-1 mt-1.5 text-[10px] text-blue-400 hover:text-blue-300 transition-colors"
                                   onClick={(e) => e.stopPropagation()}
                                 >

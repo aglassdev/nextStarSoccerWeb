@@ -62,7 +62,7 @@ const MessagesSection = () => {
     const name = `${msg.firstName} ${msg.lastName}`.trim();
     const subject = `Re: ${msg.subject || 'Your Inquiry'}`;
     const body = `\n\n\n────────────────────\nOriginal message from ${name} (${msg.email}):\nSubject: ${msg.subject || '—'}\n\n${msg.message || ''}`;
-    return `https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(msg.email)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    return `mailto:${msg.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
   const tabLabel: Record<MessageTab, string> = {
@@ -208,7 +208,7 @@ const MessagesSection = () => {
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10l9 6 9-6M21 10v8a2 2 0 01-2 2H5a2 2 0 01-2-2v-8" />
                           </svg>
-                          Reply in Gmail
+                          Reply
                         </a>
                       </div>
                     </div>
