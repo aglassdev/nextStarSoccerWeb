@@ -6,23 +6,20 @@ type BillStatus = 'outstanding' | 'settled' | 'overdue';
 
 interface BillRecord {
   $id: string;
+  userId: string;
   monthName?: string;
-  name?: string;
-  names?: string;
+  totalAmount?: number;
   dueDate?: string;
-  amount?: number;
   status: string;
-  parentId?: string;
-  description?: string;
-  createdAt?: string;
   paidAt?: string;
+  itemCount?: number;
+  parentUserId?: string;
   [key: string]: any;
 }
 
 const deriveBillStatus = (b: BillRecord): BillStatus => {
   if (b.status === 'paid') return 'settled';
   if (b.status === 'cancelled') return 'settled';
-  // If due date has passed, it's overdue regardless of Appwrite status
   const dueMs = b.dueDate ? Date.parse(b.dueDate) : NaN;
   if (!isNaN(dueMs) && dueMs < Date.now()) return 'overdue';
   return 'outstanding';
@@ -30,6 +27,7 @@ const deriveBillStatus = (b: BillRecord): BillStatus => {
 
 const BillsSection = () => {
   const [bills, setBills] = useState<BillRecord[]>([]);
+  const [userNames, setUserNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState<BillStatus>('outstanding');
@@ -45,7 +43,37 @@ const BillsSection = () => {
     setError('');
     try {
       const res = await databases.listDocuments(databaseId, collections.bills, [Query.limit(5000)]);
-      setBills(res.documents as unknown as BillRecord[]);
+      const docs = res.documents as unknown as BillRecord[];
+      setBills(docs);
+
+      // Resolve userIds to names
+      const uniqueIds = [...new Set(docs.map(b => b.userId).filter(Boolean))];
+      const nameMap: Record<string, string> = {};
+
+      const lookupCollections = [
+        collections.youthPlayers,
+        collections.collegiatePlayers,
+        collections.professionalPlayers,
+        collections.parentUsers,
+        collections.coaches,
+      ].filter(Boolean) as string[];
+
+      // Fetch all docs from each collection once, then match
+      for (const colId of lookupCollections) {
+        try {
+          const colRes = await databases.listDocuments(databaseId, colId, [Query.limit(5000)]);
+          for (const doc of colRes.documents as any[]) {
+            if (doc.userId && uniqueIds.includes(doc.userId) && !nameMap[doc.userId]) {
+              const fn = doc.firstName || '';
+              const ln = doc.lastName || '';
+              const full = `${fn} ${ln}`.trim();
+              if (full) nameMap[doc.userId] = full;
+            }
+          }
+        } catch { /* skip */ }
+      }
+
+      setUserNames(nameMap);
     } catch (err: any) {
       setError('Failed to load bills: ' + (err.message || 'Unknown error'));
     } finally {
@@ -53,10 +81,12 @@ const BillsSection = () => {
     }
   };
 
+  const getName = (b: BillRecord) => userNames[b.userId] || b.userId || '—';
+
   const tabBills = bills.filter(b => deriveBillStatus(b) === activeTab);
 
   const filtered = tabBills.filter(b => {
-    const name = (b.name || b.names || b.parentId || '').toLowerCase();
+    const name = getName(b).toLowerCase();
     return name.includes(search.toLowerCase());
   });
 
@@ -122,7 +152,7 @@ const BillsSection = () => {
             <thead>
               <tr className="border-b border-gray-800 bg-gray-950">
                 <th className="text-left px-4 py-3 text-gray-400 text-sm font-medium">Month</th>
-                <th className="text-left px-4 py-3 text-gray-400 text-sm font-medium">Name(s)</th>
+                <th className="text-left px-4 py-3 text-gray-400 text-sm font-medium">Name</th>
                 <th className="text-left px-4 py-3 text-gray-400 text-sm font-medium">Due Date</th>
                 <th className="text-left px-4 py-3 text-gray-400 text-sm font-medium">Amount</th>
                 <th className="text-left px-4 py-3 text-gray-400 text-sm font-medium">Status</th>
@@ -143,16 +173,16 @@ const BillsSection = () => {
                     className="hover:bg-gray-800/50 cursor-pointer transition-colors"
                   >
                     <td className="px-4 py-3 text-white">{bill.monthName || '—'}</td>
-                    <td className="px-4 py-3 text-gray-300">{bill.name || bill.names || bill.parentId || '—'}</td>
+                    <td className="px-4 py-3 text-gray-300">{getName(bill)}</td>
                     <td className="px-4 py-3 text-gray-400">
                       {bill.dueDate ? new Date(bill.dueDate).toLocaleDateString() : '—'}
                     </td>
                     <td className="px-4 py-3 text-white">
-                      {(bill.totalAmount ?? bill.amount) != null ? `$${Number(bill.totalAmount ?? bill.amount).toFixed(2)}` : '—'}
+                      {bill.totalAmount != null ? `$${Number(bill.totalAmount).toFixed(2)}` : '—'}
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusBadge(activeTab)}`}>
-                        {tabLabel[activeTab]}
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusBadge(deriveBillStatus(bill))}`}>
+                        {tabLabel[deriveBillStatus(bill)]}
                       </span>
                     </td>
                   </tr>
@@ -192,19 +222,19 @@ const BillsSection = () => {
                 </div>
 
                 <DetailRow label="Month" value={selectedBill.monthName} />
-                <DetailRow label="Name(s)" value={selectedBill.name || selectedBill.names || selectedBill.parentId} />
+                <DetailRow label="Name" value={getName(selectedBill)} />
                 <DetailRow
                   label="Due Date"
                   value={selectedBill.dueDate ? new Date(selectedBill.dueDate).toLocaleDateString() : undefined}
                 />
                 <DetailRow
                   label="Amount"
-                  value={(selectedBill.totalAmount ?? selectedBill.amount) != null ? `$${Number(selectedBill.totalAmount ?? selectedBill.amount).toFixed(2)}` : undefined}
+                  value={selectedBill.totalAmount != null ? `$${Number(selectedBill.totalAmount).toFixed(2)}` : undefined}
                 />
-                <DetailRow label="Description" value={selectedBill.description} />
+                <DetailRow label="Items" value={selectedBill.itemCount != null ? String(selectedBill.itemCount) : undefined} />
                 <DetailRow
                   label="Created"
-                  value={selectedBill.createdAt ? new Date(selectedBill.createdAt).toLocaleDateString() : undefined}
+                  value={selectedBill.$createdAt ? new Date(selectedBill.$createdAt).toLocaleDateString() : undefined}
                 />
                 {selectedBill.paidAt && (
                   <DetailRow
