@@ -411,9 +411,15 @@
 }
 
 @media (max-width: 768px) {
+  .pc-card-wrapper,
+  .pc-card-shell {
+    width: 100%;
+  }
+
   .pc-card {
-    height: 70svh;
-    max-height: 450px;
+    width: 100%;
+    height: auto !important;
+    max-height: none !important;
   }
 
   .pc-details {

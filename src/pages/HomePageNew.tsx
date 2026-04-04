@@ -87,21 +87,21 @@ const HomePageNew = () => {
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
-    /* ---------------- SOCIAL CARD FAN-OUT (desktop only) ---------------- */
+    /* ---------------- SOCIAL CARD FAN-OUT (all screen sizes) ---------------- */
     useEffect(() => {
-        if (isMobile) return;
         if (!socialSectionRef.current) return;
 
         const cards = gsap.utils.toArray<HTMLElement>('.social-card');
         if (cards.length === 0) return;
 
-        // Reduced spread so all 5 cards fit on screen
+        // Scale spread down on mobile so all 5 cards fit the viewport
+        const m = isMobile ? 0.62 : 1.0;
         const fanData = [
-            { x: -220, rotation: -24, z: 1 },
-            { x: -110, rotation: -12, z: 2 },
-            { x:    0, rotation:   0, z: 5 },
-            { x:  110, rotation:  12, z: 2 },
-            { x:  208, rotation:  22, z: 1 },
+            { x: -220 * m, rotation: -24, z: 1 },
+            { x: -110 * m, rotation: -12, z: 2 },
+            { x:       0,  rotation:   0, z: 5 },
+            { x:  110 * m, rotation:  12, z: 2 },
+            { x:  208 * m, rotation:  22, z: 1 },
         ];
 
         gsap.set(cards, { x: 0, rotation: 0, transformOrigin: 'center 85%' });
@@ -117,7 +117,7 @@ const HomePageNew = () => {
             },
         });
 
-        const NUDGE = 28;
+        const NUDGE = isMobile ? 18 : 28;
         cards.forEach((card, i) => {
             card.addEventListener('mouseenter', () => {
                 gsap.to(card, { y: -22, scale: 1.05, zIndex: 20, duration: 0.28, ease: 'power2.out' });
@@ -312,116 +312,62 @@ const HomePageNew = () => {
                 </div>
             </section>
 
-            {/* ── SOCIALS ── */}
-            {isMobile ? (
-                /* Mobile: horizontal scroll strip */
-                <section
-                    ref={socialSectionRef}
-                    className="relative z-10 py-14 px-4 overflow-hidden"
-                    style={{ backgroundColor: 'rgb(240,234,214)' }}
-                    data-section="instagram"
-                >
-                    <div className="text-center mb-8">
-                        <h2 className="text-4xl font-black leading-none text-black uppercase">WHAT'S UP</h2>
-                        <p className="text-3xl font-black text-black uppercase leading-tight">ON SOCIALS</p>
-                    </div>
+            {/* ── SOCIALS — GSAP fan layout on all screen sizes ── */}
+            <section
+                ref={socialSectionRef}
+                className="relative z-10 flex flex-col justify-center overflow-hidden"
+                style={{ height: isMobile ? '480px' : '100vh' }}
+                data-section="instagram"
+            >
+                <div className="text-center mb-8 md:mb-12 relative z-10 pointer-events-none select-none">
+                    <h2 className="text-[clamp(32px,6.5vw,88px)] font-black leading-none text-black uppercase">
+                        WHAT'S UP
+                    </h2>
+                    <p className="text-[clamp(26px,5.5vw,72px)] font-black text-black uppercase leading-tight">
+                        ON SOCIALS
+                    </p>
+                </div>
 
-                    <div className="flex gap-3 overflow-x-auto pb-3 snap-x snap-mandatory" style={{ scrollbarWidth: 'none' }}>
-                        {instagramPosts.map((postUrl, i) => (
-                            <a
-                                key={i}
-                                href={postUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="snap-center flex-shrink-0 rounded-2xl overflow-hidden shadow-xl"
-                                style={{ width: '52vw', height: '72vw' }}
-                            >
-                                <img
-                                    src={instagramImages[i]}
-                                    alt={`Instagram post ${i + 1}`}
-                                    className="w-full h-full object-cover"
-                                    loading="lazy"
-                                    decoding="async"
-                                />
-                            </a>
-                        ))}
-                    </div>
+                {/* Cards — smaller on mobile, full size on desktop */}
+                <div className="relative flex items-center justify-center" style={{ height: isMobile ? '220px' : '340px' }}>
+                    {instagramPosts.map((postUrl, i) => (
+                        <a
+                            key={i}
+                            href={postUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`social-card absolute rounded-3xl overflow-hidden shadow-2xl cursor-pointer ${isMobile ? 'w-[105px] h-[178px]' : 'w-[170px] h-[290px]'}`}
+                            style={{ zIndex: i === 2 ? 10 : 5 - Math.abs(i - 2) }}
+                        >
+                            <img
+                                src={instagramImages[i]}
+                                alt={`Instagram post ${i + 1}`}
+                                className="w-full h-full object-cover"
+                                loading="lazy"
+                                decoding="async"
+                            />
+                        </a>
+                    ))}
+                </div>
 
-                    <div className="flex justify-center items-center gap-8 mt-8">
-                        <a
-                            href="https://www.instagram.com/nextstarsoccer/"
-                            target="_blank" rel="noopener noreferrer"
-                            className="text-black text-base font-light lowercase tracking-wide hover:opacity-50 transition-opacity"
-                        >
-                            instagram
-                        </a>
-                        <span className="text-black/30 text-[10px] uppercase tracking-[0.2em]">·</span>
-                        <a
-                            href="https://www.facebook.com/nextstarsoccer/"
-                            target="_blank" rel="noopener noreferrer"
-                            className="text-black text-base font-light lowercase tracking-wide hover:opacity-50 transition-opacity"
-                        >
-                            facebook
-                        </a>
-                    </div>
-                </section>
-            ) : (
-                /* Desktop: GSAP fan-out card deck — smaller cards + tighter spread */
-                <section
-                    ref={socialSectionRef}
-                    className="relative z-10 h-screen flex flex-col justify-center overflow-hidden"
-                    data-section="instagram"
-                >
-                    <div className="text-center mb-12 relative z-10 pointer-events-none select-none">
-                        <h2 className="text-[clamp(44px,6.5vw,88px)] font-black leading-none text-black uppercase">
-                            WHAT'S UP
-                        </h2>
-                        <p className="text-[clamp(36px,5.5vw,72px)] font-black text-black uppercase leading-tight">
-                            ON SOCIALS
-                        </p>
-                    </div>
-
-                    {/* Smaller cards: 170×290 (was 270×440), spread ±220px (was ±330px) */}
-                    <div className="relative flex items-center justify-center" style={{ height: '340px' }}>
-                        {instagramPosts.map((postUrl, i) => (
-                            <a
-                                key={i}
-                                href={postUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="social-card absolute w-[170px] h-[290px] rounded-3xl overflow-hidden shadow-2xl cursor-pointer"
-                                style={{ zIndex: i === 2 ? 10 : 5 - Math.abs(i - 2) }}
-                            >
-                                <img
-                                    src={instagramImages[i]}
-                                    alt={`Instagram post ${i + 1}`}
-                                    className="w-full h-full object-cover"
-                                    loading="lazy"
-                                    decoding="async"
-                                />
-                            </a>
-                        ))}
-                    </div>
-
-                    <div className="flex justify-center items-center gap-10 mt-10 relative z-10">
-                        <span className="text-black/30 text-[10px] uppercase tracking-[0.25em]">Follow</span>
-                        <a
-                            href="https://www.instagram.com/nextstarsoccer/"
-                            target="_blank" rel="noopener noreferrer"
-                            className="text-black text-lg font-light lowercase tracking-wide hover:opacity-40 transition-opacity duration-300"
-                        >
-                            instagram
-                        </a>
-                        <a
-                            href="https://www.facebook.com/nextstarsoccer/"
-                            target="_blank" rel="noopener noreferrer"
-                            className="text-black text-lg font-light lowercase tracking-wide hover:opacity-40 transition-opacity duration-300"
-                        >
-                            facebook
-                        </a>
-                    </div>
-                </section>
-            )}
+                <div className="flex justify-center items-center gap-8 md:gap-10 mt-8 md:mt-10 relative z-10">
+                    <span className="text-black/30 text-[10px] uppercase tracking-[0.25em]">Follow</span>
+                    <a
+                        href="https://www.instagram.com/nextstarsoccer/"
+                        target="_blank" rel="noopener noreferrer"
+                        className="text-black text-base md:text-lg font-light lowercase tracking-wide hover:opacity-40 transition-opacity duration-300"
+                    >
+                        instagram
+                    </a>
+                    <a
+                        href="https://www.facebook.com/nextstarsoccer/"
+                        target="_blank" rel="noopener noreferrer"
+                        className="text-black text-base md:text-lg font-light lowercase tracking-wide hover:opacity-40 transition-opacity duration-300"
+                    >
+                        facebook
+                    </a>
+                </div>
+            </section>
 
             <div className="relative z-10">
                 <Footer />
