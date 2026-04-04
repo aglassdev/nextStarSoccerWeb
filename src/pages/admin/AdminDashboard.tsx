@@ -19,6 +19,15 @@ const ALLOWED_EMAILS = [
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
+const REQUEST_TYPES = [
+  'Individual',
+  'Two Person',
+  'Small Group',
+  'Large Group',
+  'Game Analysis',
+  'Player Report',
+];
+
 type Section = 'players' | 'coaches' | 'parents' | 'bills' | 'payments' | 'messages';
 
 interface CalEvent {
@@ -46,7 +55,6 @@ const BarChart = ({ data }: { data: { label: string; value: number; highlight?: 
           <stop offset="100%" stopColor="#1e2535" />
         </linearGradient>
       </defs>
-      {/* Horizontal grid lines */}
       {[0.25, 0.5, 0.75, 1].map(pct => (
         <line
           key={pct}
@@ -121,41 +129,6 @@ const DonutChart = ({
   );
 };
 
-// ─── Sparkline ──────────────────────────────────────────────────────────────
-const Sparkline = ({ values, color = '#3b82f6' }: { values: number[]; color?: string }) => {
-  if (values.length < 2) return null;
-  const max = Math.max(...values, 1);
-  const w = 60, h = 24;
-  const step = w / (values.length - 1);
-  const pts = values.map((v, i) => `${i * step},${h - (v / max) * h}`).join(' ');
-  return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
-      <polyline points={pts} fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-};
-
-// ─── KPI Card ────────────────────────────────────────────────────────────────
-const KPICard = ({
-  label, value, sub, color, icon, trend,
-}: {
-  label: string; value: string | number; sub?: string;
-  color: string; icon: React.ReactNode; trend?: number[];
-}) => (
-  <div className="bg-[#0e0e0e] rounded-xl p-4 border border-[#1c1c1c] flex flex-col gap-3">
-    <div className="flex items-center justify-between">
-      <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${color}`}>
-        {icon}
-      </div>
-      {trend && <Sparkline values={trend} color={color.includes('blue') ? '#3b82f6' : color.includes('green') ? '#10b981' : color.includes('purple') ? '#a855f7' : color.includes('yellow') ? '#f59e0b' : color.includes('red') ? '#ef4444' : '#06b6d4'} />}
-    </div>
-    <div>
-      <p className="text-white text-2xl font-semibold leading-none">{value}</p>
-      <p className="text-gray-600 text-xs mt-1.5">{label}{sub ? ` · ${sub}` : ''}</p>
-    </div>
-  </div>
-);
-
 // ─── Sidebar nav items ────────────────────────────────────────────────────────
 const navItems: { section: Section | null; label: string; icon: React.ReactNode }[] = [
   {
@@ -195,6 +168,62 @@ const navItems: { section: Section | null; label: string; icon: React.ReactNode 
   },
 ];
 
+// ─── Event Card Component ─────────────────────────────────────────────────────
+const EventCard = ({
+  title, events, loading,
+}: {
+  title: string;
+  events: (CalEvent & { signups: number; coaches: number })[];
+  loading: boolean;
+}) => (
+  <div className="bg-[#0e0e0e] rounded-xl border border-[#1c1c1c] overflow-hidden flex-1">
+    <div className="flex items-center justify-between px-5 py-4 border-b border-[#1a1a1a]">
+      <p className="text-white text-sm font-medium">{title}</p>
+      <span className="text-xs text-gray-600 bg-[#1a1a1a] px-2 py-0.5 rounded-full">
+        {loading ? '...' : `${events.length} scheduled`}
+      </span>
+    </div>
+    <div className="px-5 py-3">
+      {loading ? (
+        <div className="h-20 flex items-center justify-center">
+          <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+        </div>
+      ) : events.length === 0 ? (
+        <div className="h-20 flex items-center justify-center">
+          <p className="text-gray-700 text-sm">No events today</p>
+        </div>
+      ) : (
+        <div className="divide-y divide-[#1a1a1a]">
+          {events.map(ev => {
+            const past = new Date() > new Date(ev.endDateTime);
+            const fmtTime = ev.dateOnly
+              ? 'All Day'
+              : new Date(ev.startDateTime).toLocaleTimeString('en-US', {
+                  hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/New_York',
+                });
+            return (
+              <div key={ev.id} className={`flex items-center justify-between py-3 ${past ? 'opacity-35' : ''}`}>
+                <div className="min-w-0 flex-1 mr-4">
+                  <p className="text-white text-sm truncate leading-snug">{ev.title}</p>
+                  <p className="text-gray-600 text-xs mt-0.5">{fmtTime}</p>
+                </div>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <span className="text-[11px] bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded font-medium">
+                    {ev.signups}p
+                  </span>
+                  <span className="text-[11px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded font-medium">
+                    {ev.coaches}c
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  </div>
+);
+
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
 const AdminDashboard = () => {
   const { user, logout, initialized } = useAuth();
@@ -203,14 +232,15 @@ const AdminDashboard = () => {
 
   // Stats
   const [stats, setStats] = useState({
-    players: 0, coaches: 0, parents: 0,
-    unreadMessages: 0, outstandingBills: 0, todaySignups: 0,
+    unreadMessages: 0, outstandingBills: 0,
     loading: true,
   });
   const [revenueData, setRevenueData] = useState<{ label: string; value: number; highlight: boolean }[]>([]);
   const [billsStatus, setBillsStatus] = useState({ paid: 0, pending: 0, overdue: 0 });
-  const [todayEvents, setTodayEvents] = useState<(CalEvent & { signups: number; coaches: number })[]>([]);
+  const [todayPublicEvents, setTodayPublicEvents] = useState<(CalEvent & { signups: number; coaches: number })[]>([]);
+  const [todayPrivateEvents, setTodayPrivateEvents] = useState<(CalEvent & { signups: number; coaches: number })[]>([]);
   const [recentMessages, setRecentMessages] = useState<any[]>([]);
+  const [requestCounts, setRequestCounts] = useState<Record<string, number>>({});
   const [dataLoading, setDataLoading] = useState(true);
 
   // Auth guard
@@ -229,13 +259,8 @@ const AdminDashboard = () => {
         const now = new Date();
         const todayStr = now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
 
-        // ── User counts + messages + bills
-        const [y, col, pro, coach, parent, unread, outstanding] = await Promise.all([
-          databases.listDocuments(databaseId, collections.youthPlayers!, [Query.limit(1)]).catch(() => ({ total: 0 })),
-          databases.listDocuments(databaseId, collections.collegiatePlayers!, [Query.limit(1)]).catch(() => ({ total: 0 })),
-          databases.listDocuments(databaseId, collections.professionalPlayers!, [Query.limit(1)]).catch(() => ({ total: 0 })),
-          databases.listDocuments(databaseId, collections.coaches!, [Query.limit(1)]).catch(() => ({ total: 0 })),
-          databases.listDocuments(databaseId, collections.parentUsers!, [Query.limit(1)]).catch(() => ({ total: 0 })),
+        // ── Unread messages + outstanding bills
+        const [unread, outstanding] = await Promise.all([
           collections.messages
             ? databases.listDocuments(databaseId, collections.messages, [Query.equal('read', false), Query.limit(1)]).catch(() => ({ total: 0 }))
             : { total: 0 },
@@ -244,24 +269,9 @@ const AdminDashboard = () => {
             : { total: 0 },
         ]);
 
-        // ── Today's signups
-        const todayStart = new Date(todayStr + 'T00:00:00').toISOString();
-        const todayEnd = new Date(todayStr + 'T23:59:59').toISOString();
-        const todaySignupsResult = collections.signups
-          ? await databases.listDocuments(databaseId, collections.signups, [
-              Query.greaterThanEqual('$createdAt', todayStart),
-              Query.lessThanEqual('$createdAt', todayEnd),
-              Query.limit(1),
-            ]).catch(() => ({ total: 0 }))
-          : { total: 0 };
-
         setStats({
-          players: (y as any).total + (col as any).total + (pro as any).total,
-          coaches: (coach as any).total,
-          parents: (parent as any).total,
           unreadMessages: (unread as any).total,
           outstandingBills: (outstanding as any).total,
-          todaySignups: (todaySignupsResult as any).total,
           loading: false,
         });
 
@@ -292,38 +302,74 @@ const AdminDashboard = () => {
           highlight: k === currentKey,
         })));
 
-        // ── Bills status
-        const [paidB, pendingB, overdueB] = await Promise.all([
-          collections.bills ? databases.listDocuments(databaseId, collections.bills, [Query.equal('status', 'paid'), Query.limit(1)]).catch(() => ({ total: 0 })) : { total: 0 },
-          collections.bills ? databases.listDocuments(databaseId, collections.bills, [Query.equal('status', 'pending'), Query.limit(1)]).catch(() => ({ total: 0 })) : { total: 0 },
-          collections.bills ? databases.listDocuments(databaseId, collections.bills, [Query.equal('status', 'overdue'), Query.limit(1)]).catch(() => ({ total: 0 })) : { total: 0 },
-        ]);
-        setBillsStatus({ paid: (paidB as any).total, pending: (pendingB as any).total, overdue: (overdueB as any).total });
+        // ── Bills status — fetch ALL bills and count client-side to avoid query mismatches
+        if (collections.bills) {
+          const allBills = await databases.listDocuments(databaseId, collections.bills, [
+            Query.limit(5000),
+          ]).catch(() => ({ documents: [] }));
+          const docs = (allBills as any).documents as any[];
+          setBillsStatus({
+            paid: docs.filter(b => b.status === 'paid').length,
+            pending: docs.filter(b => b.status === 'pending').length,
+            overdue: docs.filter(b => b.status === 'overdue').length,
+          });
+        }
 
-        // ── Today's calendar events
+        // ── Today's calendar events — separate public and private
         const [pubAll, privAll] = await Promise.all([
           googleCalendarService.getEventsForMonth(now.getFullYear(), now.getMonth(), 'public').catch(() => []),
           googleCalendarService.getEventsForMonth(now.getFullYear(), now.getMonth(), 'private').catch(() => []),
         ]);
         const toDate = (dt: string) => new Date(dt).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
-        const todayAll = [...(pubAll as CalEvent[]), ...(privAll as CalEvent[])].filter(e => toDate(e.startDateTime) === todayStr);
+        const todayPublic = (pubAll as CalEvent[]).filter(e => toDate(e.startDateTime) === todayStr);
+        const todayPrivate = (privAll as CalEvent[]).filter(e => toDate(e.startDateTime) === todayStr);
 
-        const eventsWithCounts = await Promise.all(todayAll.map(async ev => {
-          const [s, c] = await Promise.all([
-            collections.signups ? databases.listDocuments(databaseId, collections.signups, [Query.equal('eventID', ev.id), Query.limit(1)]).catch(() => ({ total: 0 })) : { total: 0 },
-            collections.coachSignups ? databases.listDocuments(databaseId, collections.coachSignups, [Query.equal('eventID', ev.id), Query.limit(1)]).catch(() => ({ total: 0 })) : { total: 0 },
-          ]);
-          return { ...ev, signups: (s as any).total, coaches: (c as any).total };
-        }));
-        setTodayEvents(eventsWithCounts);
+        const enrichEvents = async (evts: CalEvent[]) =>
+          Promise.all(evts.map(async ev => {
+            const [s, c] = await Promise.all([
+              collections.signups ? databases.listDocuments(databaseId, collections.signups, [Query.equal('eventID', ev.id), Query.limit(1)]).catch(() => ({ total: 0 })) : { total: 0 },
+              collections.coachSignups ? databases.listDocuments(databaseId, collections.coachSignups, [Query.equal('eventID', ev.id), Query.limit(1)]).catch(() => ({ total: 0 })) : { total: 0 },
+            ]);
+            return { ...ev, signups: (s as any).total, coaches: (c as any).total };
+          }));
+
+        const [enrichedPublic, enrichedPrivate] = await Promise.all([
+          enrichEvents(todayPublic),
+          enrichEvents(todayPrivate),
+        ]);
+        setTodayPublicEvents(enrichedPublic);
+        setTodayPrivateEvents(enrichedPrivate);
 
         // ── Recent messages (from Website Inquiries)
         if (collections.websiteInquiries) {
           const msgs = await databases.listDocuments(databaseId, collections.websiteInquiries, [
-            Query.orderDesc('$createdAt'), Query.limit(5),
+            Query.orderDesc('$createdAt'), Query.limit(8),
           ]).catch(() => ({ documents: [] }));
           setRecentMessages((msgs as any).documents);
         }
+
+        // ── Request type counts (try from websiteInquiries by subject/type)
+        const counts: Record<string, number> = {};
+        for (const rt of REQUEST_TYPES) {
+          counts[rt] = 0;
+        }
+        if (collections.websiteInquiries) {
+          try {
+            const allInquiries = await databases.listDocuments(databaseId, collections.websiteInquiries, [
+              Query.limit(5000),
+            ]).catch(() => ({ documents: [] }));
+            const docs = (allInquiries as any).documents as any[];
+            docs.forEach((doc: any) => {
+              const type = (doc.type || doc.subject || doc.serviceType || doc.requestType || '').toLowerCase();
+              for (const rt of REQUEST_TYPES) {
+                if (type.includes(rt.toLowerCase())) {
+                  counts[rt]++;
+                }
+              }
+            });
+          } catch { /* ignore */ }
+        }
+        setRequestCounts(counts);
 
       } catch (e) {
         console.error(e);
@@ -356,23 +402,24 @@ const AdminDashboard = () => {
   };
 
   const totalRevenue = revenueData.reduce((s, d) => s + d.value, 0);
+  const displayName = user?.name || user?.email?.split('@')[0] || 'Admin';
 
   return (
     <div className="flex h-screen bg-[#050505] text-white overflow-hidden">
 
       {/* ── Sidebar ─────────────────────────────────────────────────────────── */}
       <aside className="w-52 bg-[#080808] border-r border-[#161616] flex flex-col flex-shrink-0">
-        {/* Brand */}
+        {/* Brand — user name + centered ball logo */}
         <div className="px-5 pt-6 pb-5 border-b border-[#161616]">
           <button
             onClick={() => setActiveSection(null)}
-            className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
+            className="w-full flex items-center justify-between hover:opacity-80 transition-opacity"
           >
-            <p className="text-white font-semibold text-sm truncate">{user?.name || 'Admin'}</p>
+            <p className="text-white font-semibold text-sm truncate">{displayName}</p>
             <img
               src="/assets/images/NextStarBall.png"
               alt="Next Star"
-              className="w-5 h-5 flex-shrink-0 opacity-80"
+              className="w-7 h-7 flex-shrink-0"
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
             />
           </button>
@@ -446,7 +493,7 @@ const AdminDashboard = () => {
 
         ) : (
           /* ── Dashboard Hub ── */
-          <div className="px-7 py-7 max-w-6xl mx-auto space-y-5">
+          <div className="px-7 py-7 max-w-[1400px] mx-auto space-y-5">
 
             {/* Header */}
             <div>
@@ -454,177 +501,113 @@ const AdminDashboard = () => {
               <p className="text-gray-600 text-sm mt-0.5">{dateStr}</p>
             </div>
 
-            {/* ── KPI Cards ── */}
-            <div className="grid grid-cols-6 gap-3">
-              <KPICard
-                label="Players" sub="registered"
-                value={stats.loading ? '—' : stats.players}
-                color="bg-blue-500/10 text-blue-400"
-                icon={<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>}
-              />
-              <KPICard
-                label="Coaches" sub="active"
-                value={stats.loading ? '—' : stats.coaches}
-                color="bg-emerald-500/10 text-emerald-400"
-                icon={<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
-              />
-              <KPICard
-                label="Parents" sub="accounts"
-                value={stats.loading ? '—' : stats.parents}
-                color="bg-violet-500/10 text-violet-400"
-                icon={<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>}
-              />
-              <KPICard
-                label="Unread Messages"
-                value={stats.loading ? '—' : stats.unreadMessages}
-                color="bg-yellow-500/10 text-yellow-400"
-                icon={<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>}
-              />
-              <KPICard
-                label="Outstanding Bills"
-                value={stats.loading ? '—' : stats.outstandingBills}
-                color="bg-red-500/10 text-red-400"
-                icon={<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
-              />
-              <KPICard
-                label="Signups Today"
-                value={stats.loading ? '—' : stats.todaySignups}
-                color="bg-cyan-500/10 text-cyan-400"
-                icon={<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>}
-              />
+            {/* ── Request Type Tabs ── */}
+            <div className="flex flex-wrap gap-2">
+              {REQUEST_TYPES.map(rt => (
+                <div
+                  key={rt}
+                  className="bg-[#0e0e0e] border border-[#1c1c1c] rounded-lg px-4 py-2.5 flex items-center gap-3 min-w-0"
+                >
+                  <span className="text-gray-400 text-xs font-medium whitespace-nowrap">{rt}</span>
+                  <span className="text-white text-sm font-semibold tabular-nums">
+                    {dataLoading ? '—' : (requestCounts[rt] || 0)}
+                  </span>
+                </div>
+              ))}
             </div>
 
-            {/* ── Charts Row ── */}
-            <div className="grid grid-cols-3 gap-4">
+            {/* ── Main Content: Left area + Messages on right ── */}
+            <div className="flex gap-4">
 
-              {/* Revenue bar chart */}
-              <div className="col-span-2 bg-[#0e0e0e] rounded-xl p-5 border border-[#1c1c1c]">
-                <div className="flex items-start justify-between mb-5">
-                  <div>
-                    <p className="text-white text-sm font-medium">Revenue</p>
-                    <p className="text-gray-600 text-xs mt-0.5">Last 6 months</p>
+              {/* Left content area */}
+              <div className="flex-1 min-w-0 space-y-4">
+
+                {/* Charts Row */}
+                <div className="grid grid-cols-3 gap-4">
+                  {/* Revenue bar chart */}
+                  <div className="col-span-2 bg-[#0e0e0e] rounded-xl p-5 border border-[#1c1c1c]">
+                    <div className="flex items-start justify-between mb-5">
+                      <div>
+                        <p className="text-white text-sm font-medium">Revenue</p>
+                        <p className="text-gray-600 text-xs mt-0.5">Last 6 months</p>
+                      </div>
+                      <div className="text-right">
+                        {!dataLoading && (
+                          <>
+                            <p className="text-white text-lg font-semibold">
+                              ${totalRevenue >= 1000 ? `${(totalRevenue / 1000).toFixed(1)}k` : totalRevenue.toLocaleString()}
+                            </p>
+                            <p className="text-gray-600 text-xs">total collected</p>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    {dataLoading ? (
+                      <div className="h-28 flex items-center justify-center">
+                        <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                      </div>
+                    ) : (
+                      <BarChart data={revenueData} />
+                    )}
                   </div>
-                  <div className="text-right">
-                    {!dataLoading && (
-                      <>
-                        <p className="text-white text-lg font-semibold">
-                          ${totalRevenue >= 1000 ? `${(totalRevenue / 1000).toFixed(1)}k` : totalRevenue.toLocaleString()}
-                        </p>
-                        <p className="text-gray-600 text-xs">total collected</p>
-                      </>
+
+                  {/* Bills donut */}
+                  <div className="bg-[#0e0e0e] rounded-xl p-5 border border-[#1c1c1c]">
+                    <p className="text-white text-sm font-medium mb-4">Bills Status</p>
+                    {dataLoading ? (
+                      <div className="h-28 flex items-center justify-center">
+                        <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-4">
+                        <DonutChart
+                          segments={[
+                            { label: 'Paid', value: billsStatus.paid, color: '#10b981' },
+                            { label: 'Pending', value: billsStatus.pending, color: '#f59e0b' },
+                            { label: 'Overdue', value: billsStatus.overdue, color: '#ef4444' },
+                          ]}
+                          centerLabel={String(billsStatus.paid + billsStatus.pending + billsStatus.overdue)}
+                          centerSub="total"
+                        />
+                        <div className="w-full space-y-2">
+                          {[
+                            { label: 'Paid', value: billsStatus.paid, dot: 'bg-emerald-500' },
+                            { label: 'Pending', value: billsStatus.pending, dot: 'bg-amber-500' },
+                            { label: 'Overdue', value: billsStatus.overdue, dot: 'bg-red-500' },
+                          ].map(s => (
+                            <div key={s.label} className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <div className={`w-2 h-2 rounded-full ${s.dot}`} />
+                                <span className="text-gray-500 text-xs">{s.label}</span>
+                              </div>
+                              <span className="text-white text-xs font-medium tabular-nums">{s.value}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     )}
                   </div>
                 </div>
-                {dataLoading ? (
-                  <div className="h-28 flex items-center justify-center">
-                    <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                  </div>
-                ) : (
-                  <BarChart data={revenueData} />
-                )}
-              </div>
 
-              {/* Bills donut */}
-              <div className="bg-[#0e0e0e] rounded-xl p-5 border border-[#1c1c1c]">
-                <p className="text-white text-sm font-medium mb-4">Bills Status</p>
-                {dataLoading ? (
-                  <div className="h-28 flex items-center justify-center">
-                    <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center gap-4">
-                    <DonutChart
-                      segments={[
-                        { label: 'Paid', value: billsStatus.paid, color: '#10b981' },
-                        { label: 'Pending', value: billsStatus.pending, color: '#f59e0b' },
-                        { label: 'Overdue', value: billsStatus.overdue, color: '#ef4444' },
-                      ]}
-                      centerLabel={String(billsStatus.paid + billsStatus.pending + billsStatus.overdue)}
-                      centerSub="total"
-                    />
-                    <div className="w-full space-y-2">
-                      {[
-                        { label: 'Paid', value: billsStatus.paid, dot: 'bg-emerald-500' },
-                        { label: 'Pending', value: billsStatus.pending, dot: 'bg-amber-500' },
-                        { label: 'Overdue', value: billsStatus.overdue, dot: 'bg-red-500' },
-                      ].map(s => (
-                        <div key={s.label} className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-2 h-2 rounded-full ${s.dot}`} />
-                            <span className="text-gray-500 text-xs">{s.label}</span>
-                          </div>
-                          <span className="text-white text-xs font-medium tabular-nums">{s.value}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* ── Today's Events + Recent Messages ── */}
-            <div className="grid grid-cols-2 gap-4">
-
-              {/* Today's Events */}
-              <div className="bg-[#0e0e0e] rounded-xl border border-[#1c1c1c] overflow-hidden">
-                <div className="flex items-center justify-between px-5 py-4 border-b border-[#1a1a1a]">
-                  <p className="text-white text-sm font-medium">Today's Events</p>
-                  <span className="text-xs text-gray-600 bg-[#1a1a1a] px-2 py-0.5 rounded-full">
-                    {dataLoading ? '…' : `${todayEvents.length} scheduled`}
-                  </span>
-                </div>
-                <div className="px-5 py-3">
-                  {dataLoading ? (
-                    <div className="h-20 flex items-center justify-center">
-                      <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                    </div>
-                  ) : todayEvents.length === 0 ? (
-                    <div className="h-20 flex flex-col items-center justify-center gap-1">
-                      <p className="text-gray-700 text-sm">No events today</p>
-                    </div>
-                  ) : (
-                    <div className="divide-y divide-[#1a1a1a]">
-                      {todayEvents.map(ev => {
-                        const past = new Date() > new Date(ev.endDateTime);
-                        const fmtTime = ev.dateOnly
-                          ? 'All Day'
-                          : new Date(ev.startDateTime).toLocaleTimeString('en-US', {
-                              hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/New_York',
-                            });
-                        return (
-                          <div key={ev.id} className={`flex items-center justify-between py-3 ${past ? 'opacity-35' : ''}`}>
-                            <div className="min-w-0 flex-1 mr-4">
-                              <p className="text-white text-sm truncate leading-snug">{ev.title}</p>
-                              <p className="text-gray-600 text-xs mt-0.5">{fmtTime}</p>
-                            </div>
-                            <div className="flex items-center gap-1.5 flex-shrink-0">
-                              <span className="text-[11px] bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded font-medium">
-                                {ev.signups}p
-                              </span>
-                              <span className="text-[11px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded font-medium">
-                                {ev.coaches}c
-                              </span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
+                {/* Events Row — Public + Private side by side */}
+                <div className="flex gap-4">
+                  <EventCard title="Public Events" events={todayPublicEvents} loading={dataLoading} />
+                  <EventCard title="Private Events" events={todayPrivateEvents} loading={dataLoading} />
                 </div>
               </div>
 
-              {/* Recent Messages */}
-              <div className="bg-[#0e0e0e] rounded-xl border border-[#1c1c1c] overflow-hidden">
+              {/* Right: Tall Messages Card */}
+              <div className="w-72 flex-shrink-0 bg-[#0e0e0e] rounded-xl border border-[#1c1c1c] overflow-hidden flex flex-col">
                 <div className="flex items-center justify-between px-5 py-4 border-b border-[#1a1a1a]">
                   <p className="text-white text-sm font-medium">Recent Messages</p>
                   <button
                     onClick={() => setActiveSection('messages')}
                     className="text-blue-500 text-xs hover:text-blue-400 transition-colors"
                   >
-                    View all →
+                    View all
                   </button>
                 </div>
-                <div className="px-5 py-3">
+                <div className="flex-1 overflow-y-auto px-5 py-3">
                   {dataLoading ? (
                     <div className="h-20 flex items-center justify-center">
                       <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
@@ -641,8 +624,10 @@ const AdminDashboard = () => {
                         const h = Math.floor(diff / 3600000);
                         const m = Math.floor(diff / 60000);
                         const ago = d > 0 ? `${d}d` : h > 0 ? `${h}h` : m > 0 ? `${m}m` : 'now';
-                        const name = msg.senderName || msg.userName || msg.name || msg.parentName || 'Unknown';
-                        const preview = msg.message || msg.content || msg.body || '';
+                        const name = msg.name || msg.senderName || msg.userName || msg.firstName
+                          ? `${msg.firstName || ''} ${msg.lastName || ''}`.trim() || msg.name || msg.senderName || msg.userName
+                          : 'Unknown';
+                        const preview = msg.message || msg.content || msg.body || msg.subject || '';
                         const unread = msg.read === false;
                         return (
                           <div key={msg.$id} className="flex items-start gap-3 py-3">
