@@ -26,6 +26,7 @@ import Layout from './components/layout/Layout';
 import LoadingScreen from './components/common/LoadingScreen';
 import AdminLoginPage from './pages/admin/AdminLoginPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
+import AppDownloadPopup from './components/common/AppDownloadPopup';
 
 // Scroll to top on every route change
 const ScrollToTop = () => {
@@ -103,6 +104,7 @@ function App() {
       <BrowserRouter>
         <ScrollToTop />
         <AppRoutes />
+        <AppDownloadPopup />
         <Analytics />
         <SpeedInsights />
       </BrowserRouter>

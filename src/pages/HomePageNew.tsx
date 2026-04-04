@@ -18,8 +18,8 @@ const HomePageNew = () => {
     const statsRef = useRef<HTMLDivElement>(null);
     const aboutRef = useRef<HTMLDivElement>(null);
     const collageSectionRef = useRef<HTMLDivElement>(null);
-    const collageTrackRef = useRef<HTMLDivElement>(null);
     const heroRef = useRef<HTMLDivElement>(null);
+    const heroImageRef = useRef<HTMLImageElement>(null);
     const backgroundRef = useRef<HTMLDivElement>(null);
     const socialSectionRef = useRef<HTMLDivElement>(null);
 
@@ -59,60 +59,33 @@ const HomePageNew = () => {
         return () => window.removeEventListener('resize', update);
     }, []);
 
-    /* ---------------- COLLAGE HORIZONTAL SCROLL (desktop only) ---------------- */
+    /* ---------------- HERO IMAGE OPACITY + BACKGROUND COLOR ---------------- */
     useEffect(() => {
-        if (isMobile) return;
-        if (!collageSectionRef.current || !collageTrackRef.current) return;
+        const heroImg = heroImageRef.current;
+        const bg = backgroundRef.current;
+        if (!heroImg || !bg) return;
 
-        const track = collageTrackRef.current;
-        const imgs = gsap.utils.toArray<HTMLElement>('.collage-img');
-        const scrollDistance = track.scrollWidth - window.innerWidth;
+        const handleScroll = () => {
+            // Fade hero image as user scrolls — updates live on every scroll event
+            const opacity = Math.max(0, 1 - (window.scrollY / (window.innerHeight * 1.5)));
+            heroImg.style.opacity = String(opacity);
 
-        gsap.to(track, {
-            x: -scrollDistance,
-            ease: 'none',
-            scrollTrigger: {
-                trigger: collageSectionRef.current,
-                start: 'top top',
-                end: () => `+=${scrollDistance * 2}`,
-                scrub: 1.3,
-                pin: true,
-                anticipatePin: 1,
-                snap: {
-                    snapTo: 1 / (imgs.length - 1),
-                    duration: 0.6,
-                    ease: 'expo.out',
-                },
-            },
-        });
+            // Switch background to eggshell when collage section enters viewport
+            const collageEl = collageSectionRef.current;
+            if (collageEl) {
+                const collageTop = collageEl.getBoundingClientRect().top;
+                if (collageTop < window.innerHeight * 0.9) {
+                    bg.style.backgroundColor = 'rgb(240,234,214)';
+                } else {
+                    bg.style.backgroundColor = 'black';
+                }
+            }
+        };
 
-        ScrollTrigger.create({
-            trigger: collageSectionRef.current,
-            start: 'top top',
-            end: '+=1',
-            onEnter: () =>
-                gsap.to(backgroundRef.current, { backgroundColor: 'rgb(240,234,214)', duration: 0.25, ease: 'power1.out' }),
-            onLeaveBack: () =>
-                gsap.to(backgroundRef.current, { backgroundColor: 'black', duration: 0.25, ease: 'power1.out' }),
-        });
-
-        imgs.forEach((img, i) => {
-            const depth = i % 3 === 0 ? 1 : i % 3 === 1 ? 0.7 : 0.45;
-            const yOffset = (i % 2 === 0 ? -1 : 1) * (50 + i * 6);
-            gsap.fromTo(img, { y: yOffset }, {
-                y: -yOffset,
-                ease: 'none',
-                scrollTrigger: {
-                    trigger: collageSectionRef.current,
-                    start: 'top bottom',
-                    end: 'bottom top',
-                    scrub: depth,
-                },
-            });
-        });
-
-        return () => ScrollTrigger.killAll();
-    }, [isMobile]);
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        handleScroll(); // run once on mount
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
 
     /* ---------------- SOCIAL CARD FAN-OUT (desktop only) ---------------- */
     useEffect(() => {
@@ -122,12 +95,13 @@ const HomePageNew = () => {
         const cards = gsap.utils.toArray<HTMLElement>('.social-card');
         if (cards.length === 0) return;
 
+        // Reduced spread so all 5 cards fit on screen
         const fanData = [
-            { x: -330, rotation: -24, z: 1 },
-            { x: -162, rotation: -12, z: 2 },
+            { x: -220, rotation: -24, z: 1 },
+            { x: -110, rotation: -12, z: 2 },
             { x:    0, rotation:   0, z: 5 },
-            { x:  162, rotation:  12, z: 2 },
-            { x:  312, rotation:  22, z: 1 },
+            { x:  110, rotation:  12, z: 2 },
+            { x:  208, rotation:  22, z: 1 },
         ];
 
         gsap.set(cards, { x: 0, rotation: 0, transformOrigin: 'center 85%' });
@@ -143,7 +117,7 @@ const HomePageNew = () => {
             },
         });
 
-        const NUDGE = 38;
+        const NUDGE = 28;
         cards.forEach((card, i) => {
             card.addEventListener('mouseenter', () => {
                 gsap.to(card, { y: -22, scale: 1.05, zIndex: 20, duration: 0.28, ease: 'power2.out' });
@@ -220,18 +194,20 @@ const HomePageNew = () => {
             {/* GLOBAL BACKGROUND */}
             <div
                 ref={backgroundRef}
-                className="fixed inset-0 z-0 transition-colors duration-500"
-                style={{ backgroundColor: 'black' }}
+                className="fixed inset-0 z-0"
+                style={{ backgroundColor: 'black', transition: 'background-color 0.4s ease' }}
             />
 
+            {/* HERO IMAGE — opacity updated live via scroll listener */}
             <div className="fixed inset-0 z-0">
                 <img
+                    ref={heroImageRef}
                     src={images.homeHero}
                     alt="Next Star Soccer Background"
                     className="w-full h-full object-cover"
                     fetchPriority="high"
                     decoding="async"
-                    style={{ opacity: Math.max(0, 1 - (window.scrollY / (window.innerHeight * 1.5))), transition: 'opacity 0.3s ease-out' }}
+                    style={{ opacity: 1 }}
                     onError={(e) => { e.currentTarget.style.display = 'none'; }}
                 />
             </div>
@@ -309,59 +285,36 @@ const HomePageNew = () => {
                 </div>
             </section>
 
-            {/* ── COLLAGE ── */}
-            {isMobile ? (
-                /* Mobile: 2-column image grid with eggshell bg */
-                <section ref={collageSectionRef} className="relative z-10 py-10 px-4" style={{ backgroundColor: 'rgb(240,234,214)' }}>
-                    <div className="grid grid-cols-2 gap-3">
+            {/* ── COLLAGE — vertical staggered 2-col grid (same on mobile & desktop) ── */}
+            <section ref={collageSectionRef} className="relative z-10 py-16 px-4 md:px-16">
+                <div className="max-w-5xl mx-auto">
+                    <div className="grid grid-cols-2 gap-3 md:gap-6">
                         {collageImages.map((item, i) => (
-                            <div key={i} className="flex flex-col gap-1.5">
+                            <div
+                                key={i}
+                                className="flex flex-col gap-2"
+                                style={{ marginTop: i % 2 !== 0 ? '48px' : '0' }}
+                            >
                                 <img
                                     src={item.src}
                                     alt={item.caption}
-                                    className="w-full h-36 object-cover rounded-xl shadow-md"
+                                    className="w-full h-[140px] sm:h-[220px] md:h-[320px] object-cover rounded-xl shadow-2xl"
                                     loading="lazy"
                                     decoding="async"
                                     onError={(e) => { e.currentTarget.style.display = 'none'; }}
                                 />
-                                <p className="text-[10px] uppercase tracking-[0.15em] text-gray-500 font-medium pl-0.5">
+                                <p className="text-[9px] sm:text-[11px] uppercase tracking-[0.18em] text-gray-600 font-medium pl-1">
                                     {item.caption}
                                 </p>
                             </div>
                         ))}
                     </div>
-                </section>
-            ) : (
-                /* Desktop: GSAP horizontal scroll */
-                <section ref={collageSectionRef} className="relative h-screen z-10">
-                    <div className="sticky top-0 h-screen overflow-hidden">
-                        <div ref={collageTrackRef} className="flex items-center h-full gap-24 px-[15vw]">
-                            {collageImages.map((item, i) => (
-                                <div
-                                    key={i}
-                                    className="collage-img flex-shrink-0 flex flex-col gap-3"
-                                    style={{ marginTop: i % 2 === 0 ? '6vh' : '-4vh' }}
-                                >
-                                    <img
-                                        src={item.src}
-                                        alt={item.caption}
-                                        className="w-[320px] h-[48vh] object-cover rounded-xl shadow-2xl"
-                                        loading="lazy"
-                                        decoding="async"
-                                    />
-                                    <p className="text-[11px] uppercase tracking-[0.18em] text-gray-500 font-medium pl-1">
-                                        {item.caption}
-                                    </p>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </section>
-            )}
+                </div>
+            </section>
 
             {/* ── SOCIALS ── */}
             {isMobile ? (
-                /* Mobile: simple compact layout */
+                /* Mobile: horizontal scroll strip */
                 <section
                     ref={socialSectionRef}
                     className="relative z-10 py-14 px-4 overflow-hidden"
@@ -373,7 +326,6 @@ const HomePageNew = () => {
                         <p className="text-3xl font-black text-black uppercase leading-tight">ON SOCIALS</p>
                     </div>
 
-                    {/* Horizontal scroll strip */}
                     <div className="flex gap-3 overflow-x-auto pb-3 snap-x snap-mandatory" style={{ scrollbarWidth: 'none' }}>
                         {instagramPosts.map((postUrl, i) => (
                             <a
@@ -414,7 +366,7 @@ const HomePageNew = () => {
                     </div>
                 </section>
             ) : (
-                /* Desktop: GSAP fan-out card deck */
+                /* Desktop: GSAP fan-out card deck — smaller cards + tighter spread */
                 <section
                     ref={socialSectionRef}
                     className="relative z-10 h-screen flex flex-col justify-center overflow-hidden"
@@ -429,14 +381,15 @@ const HomePageNew = () => {
                         </p>
                     </div>
 
-                    <div className="relative flex items-center justify-center" style={{ height: '480px' }}>
+                    {/* Smaller cards: 170×290 (was 270×440), spread ±220px (was ±330px) */}
+                    <div className="relative flex items-center justify-center" style={{ height: '340px' }}>
                         {instagramPosts.map((postUrl, i) => (
                             <a
                                 key={i}
                                 href={postUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="social-card absolute w-[240px] h-[400px] md:w-[270px] md:h-[440px] rounded-3xl overflow-hidden shadow-2xl cursor-pointer"
+                                className="social-card absolute w-[170px] h-[290px] rounded-3xl overflow-hidden shadow-2xl cursor-pointer"
                                 style={{ zIndex: i === 2 ? 10 : 5 - Math.abs(i - 2) }}
                             >
                                 <img

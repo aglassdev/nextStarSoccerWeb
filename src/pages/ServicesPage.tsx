@@ -185,35 +185,67 @@ const ServicesPage = () => {
                         <h1 className="text-white text-3xl font-bold">Our Services</h1>
                     </div>
 
-                    {/* Services Grid with Custom Layout */}
-                    <div className="space-y-8">
-                        {/* Row 1: 2 cards - Individual & Two Person */}
-                        <div className="grid grid-cols-2 gap-3 md:gap-8">
+                    {/* MOBILE LAYOUT (< md): custom row ordering */}
+                    <div className="md:hidden space-y-3">
+                        {/* Row 1: Individual — full width */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="col-span-2"><ServiceCard service={services[0]} /></div>
+                        </div>
+                        {/* Row 2: Two Person + Small Group — half each */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <ServiceCard service={services[1]} />
+                            <ServiceCard service={services[2]} />
+                        </div>
+                        {/* Row 3: Large Group — full width */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="col-span-2"><ServiceCard service={services[3]} /></div>
+                        </div>
+                        {/* Row 4: Parent Consultation + Player Report — half each */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <ServiceCard service={services[4]} />
+                            <ServiceCard service={services[6]} />
+                        </div>
+                        {/* Row 5: Game Analysis — full width */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="col-span-2"><ServiceCard service={services[5]} /></div>
+                        </div>
+                        {/* Row 6: Camps + Team Training — half each */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <ServiceCard service={services[7]} />
+                            <ServiceCard service={services[8]} />
+                        </div>
+                        {/* Row 7: Pro Clinics + Showcases — half each */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <ServiceCard service={services[9]} />
+                            <ServiceCard service={services[10]} />
+                        </div>
+                    </div>
+
+                    {/* DESKTOP LAYOUT (>= md): original grid */}
+                    <div className="hidden md:block space-y-8">
+                        {/* Row 1: Individual & Two Person */}
+                        <div className="grid grid-cols-2 gap-8">
                             <ServiceCard service={services[0]} />
                             <ServiceCard service={services[1]} />
                         </div>
-
-                        {/* Row 2: 2 cards - Small Group & Large Group */}
-                        <div className="grid grid-cols-2 gap-3 md:gap-8">
+                        {/* Row 2: Small Group & Large Group */}
+                        <div className="grid grid-cols-2 gap-8">
                             <ServiceCard service={services[2]} />
                             <ServiceCard service={services[3]} />
                         </div>
-
-                        {/* Row 3: 3 cards - Parent Consultation, Game Analysis & Player Report */}
-                        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-8">
+                        {/* Row 3: Parent Consultation, Game Analysis & Player Report */}
+                        <div className="grid grid-cols-2 lg:grid-cols-3 gap-8">
                             <ServiceCard service={services[4]} />
                             <ServiceCard service={services[5]} />
                             <ServiceCard service={services[6]} />
                         </div>
-
-                        {/* Row 4: 2 cards - Camps & Team Training */}
-                        <div className="grid grid-cols-2 gap-3 md:gap-8">
+                        {/* Row 4: Camps & Team Training */}
+                        <div className="grid grid-cols-2 gap-8">
                             <ServiceCard service={services[7]} />
                             <ServiceCard service={services[8]} />
                         </div>
-
-                        {/* Row 5: 2 cards - Professional Clinics & Showcases */}
-                        <div className="grid grid-cols-2 gap-3 md:gap-8">
+                        {/* Row 5: Professional Clinics & Showcases */}
+                        <div className="grid grid-cols-2 gap-8">
                             <ServiceCard service={services[9]} />
                             <ServiceCard service={services[10]} />
                         </div>
