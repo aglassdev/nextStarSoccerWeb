@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 
-import { databases, account, collections, databaseId } from '../services/appwrite';
-import { ADMIN_CONFIG } from '../constants/adminConfig';
+import { databases, collections, databaseId } from '../services/appwrite';
 import Navigation from '../components/layout/Navigation';
 import Footer from '../components/layout/Footer';
 import Lottie from 'lottie-web';
@@ -163,10 +162,16 @@ const coachesFAQ: FAQItem[] = [
 ];
 
 const ContactPage = () => {
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [otherSubject, setOtherSubject] = useState('');
   const [fieldErrors, setFieldErrors] = useState({
+    firstName: false,
+    lastName: false,
+    email: false,
     subject: false,
     message: false,
     other: false,
@@ -209,6 +214,9 @@ const ContactPage = () => {
 
   const handleSend = async () => {
     const errors = {
+      firstName: firstName.trim() === '',
+      lastName: lastName.trim() === '',
+      email: email.trim() === '' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()),
       subject: subject.trim() === '',
       message: message.trim() === '',
       other: subject === 'Other' && otherSubject.trim() === '',
@@ -221,61 +229,35 @@ const ContactPage = () => {
       const fullSubject = subject === 'Other' ? otherSubject : subject;
 
       try {
-        const currentUser = await account.get();
-
-        let userData = null;
-
-        const collectionIds = [
-          collections.parentUsers,
-          collections.youthPlayers,
-          collections.collegiatePlayers,
-          collections.professionalPlayers,
-        ];
-
-        for (const collectionId of collectionIds) {
-          try {
-            const allDocs = await databases.listDocuments(databaseId, collectionId!);
-
-            const userDoc = allDocs.documents.find((doc: any) => doc.userId === currentUser.$id);
-
-            if (userDoc) {
-              userData = userDoc;
-              break;
-            }
-          } catch (error) {
-            continue;
-          }
-        }
-
-        const firstName = (userData as any)?.firstName || currentUser.name?.split(' ')[0] || 'Unknown';
-        const lastName = (userData as any)?.lastName || currentUser.name?.split(' ')[1] || 'User';
-
         const documentData = {
-          userId: currentUser.$id,
-          firstName,
-          lastName,
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          email: email.trim(),
           subject: fullSubject,
           message,
-          messageType: 'admin_message',
-          recipientId: ADMIN_CONFIG.ADMIN_RECIPIENT_ID,
-          senderId: currentUser.$id,
           read: false,
           timestamp: new Date().toISOString(),
         };
 
-        await databases.createDocument(databaseId, collections.messages!, 'unique()', documentData);
+        await databases.createDocument(databaseId, collections.websiteInquiries!, 'unique()', documentData);
 
         setInquirySent(true);
+        setFirstName('');
+        setLastName('');
+        setEmail('');
         setSubject('');
         setMessage('');
         setOtherSubject('');
         setFieldErrors({
+          firstName: false,
+          lastName: false,
+          email: false,
           subject: false,
           message: false,
           other: false,
         });
       } catch (error) {
-        console.error('Failed to send message to Appwrite:', error);
+        console.error('Failed to send inquiry to Appwrite:', error);
         alert('Failed to send message. Please try again.');
       }
     }
@@ -344,170 +326,226 @@ const ContactPage = () => {
     <div className="min-h-screen bg-black flex flex-col">
       <Navigation />
 
-      <div className="pt-24 pb-16 px-4 max-w-5xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl md:text-5xl font-medium text-white mb-4">Inquire</h1>
-          <p className="text-white max-w-2xl mx-auto px-4">
-            This is for general inquiries about our services, methodology, payments, etc. To request
-            sessions and services, there are specific pages located in{' '}
-            <a href="/services" className="underline">
-              Services
-            </a>
-            .
-          </p>
-        </div>
+      <div className="pt-24 pb-16 px-4 max-w-7xl mx-auto">
+        {/* Two-column layout: Inquiry left, FAQ right */}
+        <div className="flex flex-col lg:flex-row gap-12 lg:gap-16">
 
-        {inquirySent ? (
-          <div className="text-center mt-12 mb-12 animate-fadeIn">
-            <div ref={lottieContainer} className="w-80 h-80 mx-auto" />
-            <h2 className="text-xl text-white mb-3">Your inquiry has been sent!</h2>
+          {/* ── Left: Inquiry Form ── */}
+          <div className="lg:w-1/2">
             <div className="mb-8">
+              <h1 className="text-4xl md:text-5xl font-medium text-white mb-4">Inquire</h1>
               <p className="text-white">
-                Please check your{' '}
-                <a href="/dashboard" className="underline">
-                  Inbox
-                </a>{' '}
-                in the coming days.
+                This is for general inquiries about our services, methodology, payments, etc. To request
+                sessions and services, there are specific pages located in{' '}
+                <a href="/services" className="underline">
+                  Services
+                </a>
+                .
               </p>
             </div>
-            <button
-              onClick={handleReset}
-              className="bg-white text-black font-medium py-3 px-8 rounded-md hover:bg-gray-200 transition-colors"
-            >
-              Submit Another Inquiry
-            </button>
-          </div>
-        ) : (
-          <div className="max-w-2xl mx-auto mt-8 mb-12">
-            {/* Subject Dropdown */}
-            <div className="mb-4 relative">
-              <label className="block text-white text-sm mb-1">
-                Subject<span className="text-red-600">*</span>
-              </label>
-              <button
-                type="button"
-                onClick={() => setDropdownOpen(!dropdownOpen)}
-                className={`w-full h-11 px-3 bg-transparent border ${
-                  fieldErrors.subject ? 'border-red-600' : 'border-white'
-                } rounded text-left text-white flex items-center justify-between`}
-              >
-                <span className={subject ? 'text-white' : 'text-gray-500'}>
-                  {subject || 'Select subject'}
-                </span>
-                <svg
-                  className={`w-3 h-3 text-white transition-transform ${dropdownOpen ? 'rotate-180' : ''}`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
 
-              {dropdownOpen && (
-                <div className="absolute top-full mt-1 w-full bg-[#fdfdf9] rounded z-10 max-h-44 overflow-y-auto">
-                  {subjectOptions.map((option, index) => (
-                    <button
-                      key={index}
-                      type="button"
-                      onClick={() => {
-                        setSubject(option);
-                        setDropdownOpen(false);
-                        clearFieldError('subject');
-                      }}
-                      className="w-full text-left py-2.5 px-3 text-black hover:bg-[#fdfdf9]/90 transition-colors"
-                    >
-                      {option}
-                    </button>
-                  ))}
+            {inquirySent ? (
+              <div className="text-center mt-12 mb-12 animate-fadeIn">
+                <div ref={lottieContainer} className="w-80 h-80 mx-auto" />
+                <h2 className="text-xl text-white mb-3">Your inquiry has been sent!</h2>
+                <div className="mb-8">
+                  <p className="text-white">
+                    We will get back to you as soon as possible.
+                  </p>
                 </div>
-              )}
-            </div>
+                <button
+                  onClick={handleReset}
+                  className="bg-white text-black font-medium py-3 px-8 rounded-md hover:bg-gray-200 transition-colors"
+                >
+                  Submit Another Inquiry
+                </button>
+              </div>
+            ) : (
+              <div className="mt-4">
+                {/* First Name + Last Name row */}
+                <div className="flex gap-4 mb-4">
+                  <div className="flex-1">
+                    <label className="block text-white text-sm mb-1">
+                      First Name<span className="text-red-600">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      onFocus={() => clearFieldError('firstName')}
+                      onBlur={() => handleBlur('firstName', firstName)}
+                      className={`w-full h-11 px-3 bg-transparent border ${
+                        fieldErrors.firstName ? 'border-red-600' : 'border-white'
+                      } rounded text-white placeholder-gray-500`}
+                      placeholder="First name"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-white text-sm mb-1">
+                      Last Name<span className="text-red-600">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      onFocus={() => clearFieldError('lastName')}
+                      onBlur={() => handleBlur('lastName', lastName)}
+                      className={`w-full h-11 px-3 bg-transparent border ${
+                        fieldErrors.lastName ? 'border-red-600' : 'border-white'
+                      } rounded text-white placeholder-gray-500`}
+                      placeholder="Last name"
+                    />
+                  </div>
+                </div>
 
-            {/* Other Subject Input */}
-            {subject === 'Other' && (
-              <div className="mb-4">
-                <input
-                  type="text"
-                  placeholder="Other"
-                  value={otherSubject}
-                  onChange={(e) => setOtherSubject(e.target.value)}
-                  onFocus={() => clearFieldError('other')}
-                  onBlur={() => handleBlur('other', otherSubject)}
-                  className={`w-full h-11 px-3 bg-transparent border ${
-                    fieldErrors.other ? 'border-red-600' : 'border-white'
-                  } rounded text-white placeholder-gray-500`}
-                />
+                {/* Email */}
+                <div className="mb-4">
+                  <label className="block text-white text-sm mb-1">
+                    Email<span className="text-red-600">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    onFocus={() => clearFieldError('email')}
+                    onBlur={() => handleBlur('email', email)}
+                    className={`w-full h-11 px-3 bg-transparent border ${
+                      fieldErrors.email ? 'border-red-600' : 'border-white'
+                    } rounded text-white placeholder-gray-500`}
+                    placeholder="Email address"
+                  />
+                </div>
+
+                {/* Subject Dropdown */}
+                <div className="mb-4 relative">
+                  <label className="block text-white text-sm mb-1">
+                    Subject<span className="text-red-600">*</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setDropdownOpen(!dropdownOpen)}
+                    className={`w-full h-11 px-3 bg-transparent border ${
+                      fieldErrors.subject ? 'border-red-600' : 'border-white'
+                    } rounded text-left text-white flex items-center justify-between`}
+                  >
+                    <span className={subject ? 'text-white' : 'text-gray-500'}>
+                      {subject || 'Select subject'}
+                    </span>
+                    <svg
+                      className={`w-3 h-3 text-white transition-transform ${dropdownOpen ? 'rotate-180' : ''}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  {dropdownOpen && (
+                    <div className="absolute top-full mt-1 w-full bg-[#fdfdf9] rounded z-10 max-h-44 overflow-y-auto">
+                      {subjectOptions.map((option, index) => (
+                        <button
+                          key={index}
+                          type="button"
+                          onClick={() => {
+                            setSubject(option);
+                            setDropdownOpen(false);
+                            clearFieldError('subject');
+                          }}
+                          className="w-full text-left py-2.5 px-3 text-black hover:bg-[#fdfdf9]/90 transition-colors"
+                        >
+                          {option}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Other Subject Input */}
+                {subject === 'Other' && (
+                  <div className="mb-4">
+                    <input
+                      type="text"
+                      placeholder="Other"
+                      value={otherSubject}
+                      onChange={(e) => setOtherSubject(e.target.value)}
+                      onFocus={() => clearFieldError('other')}
+                      onBlur={() => handleBlur('other', otherSubject)}
+                      className={`w-full h-11 px-3 bg-transparent border ${
+                        fieldErrors.other ? 'border-red-600' : 'border-white'
+                      } rounded text-white placeholder-gray-500`}
+                    />
+                  </div>
+                )}
+
+                {/* Message Textarea */}
+                <div className="mb-4">
+                  <label className="block text-white text-sm mb-1">
+                    Message<span className="text-red-600">*</span>
+                  </label>
+                  <textarea
+                    placeholder="Write message"
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    onFocus={() => clearFieldError('message')}
+                    onBlur={() => handleBlur('message', message)}
+                    className={`w-full h-40 px-3 py-2 bg-transparent border ${
+                      fieldErrors.message ? 'border-red-600' : 'border-white'
+                    } rounded text-white placeholder-gray-500 resize-none`}
+                  />
+                </div>
+
+                {/* Send Button */}
+                <div className="mt-6">
+                  <button
+                    onClick={handleSend}
+                    className="bg-white text-black font-medium py-3 px-16 rounded-md hover:bg-gray-200 transition-colors"
+                  >
+                    Send
+                  </button>
+                </div>
               </div>
             )}
+          </div>
 
-            {/* Message Textarea */}
-            <div className="mb-4">
-              <label className="block text-white text-sm mb-1">
-                Message<span className="text-red-600">*</span>
-              </label>
-              <textarea
-                placeholder="Write message"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                onFocus={() => clearFieldError('message')}
-                onBlur={() => handleBlur('message', message)}
-                className={`w-full h-40 px-3 py-2 bg-transparent border ${
-                  fieldErrors.message ? 'border-red-600' : 'border-white'
-                } rounded text-white placeholder-gray-500 resize-none`}
-              />
-            </div>
+          {/* ── Right: FAQ ── */}
+          <div className="lg:w-1/2">
+            <h1 className="text-4xl md:text-5xl font-medium text-white mb-8">FAQ</h1>
 
-            {/* Send Button */}
-            <div className="text-center mt-6">
+            {/* Navigation Bar */}
+            <div className="flex justify-around border-b border-zinc-800 pb-3 mb-8">
               <button
-                onClick={handleSend}
-                className="bg-white text-black font-medium py-3 px-16 rounded-md hover:bg-gray-200 transition-colors"
+                onClick={() => scrollToSection('payments')}
+                className="text-white text-sm font-medium hover:text-gray-300 transition-colors"
               >
-                Send
+                Payments
+              </button>
+              <button
+                onClick={() => scrollToSection('player')}
+                className="text-white text-sm font-medium hover:text-gray-300 transition-colors"
+              >
+                Player
+              </button>
+              <button
+                onClick={() => scrollToSection('parents')}
+                className="text-white text-sm font-medium hover:text-gray-300 transition-colors"
+              >
+                Parents
+              </button>
+              <button
+                onClick={() => scrollToSection('coaches')}
+                className="text-white text-sm font-medium hover:text-gray-300 transition-colors"
+              >
+                Coaches
               </button>
             </div>
+
+            {/* FAQ Sections */}
+            {renderFAQSection(paymentsFAQ, 'Payments', 'payments')}
+            {renderFAQSection(playerFAQ, 'Player', 'player')}
+            {renderFAQSection(parentsFAQ, 'Parents', 'parents')}
+            {renderFAQSection(coachesFAQ, 'Coaches', 'coaches')}
           </div>
-        )}
-
-        {/* FAQ Section */}
-        <div className="mt-20">
-          <h1 className="text-4xl md:text-5xl font-medium text-white text-center mb-8">FAQ</h1>
-
-          {/* Navigation Bar */}
-          <div className="flex justify-around border-b border-zinc-800 pb-3 mb-8">
-            <button
-              onClick={() => scrollToSection('payments')}
-              className="text-white text-sm font-medium hover:text-gray-300 transition-colors"
-            >
-              Payments
-            </button>
-            <button
-              onClick={() => scrollToSection('player')}
-              className="text-white text-sm font-medium hover:text-gray-300 transition-colors"
-            >
-              Player
-            </button>
-            <button
-              onClick={() => scrollToSection('parents')}
-              className="text-white text-sm font-medium hover:text-gray-300 transition-colors"
-            >
-              Parents
-            </button>
-            <button
-              onClick={() => scrollToSection('coaches')}
-              className="text-white text-sm font-medium hover:text-gray-300 transition-colors"
-            >
-              Coaches
-            </button>
-          </div>
-
-          {/* FAQ Sections */}
-          {renderFAQSection(paymentsFAQ, 'Payments', 'payments')}
-          {renderFAQSection(playerFAQ, 'Player', 'player')}
-          {renderFAQSection(parentsFAQ, 'Parents', 'parents')}
-          {renderFAQSection(coachesFAQ, 'Coaches', 'coaches')}
         </div>
 
         {/* Contact Information Footer */}
