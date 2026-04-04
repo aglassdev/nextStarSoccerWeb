@@ -241,6 +241,9 @@ const AdminDashboard = () => {
   const activeSection: Section | null = SECTION_FROM_PATH[location.pathname] || null;
   const setActiveSection = (s: Section | null) => navigate(s ? `/admin/${s}` : '/admin/dashboard');
 
+  // Display name fetched from user's collection
+  const [displayName, setDisplayName] = useState('');
+
   // Stats
   const [stats, setStats] = useState({
     unreadMessages: 0, outstandingBills: 0,
@@ -262,6 +265,37 @@ const AdminDashboard = () => {
       logout().then(() => navigate('/admin'));
     }
   }, [user, initialized]);
+
+  // Fetch user's real name from their collection
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const lookupCollections = [
+        collections.coaches,
+        collections.parentUsers,
+        collections.youthPlayers,
+        collections.collegiatePlayers,
+        collections.professionalPlayers,
+      ].filter(Boolean) as string[];
+
+      for (const colId of lookupCollections) {
+        try {
+          const res = await databases.listDocuments(databaseId, colId, [
+            Query.equal('userId', user.$id), Query.limit(1),
+          ]);
+          if (res.documents.length > 0) {
+            const doc = res.documents[0] as any;
+            const fn = doc.firstName || '';
+            const ln = doc.lastName || '';
+            const full = `${fn} ${ln}`.trim();
+            if (full) { setDisplayName(full); return; }
+          }
+        } catch { /* try next */ }
+      }
+      // Fallback
+      setDisplayName(user.name || user.email.split('@')[0] || 'Admin');
+    })();
+  }, [user]);
 
   // Fetch all dashboard data
   useEffect(() => {
@@ -319,18 +353,19 @@ const AdminDashboard = () => {
             Query.limit(5000),
           ]).catch(() => ({ documents: [] }));
           const docs = (allBills as any).documents as any[];
+          const today = Date.now();
           let paid = 0, pending = 0, overdue = 0;
           docs.forEach((b: any) => {
             if (b.status === 'paid' || b.status === 'cancelled') {
               if (b.status === 'paid') paid++;
+              return;
+            }
+            // Parse dueDate — if it has passed, count as overdue
+            const dueMs = b.dueDate ? Date.parse(b.dueDate) : NaN;
+            if (!isNaN(dueMs) && dueMs < today) {
+              overdue++;
             } else {
-              // If dueDate has passed, it's overdue regardless of Appwrite status
-              const due = b.dueDate ? new Date(b.dueDate) : null;
-              if (due && due < now) {
-                overdue++;
-              } else {
-                pending++;
-              }
+              pending++;
             }
           });
           setBillsStatus({ paid, pending, overdue });
@@ -424,7 +459,6 @@ const AdminDashboard = () => {
   };
 
   const totalRevenue = revenueData.reduce((s, d) => s + d.value, 0);
-  const displayName = user?.name || user?.email?.split('@')[0] || 'Admin';
 
   return (
     <div className="flex h-screen bg-[#050505] text-white overflow-hidden">
@@ -437,7 +471,7 @@ const AdminDashboard = () => {
             onClick={() => setActiveSection(null)}
             className="w-full flex items-center justify-between hover:opacity-80 transition-opacity"
           >
-            <p className="text-white font-semibold text-sm truncate">{displayName}</p>
+            <p className="text-white font-semibold text-sm truncate">{displayName || user?.email?.split('@')[0] || 'Admin'}</p>
             <img
               src="/assets/images/NextStarBall.png"
               alt="Next Star"
