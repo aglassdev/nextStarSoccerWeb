@@ -21,7 +21,6 @@ const AdminLoginPage = () => {
     if (!email || !password) { setError('Please fill in all fields'); return; }
     try {
       await login(email, password);
-      // Check allowlist
       if (!ALLOWED_EMAILS.includes(email.toLowerCase().trim())) {
         await logout();
         setError('Access denied. This account is not authorized for admin access.');
@@ -39,34 +38,37 @@ const AdminLoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-black flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <span className="text-6xl">🛡️</span>
-          <h1 className="text-3xl font-bold text-white mt-4">Admin Portal</h1>
-          <p className="text-gray-400 mt-2">Admin access only</p>
-        </div>
-        <div className="bg-gray-800 rounded-lg shadow-xl p-6 md:p-8 border border-gray-700">
+        <div className="bg-[#111] rounded-lg shadow-xl p-6 md:p-8 border border-white/10 relative">
+          {/* Logo — top right */}
+          <img
+            src="/assets/images/NextStarBall.png"
+            alt="Next Star"
+            className="absolute top-5 right-5 w-8 h-8 opacity-70"
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+          />
+
           {error && (
-            <div className="mb-4 p-4 bg-red-500/10 border border-red-500 rounded-lg">
-              <p className="text-red-500 text-sm">{error}</p>
+            <div className="mb-4 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+              <p className="text-red-400 text-sm">{error}</p>
             </div>
           )}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">Email</label>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-400 mb-2">Email</label>
               <input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600"
-                placeholder="admin@email.com" disabled={loading} />
+                className="w-full px-4 py-3 bg-[#1a1a1a] border border-white/10 rounded-lg text-white placeholder-transparent focus:outline-none focus:ring-2 focus:ring-white/20"
+                placeholder="" disabled={loading} />
             </div>
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">Password</label>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-400 mb-2">Password</label>
               <input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600"
-                placeholder="••••••••" disabled={loading} />
+                className="w-full px-4 py-3 bg-[#1a1a1a] border border-white/10 rounded-lg text-white placeholder-transparent focus:outline-none focus:ring-2 focus:ring-white/20"
+                placeholder="" disabled={loading} />
             </div>
             <button type="submit" disabled={loading}
-              className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+              className="w-full py-3 px-4 bg-white hover:bg-gray-200 text-black font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>

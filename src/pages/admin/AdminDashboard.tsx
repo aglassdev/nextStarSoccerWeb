@@ -317,9 +317,9 @@ const AdminDashboard = () => {
         }));
         setTodayEvents(eventsWithCounts);
 
-        // ── Recent messages
-        if (collections.messages) {
-          const msgs = await databases.listDocuments(databaseId, collections.messages, [
+        // ── Recent messages (from Website Inquiries)
+        if (collections.websiteInquiries) {
+          const msgs = await databases.listDocuments(databaseId, collections.websiteInquiries, [
             Query.orderDesc('$createdAt'), Query.limit(5),
           ]).catch(() => ({ documents: [] }));
           setRecentMessages((msgs as any).documents);
@@ -366,10 +366,15 @@ const AdminDashboard = () => {
         <div className="px-5 pt-6 pb-5 border-b border-[#161616]">
           <button
             onClick={() => setActiveSection(null)}
-            className="text-left hover:opacity-80 transition-opacity"
+            className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
           >
-            <p className="text-white font-semibold text-sm">NSS Admin</p>
-            <p className="text-gray-600 text-xs mt-0.5">Next Star Soccer</p>
+            <p className="text-white font-semibold text-sm truncate">{user?.name || 'Admin'}</p>
+            <img
+              src="/assets/images/NextStarBall.png"
+              alt="Next Star"
+              className="w-5 h-5 flex-shrink-0 opacity-80"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+            />
           </button>
         </div>
 
@@ -444,15 +449,9 @@ const AdminDashboard = () => {
           <div className="px-7 py-7 max-w-6xl mx-auto space-y-5">
 
             {/* Header */}
-            <div className="flex items-end justify-between">
-              <div>
-                <h1 className="text-white text-2xl font-semibold tracking-tight">{greeting}</h1>
-                <p className="text-gray-600 text-sm mt-0.5">{dateStr}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-gray-700 text-xs">Signed in as</p>
-                <p className="text-gray-500 text-xs">{user?.email}</p>
-              </div>
+            <div>
+              <h1 className="text-white text-2xl font-semibold tracking-tight">{greeting}</h1>
+              <p className="text-gray-600 text-sm mt-0.5">{dateStr}</p>
             </div>
 
             {/* ── KPI Cards ── */}
