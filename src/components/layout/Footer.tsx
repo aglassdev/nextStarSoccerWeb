@@ -47,7 +47,7 @@ const Footer = () => {
             <p className="text-gray-500 text-[11px] uppercase tracking-[0.15em] font-semibold mb-4">
               Locations
             </p>
-            <ul className="space-y-3">
+            <ul className="space-y-3 text-center md:text-left">
               {['Maryland', 'Virginia', 'Washington D.C.'].map((loc) => (
                 <li key={loc} className="text-gray-400 text-sm">{loc}</li>
               ))}
@@ -59,7 +59,7 @@ const Footer = () => {
             <p className="text-gray-500 text-[11px] uppercase tracking-[0.15em] font-semibold mb-4">
               Products
             </p>
-            <ul className="space-y-3">
+            <ul className="space-y-3 text-center md:text-left">
               <li>
                 <Link to="/alumni" className="text-gray-400 text-sm hover:text-white transition-colors">
                   Alumni
@@ -78,7 +78,7 @@ const Footer = () => {
             <p className="text-gray-500 text-[11px] uppercase tracking-[0.15em] font-semibold mb-4">
               Company
             </p>
-            <ul className="space-y-3">
+            <ul className="space-y-3 text-center md:text-left">
               <li>
                 <Link to="/coaches" className="text-gray-400 text-sm hover:text-white transition-colors">
                   Coaches
@@ -97,7 +97,7 @@ const Footer = () => {
             <p className="text-gray-500 text-[11px] uppercase tracking-[0.15em] font-semibold mb-4">
               Connect
             </p>
-            <ul className="space-y-3">
+            <ul className="space-y-3 text-center md:text-left">
               <li>
                 <a href="https://www.instagram.com/nextstarsoccer/" target="_blank" rel="noopener noreferrer"
                   className="text-gray-400 text-sm hover:text-white transition-colors">
