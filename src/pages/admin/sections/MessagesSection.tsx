@@ -1,27 +1,23 @@
 import { useState, useEffect } from 'react';
 import { Query } from 'appwrite';
 import { databases, databaseId, collections } from '../../../services/appwrite';
-import { useAuth } from '../../../contexts/AuthContext';
 
-type MessageTab = 'unread' | 'read' | 'sent';
+type MessageTab = 'unread' | 'read' | 'all';
 
-interface MessageRecord {
+interface InquiryRecord {
   $id: string;
-  senderId?: string;
-  senderName?: string;
-  recipientId?: string;
-  subject?: string;
-  content?: string;
-  body?: string;
-  read?: boolean;
-  isRead?: boolean;
-  createdAt?: string;
-  [key: string]: any;
+  $createdAt: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  subject: string;
+  message: string;
+  timestamp: string;
+  read: boolean;
 }
 
 const MessagesSection = () => {
-  const { user } = useAuth();
-  const [messages, setMessages] = useState<MessageRecord[]>([]);
+  const [messages, setMessages] = useState<InquiryRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState<MessageTab>('unread');
@@ -29,60 +25,59 @@ const MessagesSection = () => {
 
   useEffect(() => {
     fetchMessages();
-  }, [activeTab, user]);
+  }, [activeTab]);
 
   const fetchMessages = async () => {
-    if (!user) return;
     setLoading(true);
     setError('');
     try {
-      let queries: string[] = [Query.limit(5000)];
+      const res = await databases.listDocuments(databaseId, collections.websiteInquiries, [
+        Query.orderDesc('$createdAt'),
+        Query.limit(5000),
+      ]);
+      let docs = res.documents as unknown as InquiryRecord[];
 
       if (activeTab === 'unread') {
-        queries = [Query.equal('isRead', false), Query.equal('recipientId', user.$id), Query.limit(5000)];
+        docs = docs.filter(d => d.read === false);
       } else if (activeTab === 'read') {
-        queries = [Query.equal('isRead', true), Query.equal('recipientId', user.$id), Query.limit(5000)];
-      } else if (activeTab === 'sent') {
-        queries = [Query.equal('senderId', user.$id), Query.limit(5000)];
+        docs = docs.filter(d => d.read === true);
       }
 
-      const res = await databases.listDocuments(databaseId, collections.messages, queries);
-      setMessages(res.documents as unknown as MessageRecord[]);
+      setMessages(docs);
     } catch (err: any) {
-      // If query fails (e.g. missing index), fall back to fetching all and filtering client-side
-      try {
-        const res = await databases.listDocuments(databaseId, collections.messages, [Query.limit(5000)]);
-        const all = res.documents as unknown as MessageRecord[];
-        if (activeTab === 'unread') {
-          setMessages(all.filter(m => !m.isRead && !m.read && m.recipientId === user.$id));
-        } else if (activeTab === 'read') {
-          setMessages(all.filter(m => (m.isRead || m.read) && m.recipientId === user.$id));
-        } else {
-          setMessages(all.filter(m => m.senderId === user.$id));
-        }
-      } catch (fallbackErr: any) {
-        setError('Failed to load messages: ' + (err.message || 'Unknown error'));
-      }
+      setError('Failed to load inquiries: ' + (err.message || 'Unknown error'));
     } finally {
       setLoading(false);
     }
   };
 
+  const markAsRead = async (id: string) => {
+    try {
+      await databases.updateDocument(databaseId, collections.websiteInquiries, id, { read: true });
+      setMessages(prev => prev.map(m => m.$id === id ? { ...m, read: true } : m));
+    } catch { /* ignore */ }
+  };
+
+  const buildGmailUrl = (msg: InquiryRecord) => {
+    const name = `${msg.firstName} ${msg.lastName}`.trim();
+    const subject = `Re: ${msg.subject || 'Your Inquiry'}`;
+    const body = `\n\n\n────────────────────\nOriginal message from ${name} (${msg.email}):\nSubject: ${msg.subject || '—'}\n\n${msg.message || ''}`;
+    return `https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(msg.email)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
+
   const tabLabel: Record<MessageTab, string> = {
     unread: 'Unread',
     read: 'Read',
-    sent: 'Sent',
+    all: 'All',
   };
-
-  const getBody = (m: MessageRecord) => m.content || m.body || '';
 
   return (
     <div className="p-6">
-      <h2 className="text-2xl font-bold text-white mb-6">Messages</h2>
+      <h2 className="text-2xl font-bold text-white mb-6">Website Inquiries</h2>
 
       {/* Tabs */}
       <div className="flex gap-1 mb-6 bg-gray-900 rounded-lg p-1 w-fit border border-gray-800">
-        {(['unread', 'read', 'sent'] as MessageTab[]).map(tab => (
+        {(['unread', 'read', 'all'] as MessageTab[]).map(tab => (
           <button
             key={tab}
             onClick={() => {
@@ -116,44 +111,111 @@ const MessagesSection = () => {
         <div className="bg-gray-900 rounded-lg border border-gray-800 divide-y divide-gray-800">
           {messages.length === 0 ? (
             <div className="px-4 py-8 text-center text-gray-500">
-              No {tabLabel[activeTab].toLowerCase()} messages
+              No {tabLabel[activeTab].toLowerCase()} inquiries
             </div>
           ) : (
-            messages.map(message => (
-              <div key={message.$id}>
-                <div
-                  onClick={() => setExpandedId(expandedId === message.$id ? null : message.$id)}
-                  className="px-4 py-4 hover:bg-gray-800/50 cursor-pointer transition-colors flex items-center justify-between"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3">
-                      <p className="text-white font-medium truncate">
-                        {message.senderName || message.senderId || 'Unknown'}
-                      </p>
-                      {!(message.isRead || message.read) && activeTab !== 'sent' && (
-                        <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
-                      )}
-                    </div>
-                    <p className="text-gray-400 text-sm truncate mt-0.5">
-                      {message.subject || '(No subject)'}
-                    </p>
-                  </div>
-                  <div className="ml-4 text-gray-500 text-xs flex-shrink-0">
-                    {message.createdAt ? new Date(message.createdAt).toLocaleDateString() : '—'}
-                  </div>
-                </div>
+            messages.map(msg => {
+              const name = `${msg.firstName} ${msg.lastName}`.trim() || 'Unknown';
+              const isExpanded = expandedId === msg.$id;
 
-                {expandedId === message.$id && (
-                  <div className="px-4 pb-4 bg-gray-800/30">
-                    <div className="pt-3 border-t border-gray-700">
-                      <p className="text-gray-300 text-sm whitespace-pre-wrap leading-relaxed">
-                        {getBody(message) || '(No message body)'}
+              return (
+                <div key={msg.$id}>
+                  <div
+                    onClick={() => {
+                      setExpandedId(isExpanded ? null : msg.$id);
+                      if (!msg.read) markAsRead(msg.$id);
+                    }}
+                    className="px-4 py-4 hover:bg-gray-800/50 cursor-pointer transition-colors"
+                  >
+                    {/* Top row: name, email, date */}
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className="w-8 h-8 rounded-full bg-[#1a1a1a] border border-[#2a2a2a] flex items-center justify-center flex-shrink-0">
+                          <span className="text-gray-400 text-xs font-semibold">
+                            {(msg.firstName[0] || '?').toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className={`text-sm font-medium truncate ${!msg.read ? 'text-white' : 'text-gray-400'}`}>
+                              {name}
+                            </span>
+                            {!msg.read && (
+                              <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
+                            )}
+                          </div>
+                          <p className="text-gray-600 text-xs truncate">{msg.email}</p>
+                        </div>
+                      </div>
+                      <div className="text-gray-600 text-xs flex-shrink-0">
+                        {new Date(msg.$createdAt).toLocaleDateString('en-US', {
+                          month: 'short', day: 'numeric', year: 'numeric',
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Subject + preview */}
+                    <div className="mt-2 pl-11">
+                      <p className={`text-sm truncate ${!msg.read ? 'text-gray-300' : 'text-gray-500'}`}>
+                        {msg.subject || '(No subject)'}
                       </p>
+                      <p className="text-gray-600 text-xs mt-0.5 truncate">{msg.message || ''}</p>
                     </div>
                   </div>
-                )}
-              </div>
-            ))
+
+                  {/* Expanded view */}
+                  {isExpanded && (
+                    <div className="px-4 pb-4 bg-gray-800/20">
+                      <div className="pt-3 pl-11 border-t border-gray-800">
+                        {/* Detail fields */}
+                        <div className="flex flex-wrap gap-x-6 gap-y-1 mb-3">
+                          <div>
+                            <span className="text-gray-600 text-xs">First Name</span>
+                            <p className="text-gray-300 text-sm">{msg.firstName || '—'}</p>
+                          </div>
+                          <div>
+                            <span className="text-gray-600 text-xs">Last Name</span>
+                            <p className="text-gray-300 text-sm">{msg.lastName || '—'}</p>
+                          </div>
+                          <div>
+                            <span className="text-gray-600 text-xs">Email</span>
+                            <p className="text-blue-400 text-sm">{msg.email || '—'}</p>
+                          </div>
+                          <div>
+                            <span className="text-gray-600 text-xs">Received</span>
+                            <p className="text-gray-300 text-sm">
+                              {new Date(msg.$createdAt).toLocaleString('en-US', {
+                                month: 'short', day: 'numeric', year: 'numeric',
+                                hour: 'numeric', minute: '2-digit', hour12: true,
+                              })}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Full message */}
+                        <p className="text-gray-300 text-sm whitespace-pre-wrap leading-relaxed mb-4">
+                          {msg.message || '(No message body)'}
+                        </p>
+
+                        {/* Reply button */}
+                        <a
+                          href={buildGmailUrl(msg)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-white hover:bg-gray-200 text-black text-sm font-medium rounded-lg transition-colors"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10l9 6 9-6M21 10v8a2 2 0 01-2 2H5a2 2 0 01-2-2v-8" />
+                          </svg>
+                          Reply in Gmail
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })
           )}
         </div>
       )}

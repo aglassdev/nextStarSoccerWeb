@@ -624,11 +624,15 @@ const AdminDashboard = () => {
                         const h = Math.floor(diff / 3600000);
                         const m = Math.floor(diff / 60000);
                         const ago = d > 0 ? `${d}d` : h > 0 ? `${h}h` : m > 0 ? `${m}m` : 'now';
-                        const name = msg.name || msg.senderName || msg.userName || msg.firstName
-                          ? `${msg.firstName || ''} ${msg.lastName || ''}`.trim() || msg.name || msg.senderName || msg.userName
-                          : 'Unknown';
-                        const preview = msg.message || msg.content || msg.body || msg.subject || '';
+                        const name = `${msg.firstName || ''} ${msg.lastName || ''}`.trim() || 'Unknown';
+                        const preview = msg.message || '';
                         const unread = msg.read === false;
+                        const senderEmail = msg.email || '';
+
+                        const gmailUrl = senderEmail
+                          ? `https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(senderEmail)}&su=${encodeURIComponent('Re: ' + (msg.subject || 'Your Inquiry'))}&body=${encodeURIComponent('\n\n\n────────────────────\nOriginal message from ' + name + ' (' + senderEmail + '):\nSubject: ' + (msg.subject || '—') + '\n\n' + (msg.message || ''))}`
+                          : '';
+
                         return (
                           <div key={msg.$id} className="flex items-start gap-3 py-3">
                             <div className="w-7 h-7 rounded-full bg-[#1e1e1e] flex items-center justify-center flex-shrink-0 mt-0.5 border border-[#2a2a2a]">
@@ -644,6 +648,20 @@ const AdminDashboard = () => {
                                 <span className="text-gray-700 text-xs flex-shrink-0">{ago}</span>
                               </div>
                               <p className="text-gray-600 text-xs mt-0.5 truncate">{preview || '—'}</p>
+                              {gmailUrl && (
+                                <a
+                                  href={gmailUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 mt-1.5 text-[10px] text-blue-400 hover:text-blue-300 transition-colors"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10l9 6 9-6M21 10v8a2 2 0 01-2 2H5a2 2 0 01-2-2v-8" />
+                                  </svg>
+                                  Reply
+                                </a>
+                              )}
                             </div>
                             {unread && (
                               <div className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0 mt-2" />
