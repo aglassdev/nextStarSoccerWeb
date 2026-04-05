@@ -40,6 +40,8 @@ export const images = {
   coach9: '/assets/images/coach9.png',
   coach10: '/assets/images/coach10.png',
 
+  charity1: '/assets/images/charity1.png',
+  charity2: '/assets/images/charity2.png',
 };
 
 export const icons = {

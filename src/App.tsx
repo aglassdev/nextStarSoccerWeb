@@ -22,6 +22,7 @@ import BillingPage from './pages/BillingPage';
 import ProfilePage from './pages/ProfilePage';
 import TermsPage from './pages/TermsPage';
 import PrivacyPage from './pages/PrivacyPage';
+import ScholarshipPage from './pages/ScholarshipPage';
 import Layout from './components/layout/Layout';
 import LoadingScreen from './components/common/LoadingScreen';
 import AdminLoginPage from './pages/admin/AdminLoginPage';
@@ -67,6 +68,7 @@ function AppRoutes() {
       <Route path="/store" element={<StorePage />} />
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/privacy" element={<PrivacyPage />} />
+      <Route path="/scholarships" element={<ScholarshipPage />} />
 
       {/* Auth routes */}
       <Route path="/login" element={<LoginPage />} />
