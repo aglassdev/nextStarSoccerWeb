@@ -18,6 +18,7 @@ const HomePageNew = () => {
     const statsRef = useRef<HTMLDivElement>(null);
     const aboutRef = useRef<HTMLDivElement>(null);
     const collageSectionRef = useRef<HTMLDivElement>(null);
+    const collageTrackRef = useRef<HTMLDivElement>(null);
     const heroRef = useRef<HTMLDivElement>(null);
     const heroImageRef = useRef<HTMLImageElement>(null);
     const backgroundRef = useRef<HTMLDivElement>(null);
@@ -52,25 +53,25 @@ const HomePageNew = () => {
         'https://www.instagram.com/p/C_Q_ZEwvaEn/?img_index=1',
     ];
 
-    /* ---------------- MOBILE DETECTION ---------------- */
+    /* ---------------- RESPONSIVE LISTENER ---------------- */
     useEffect(() => {
-        const update = () => setIsMobile(window.innerWidth < 768);
-        window.addEventListener('resize', update);
-        return () => window.removeEventListener('resize', update);
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    /* ---------------- HERO IMAGE OPACITY + BACKGROUND COLOR ---------------- */
+    /* ---------------- HERO IMAGE OPACITY + BACKGROUND COLOR (MOBILE) ---------------- */
     useEffect(() => {
+        if (!isMobile) return;
+
         const heroImg = heroImageRef.current;
         const bg = backgroundRef.current;
         if (!heroImg || !bg) return;
 
         const handleScroll = () => {
-            // Fade hero image as user scrolls — updates live on every scroll event
             const opacity = Math.max(0, 1 - (window.scrollY / (window.innerHeight * 1.5)));
             heroImg.style.opacity = String(opacity);
 
-            // Switch background to eggshell when collage section enters viewport
             const collageEl = collageSectionRef.current;
             if (collageEl) {
                 const collageTop = collageEl.getBoundingClientRect().top;
@@ -83,26 +84,121 @@ const HomePageNew = () => {
         };
 
         window.addEventListener('scroll', handleScroll, { passive: true });
-        handleScroll(); // run once on mount
+        handleScroll();
         return () => window.removeEventListener('scroll', handleScroll);
-    }, []);
+    }, [isMobile]);
 
-    /* ---------------- SOCIAL CARD FAN-OUT (all screen sizes) ---------------- */
+    /* ---------------- DESKTOP: COLLAGE HORIZONTAL SCROLL WITH GSAP ---------------- */
+    useEffect(() => {
+        if (isMobile) return;
+        if (!collageSectionRef.current || !collageTrackRef.current) return;
+
+        const track = collageTrackRef.current;
+        const imgs = gsap.utils.toArray<HTMLElement>('.collage-img');
+        const scrollDistance = track.scrollWidth - window.innerWidth;
+
+        gsap.to(track, {
+            x: -scrollDistance,
+            ease: 'none',
+            scrollTrigger: {
+                trigger: collageSectionRef.current,
+                start: 'top top',
+                end: () => `+=${scrollDistance * 2}`,
+                scrub: 1.3,
+                pin: true,
+                anticipatePin: 1,
+                snap: {
+                    snapTo: 1 / (imgs.length - 1),
+                    duration: 0.6,
+                    ease: 'expo.out',
+                },
+            },
+        });
+
+        // Background color switch via GSAP
+        ScrollTrigger.create({
+            trigger: collageSectionRef.current,
+            start: 'top top',
+            end: '+=1',
+            onEnter: () =>
+                gsap.to(backgroundRef.current, {
+                    backgroundColor: 'rgb(240,234,214)',
+                    duration: 0.25,
+                    ease: 'power1.out',
+                }),
+            onLeaveBack: () =>
+                gsap.to(backgroundRef.current, {
+                    backgroundColor: 'black',
+                    duration: 0.25,
+                    ease: 'power1.out',
+                }),
+        });
+
+        // Parallax on each image
+        imgs.forEach((img, i) => {
+            const depth = i % 3 === 0 ? 1 : i % 3 === 1 ? 0.7 : 0.45;
+            const yOffset = (i % 2 === 0 ? -1 : 1) * (50 + i * 6);
+
+            gsap.fromTo(
+                img,
+                { y: yOffset },
+                {
+                    y: -yOffset,
+                    ease: 'none',
+                    scrollTrigger: {
+                        trigger: collageSectionRef.current,
+                        start: 'top bottom',
+                        end: 'bottom top',
+                        scrub: depth,
+                    },
+                }
+            );
+        });
+
+        // Desktop hero image opacity via GSAP-controlled scroll
+        const heroImg = heroImageRef.current;
+        if (heroImg) {
+            const handleScroll = () => {
+                const opacity = Math.max(0, 1 - (window.scrollY / (window.innerHeight * 1.5)));
+                heroImg.style.opacity = String(opacity);
+            };
+            window.addEventListener('scroll', handleScroll, { passive: true });
+            handleScroll();
+            // Store cleanup ref
+            (collageSectionRef.current as any)._desktopScrollCleanup = () =>
+                window.removeEventListener('scroll', handleScroll);
+        }
+
+        return () => {
+            const cleanup = (collageSectionRef.current as any)?._desktopScrollCleanup;
+            if (cleanup) cleanup();
+            ScrollTrigger.killAll();
+        };
+    }, [isMobile]);
+
+    /* ---------------- SOCIAL CARD FAN-OUT WITH GSAP ---------------- */
     useEffect(() => {
         if (!socialSectionRef.current) return;
 
         const cards = gsap.utils.toArray<HTMLElement>('.social-card');
         if (cards.length === 0) return;
 
-        // Scale spread down on mobile so all 5 cards fit the viewport
-        const m = isMobile ? 0.62 : 1.0;
-        const fanData = [
-            { x: -220 * m, rotation: -24, z: 1 },
-            { x: -110 * m, rotation: -12, z: 2 },
-            { x:       0,  rotation:   0, z: 5 },
-            { x:  110 * m, rotation:  12, z: 2 },
-            { x:  208 * m, rotation:  22, z: 1 },
-        ];
+        // Desktop: wider spread; Mobile: compact spread
+        const fanData = isMobile
+            ? [
+                { x: -220, rotation: -24, z: 1 },
+                { x: -110, rotation: -12, z: 2 },
+                { x:    0, rotation:   0, z: 5 },
+                { x:  110, rotation:  12, z: 2 },
+                { x:  208, rotation:  22, z: 1 },
+              ]
+            : [
+                { x: -330, rotation: -24, z: 1 },
+                { x: -162, rotation: -12, z: 2 },
+                { x:    0, rotation:   0, z: 5 },
+                { x:  162, rotation:  12, z: 2 },
+                { x:  312, rotation:  22, z: 1 },
+              ];
 
         gsap.set(cards, { x: 0, rotation: 0, transformOrigin: 'center 85%' });
 
@@ -117,7 +213,7 @@ const HomePageNew = () => {
             },
         });
 
-        const NUDGE = isMobile ? 18 : 28;
+        const NUDGE = isMobile ? 28 : 38;
         cards.forEach((card, i) => {
             card.addEventListener('mouseenter', () => {
                 gsap.to(card, { y: -22, scale: 1.05, zIndex: 20, duration: 0.28, ease: 'power2.out' });
@@ -285,39 +381,23 @@ const HomePageNew = () => {
                 </div>
             </section>
 
-            {/* ── COLLAGE — two independent columns, natural image aspect ratios ── */}
-            <section ref={collageSectionRef} className="relative z-10 py-16 px-4 md:px-16">
-                <div className="max-w-5xl mx-auto">
-                    <div className="flex gap-3 md:gap-6">
-                        {/* Left column */}
-                        <div className="flex-1 flex flex-col gap-3 md:gap-6">
-                            {collageImages.filter((_, i) => i % 2 === 0).map((item, idx) => (
-                                <div key={idx} className="flex flex-col gap-1.5">
+            {/* COLLAGE -- Desktop: GSAP horizontal scroll | Mobile: staggered grid */}
+            {isMobile ? (
+                <section ref={collageSectionRef} className="relative z-10 py-16 px-4 md:px-16">
+                    <div className="max-w-5xl mx-auto">
+                        <div className="grid grid-cols-2 gap-3 md:gap-6">
+                            {collageImages.map((item, i) => (
+                                <div
+                                    key={i}
+                                    className="flex flex-col gap-2"
+                                    style={{ marginTop: i % 2 !== 0 ? '48px' : '0' }}
+                                >
                                     <img
                                         src={item.src}
                                         alt={item.caption}
-                                        className="w-full h-auto rounded-xl shadow-2xl"
+                                        className="w-full h-[160px] sm:h-[240px] object-cover rounded-xl shadow-2xl"
                                         loading="lazy"
                                         decoding="async"
-                                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                                    />
-                                    <p className="text-[9px] sm:text-[11px] uppercase tracking-[0.18em] text-gray-600 font-medium pl-1">
-                                        {item.caption}
-                                    </p>
-                                </div>
-                            ))}
-                        </div>
-                        {/* Right column — offset down for stagger */}
-                        <div className="flex-1 flex flex-col gap-3 md:gap-6 mt-12 md:mt-20">
-                            {collageImages.filter((_, i) => i % 2 !== 0).map((item, idx) => (
-                                <div key={idx} className="flex flex-col gap-1.5">
-                                    <img
-                                        src={item.src}
-                                        alt={item.caption}
-                                        className="w-full h-auto rounded-xl shadow-2xl"
-                                        loading="lazy"
-                                        decoding="async"
-                                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
                                     />
                                     <p className="text-[9px] sm:text-[11px] uppercase tracking-[0.18em] text-gray-600 font-medium pl-1">
                                         {item.caption}
@@ -326,34 +406,64 @@ const HomePageNew = () => {
                             ))}
                         </div>
                     </div>
-                </div>
-            </section>
+                </section>
+            ) : (
+                <section ref={collageSectionRef} className="relative h-screen z-10">
+                    <div className="sticky top-0 h-screen overflow-hidden">
+                        <div ref={collageTrackRef} className="flex items-center h-full gap-24 px-[15vw]">
+                            {collageImages.map((item, i) => (
+                                <div
+                                    key={i}
+                                    className="collage-img flex-shrink-0 flex flex-col gap-3"
+                                    style={{ marginTop: i % 2 === 0 ? '6vh' : '-4vh' }}
+                                >
+                                    <img
+                                        src={item.src}
+                                        alt={item.caption}
+                                        className="w-[320px] h-[48vh] object-cover rounded-xl shadow-2xl"
+                                    />
+                                    <p className="text-[11px] uppercase tracking-[0.18em] text-gray-500 font-medium pl-1">
+                                        {item.caption}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+            )}
 
-            {/* ── SOCIALS — GSAP fan layout on all screen sizes ── */}
+            {/* SOCIALS -- GSAP fan-out card deck */}
             <section
                 ref={socialSectionRef}
-                className="relative z-10 flex flex-col justify-center overflow-hidden"
-                style={{ height: isMobile ? '480px' : '100vh' }}
+                className={`relative z-10 flex flex-col justify-center overflow-hidden ${isMobile ? 'py-16' : 'h-screen'}`}
                 data-section="instagram"
             >
-                <div className="text-center mb-8 md:mb-12 relative z-10 pointer-events-none select-none">
-                    <h2 className="text-[clamp(32px,6.5vw,88px)] font-black leading-none text-black uppercase">
+                {/* Centered heading */}
+                <div className="text-center mb-10 md:mb-12 relative z-10 pointer-events-none select-none">
+                    <h2 className={`font-black leading-none text-black uppercase ${isMobile ? 'text-[clamp(36px,5.5vw,88px)]' : 'text-[clamp(44px,6.5vw,88px)]'}`}>
                         WHAT'S UP
                     </h2>
-                    <p className="text-[clamp(26px,5.5vw,72px)] font-black text-black uppercase leading-tight">
+                    <p className={`font-black text-black uppercase leading-tight ${isMobile ? 'text-[clamp(28px,4.5vw,72px)]' : 'text-[clamp(36px,5.5vw,72px)]'}`}>
                         ON SOCIALS
                     </p>
                 </div>
 
-                {/* Cards — smaller on mobile, full size on desktop */}
-                <div className="relative flex items-center justify-center" style={{ height: isMobile ? '220px' : '340px' }}>
+                {/* Card deck */}
+                <div
+                    className="relative flex items-center justify-center"
+                    style={{ height: isMobile ? '320px' : '480px' }}
+                >
                     {instagramPosts.map((postUrl, i) => (
                         <a
                             key={i}
                             href={postUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className={`social-card absolute rounded-3xl overflow-hidden shadow-2xl cursor-pointer ${isMobile ? 'w-[105px] h-[178px]' : 'w-[170px] h-[290px]'}`}
+                            className={`social-card absolute rounded-3xl overflow-hidden shadow-2xl cursor-pointer ${
+                                isMobile
+                                    ? 'w-[150px] h-[250px]'
+                                    : 'w-[240px] h-[400px] md:w-[270px] md:h-[440px]'
+                            }`}
                             style={{ zIndex: i === 2 ? 10 : 5 - Math.abs(i - 2) }}
                         >
                             <img
@@ -367,7 +477,8 @@ const HomePageNew = () => {
                     ))}
                 </div>
 
-                <div className="flex justify-center items-center gap-8 md:gap-10 mt-8 md:mt-10 relative z-10">
+                {/* Platform links */}
+                <div className={`flex justify-center items-center gap-10 relative z-10 ${isMobile ? 'mt-8' : 'mt-10'}`}>
                     <span className="text-black/30 text-[10px] uppercase tracking-[0.25em]">Follow</span>
                     <a
                         href="https://www.instagram.com/nextstarsoccer/"

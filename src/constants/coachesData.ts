@@ -298,4 +298,22 @@ export const coaches: Coach[] = [
       },
     ],
   },
+  {
+    id: 9,
+    name: 'Noah Satriano',
+    title: 'Collegiate Coach',
+    handle: 'coach9',
+    slug: 'noah-satriano',
+    status: 'Available',
+    avatarUrl: images.coach9,
+  },
+  {
+    id: 10,
+    name: 'Gabe Segal',
+    title: 'Pro Coach',
+    handle: 'coach10',
+    slug: 'gabe-segal',
+    status: 'Available',
+    avatarUrl: images.coach10,
+  },
 ];

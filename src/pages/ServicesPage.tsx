@@ -132,7 +132,7 @@ const ServiceCard: React.FC<{ service: Service }> = ({ service }) => {
                         }}
                     />
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/80 to-transparent p-3 md:p-6">
-                        <h3 className="text-white text-base md:text-2xl font-bold leading-snug">{service.name}</h3>
+                        <h3 className="text-white text-sm md:text-2xl font-bold leading-snug">{service.name}</h3>
                     </div>
                 </div>
 
@@ -146,21 +146,20 @@ const ServiceCard: React.FC<{ service: Service }> = ({ service }) => {
                 >
                     <div className="h-full flex flex-col justify-between">
                         <div>
-                            <h3 className="text-white text-base md:text-2xl font-bold mb-2 md:mb-4 leading-snug">{service.name}</h3>
-                            <p className="text-green-400 text-xs md:text-sm font-semibold mb-2 md:mb-4 whitespace-pre-line">
+                            <h3 className="text-white text-sm md:text-2xl font-bold mb-2 md:mb-4 leading-snug">{service.name}</h3>
+                            <p className="text-green-400 text-[10px] md:text-sm font-semibold mb-2 md:mb-4 whitespace-pre-line">
                                 {service.pricing}
                             </p>
-                            <div className="overflow-y-auto max-h-24 md:max-h-56 pr-1 md:pr-2 custom-scrollbar">
-                                <p className="text-gray-300 text-xs md:text-sm leading-relaxed">
+                            <div className="overflow-y-auto max-h-20 md:max-h-56 pr-1 md:pr-2 custom-scrollbar">
+                                <p className="text-gray-300 text-[10px] md:text-sm leading-relaxed">
                                     {service.description}
                                 </p>
                             </div>
                         </div>
                         <button
-                            className="mt-2 md:mt-4 w-full bg-white text-black py-1.5 md:py-3 rounded-lg text-xs md:text-sm font-bold hover:bg-gray-200 transition-colors"
+                            className="mt-2 md:mt-4 w-full bg-white text-black py-1.5 md:py-3 rounded-lg text-[10px] md:text-sm font-bold hover:bg-gray-200 transition-colors"
                             onClick={(e) => {
                                 e.stopPropagation();
-                                // Handle request service action
                                 console.log('Request service:', service.name);
                             }}
                         >
@@ -185,13 +184,13 @@ const ServicesPage = () => {
                         <h1 className="text-white text-3xl font-bold">Our Services</h1>
                     </div>
 
-                    {/* MOBILE LAYOUT (< md): custom row ordering */}
+                    {/* MOBILE LAYOUT (< md) */}
                     <div className="md:hidden space-y-3">
                         {/* Row 1: Individual — full width */}
                         <div className="grid grid-cols-2 gap-3">
                             <div className="col-span-2"><ServiceCard service={services[0]} /></div>
                         </div>
-                        {/* Row 2: Two Person + Small Group — half each */}
+                        {/* Row 2: Two Person + Small Group */}
                         <div className="grid grid-cols-2 gap-3">
                             <ServiceCard service={services[1]} />
                             <ServiceCard service={services[2]} />
@@ -200,7 +199,7 @@ const ServicesPage = () => {
                         <div className="grid grid-cols-2 gap-3">
                             <div className="col-span-2"><ServiceCard service={services[3]} /></div>
                         </div>
-                        {/* Row 4: Parent Consultation + Player Report — half each */}
+                        {/* Row 4: Parent Consultation + Player Report */}
                         <div className="grid grid-cols-2 gap-3">
                             <ServiceCard service={services[4]} />
                             <ServiceCard service={services[6]} />
@@ -209,19 +208,19 @@ const ServicesPage = () => {
                         <div className="grid grid-cols-2 gap-3">
                             <div className="col-span-2"><ServiceCard service={services[5]} /></div>
                         </div>
-                        {/* Row 6: Camps + Team Training — half each */}
+                        {/* Row 6: Camps + Team Training */}
                         <div className="grid grid-cols-2 gap-3">
                             <ServiceCard service={services[7]} />
                             <ServiceCard service={services[8]} />
                         </div>
-                        {/* Row 7: Pro Clinics + Showcases — half each */}
+                        {/* Row 7: Pro Clinics + Showcases */}
                         <div className="grid grid-cols-2 gap-3">
                             <ServiceCard service={services[9]} />
                             <ServiceCard service={services[10]} />
                         </div>
                     </div>
 
-                    {/* DESKTOP LAYOUT (>= md): original grid */}
+                    {/* DESKTOP LAYOUT (>= md) */}
                     <div className="hidden md:block space-y-8">
                         {/* Row 1: Individual & Two Person */}
                         <div className="grid grid-cols-2 gap-8">
