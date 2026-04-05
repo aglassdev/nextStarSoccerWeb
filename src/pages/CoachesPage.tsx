@@ -17,8 +17,8 @@ const CoachesPage = () => {
           <p className="text-lg text-gray-400 text-center mb-16 font-lt-wave">
           </p>
 
-          {/* Profile Cards Grid - 2 rows of 4 */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
+          {/* Profile Cards Grid - 2 rows of 5 on desktop, 5 rows of 2 on mobile */}
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-6 lg:gap-8">
             {coaches.map((coach) => (
               <div
                 key={coach.id}

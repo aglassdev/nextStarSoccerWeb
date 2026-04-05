@@ -37,6 +37,8 @@ export const images = {
   coach6: '/assets/images/coach6.png',
   coach7: '/assets/images/coach7.png',
   coach8: '/assets/images/coach8.png',
+  coach9: '/assets/images/coach9.png',
+  coach10: '/assets/images/coach10.png',
 
 };
 
