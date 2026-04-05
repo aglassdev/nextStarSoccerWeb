@@ -74,10 +74,10 @@ const ScholarshipPage = () => {
                       1
                     </span>
                     <div>
-                      <h3 className="text-white font-semibold mb-1">Create an Account</h3>
+                      <h3 className="text-white font-semibold mb-1">Complete the Application</h3>
                       <p className="text-gray-400 text-sm leading-relaxed">
-                        Sign up for a Next Star Soccer account if you haven't already. This gives
-                        you access to the scholarship application and your family dashboard.
+                        Fill out the online scholarship form in full, including player details,
+                        training background, and a brief statement on why you're applying.
                       </p>
                     </div>
                   </li>
@@ -88,11 +88,10 @@ const ScholarshipPage = () => {
                       2
                     </span>
                     <div>
-                      <h3 className="text-white font-semibold mb-1">Complete the Application</h3>
+                      <h3 className="text-white font-semibold mb-1">Upload Documents</h3>
                       <p className="text-gray-400 text-sm leading-relaxed">
-                        Fill out the online scholarship application in full. Be sure to include
-                        your player's details, training history, and a brief statement about why
-                        you're applying.
+                        Submit financial information from both parents where appropriate. All
+                        supporting documents can be uploaded directly through the application.
                       </p>
                     </div>
                   </li>
@@ -103,11 +102,10 @@ const ScholarshipPage = () => {
                       3
                     </span>
                     <div>
-                      <h3 className="text-white font-semibold mb-1">Upload Financial Documents</h3>
+                      <h3 className="text-white font-semibold mb-1">Committee Review</h3>
                       <p className="text-gray-400 text-sm leading-relaxed">
-                        We require financial information from both parents where appropriate and
-                        applicable. All supporting documents can be uploaded directly through the
-                        application.
+                        Our scholarship committee reviews every application confidentially.
+                        Decisions are based solely on demonstrated financial need.
                       </p>
                     </div>
                   </li>
@@ -118,26 +116,11 @@ const ScholarshipPage = () => {
                       4
                     </span>
                     <div>
-                      <h3 className="text-white font-semibold mb-1">Committee Review</h3>
+                      <h3 className="text-white font-semibold mb-1">Scholarship Awarded</h3>
                       <p className="text-gray-400 text-sm leading-relaxed">
-                        The scholarship committee will review every application. All information is
-                        kept strictly confidential. Scholarships are awarded based on demonstrated
-                        financial need — that is the only determinant.
-                      </p>
-                    </div>
-                  </li>
-
-                  {/* Step 5 */}
-                  <li className="flex gap-4">
-                    <span className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-blue-800 text-white text-sm font-bold">
-                      5
-                    </span>
-                    <div>
-                      <h3 className="text-white font-semibold mb-1">Award & Next Steps</h3>
-                      <p className="text-gray-400 text-sm leading-relaxed">
-                        If awarded, families are responsible for any uniform, club, coaching, or
-                        team expenses not covered by the scholarship. Recipients are strongly
-                        encouraged to volunteer their time back to the club at team or club events.
+                        Approved families will be notified and can begin training. Any remaining
+                        uniform or team expenses are the family's responsibility, and recipients
+                        are encouraged to volunteer back to the club.
                       </p>
                     </div>
                   </li>
