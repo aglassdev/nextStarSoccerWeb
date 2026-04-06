@@ -1,0 +1,177 @@
+/**
+ * Extracts sizes from rendered SquadLocker product pages via DOM scraping.
+ * Also fixes product URLs to use the correct id format.
+ *
+ * Usage:  node scripts/get-sizes.cjs
+ */
+
+const { chromium } = require('playwright');
+const fs = require('fs');
+const path = require('path');
+
+const BASE        = 'https://teamlocker.squadlocker.com';
+const LOCKER_SLUG = 'next-star-soccer';
+const CLEAN_FILE  = path.join(__dirname, 'squadlocker-clean.json');
+const RAW_FILE    = path.join(__dirname, 'squadlocker-products.json');
+
+async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// Extract sizes from the product page DOM
+async function extractSizesFromPage(page) {
+  return page.evaluate(() => {
+    // SquadLocker renders sizes as buttons or list items
+    const selectors = [
+      '[class*="size"] button',
+      '[class*="Size"] button',
+      '[class*="size-option"]',
+      '[class*="SizeOption"]',
+      '[class*="size-selector"] li',
+      '[data-size]',
+      'select[name*="size"] option',
+      '[class*="sizeButton"]',
+      '[class*="size-btn"]',
+    ];
+    for (const sel of selectors) {
+      const els = document.querySelectorAll(sel);
+      if (els.length > 0) {
+        return [...els].map(e => e.textContent?.trim()).filter(Boolean);
+      }
+    }
+    // Fallback: look for any text that looks like clothing sizes
+    const allText = document.body.innerText;
+    const sizeMatch = allText.match(/\b(XS|S|M|L|XL|2XL|3XL|4XL|XXL|XXXL|Youth\s+\w+|[0-9]+[TY])\b/g);
+    return sizeMatch ? [...new Set(sizeMatch)] : [];
+  });
+}
+
+async function main() {
+  const clean = JSON.parse(fs.readFileSync(CLEAN_FILE, 'utf8'));
+  const raw   = JSON.parse(fs.readFileSync(RAW_FILE, 'utf8'));
+
+  // Build a map from coloredStyleId → item id (the big number used in URLs)
+  // The item id is the `id` field in nonessentialColoredStyles
+  const variants  = raw.raw_api_responses['locker_info'].nonessentialColoredStyles ?? [];
+  const idByColoredStyleId = {};
+  for (const v of variants) {
+    idByColoredStyleId[v.coloredStyleId] = v.id;
+  }
+
+  // Fix product URLs and color URLs in the clean data
+  for (const product of clean.products) {
+    // Use the first color's item id for the base product URL
+    const firstColor = product.colors[0];
+    if (firstColor) {
+      const itemId = idByColoredStyleId[firstColor.coloredStyleId];
+      product.productUrl = itemId
+        ? `${BASE}/#/lockers/${LOCKER_SLUG}/styles/${itemId}`
+        : product.productUrl;
+    }
+    // Add item id to each color so we can build per-color URLs
+    for (const color of product.colors) {
+      color.itemId = idByColoredStyleId[color.coloredStyleId] ?? null;
+    }
+  }
+
+  console.log('Launching browser to extract sizes from DOM...');
+  const browser = await chromium.launch({ headless: true }); // headless for speed
+  const context  = await browser.newContext();
+  const page     = await context.newPage();
+
+  // Navigate to locker once to set up cookies/session
+  await page.goto(`${BASE}/#/lockers/${LOCKER_SLUG}`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await sleep(3000);
+
+  // Sample one product per style to get sizes (colors share sizes within a style)
+  let done = 0;
+  const total = clean.products.length;
+  const failed = [];
+
+  for (const product of clean.products) {
+    const color = product.colors.find(c => c.itemId);
+    if (!color?.itemId) {
+      done++;
+      continue;
+    }
+
+    const url = `${BASE}/#/lockers/${LOCKER_SLUG}/styles/${color.itemId}`;
+    try {
+      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 });
+      await sleep(2000);
+
+      const sizes = await extractSizesFromPage(page);
+
+      // Apply the same sizes to all color variants of this product
+      for (const c of product.colors) {
+        c.sizes = sizes;
+      }
+
+      process.stdout.write(`  [${++done}/${total}] ${product.name}: ${sizes.join(', ') || '(none found)'}\n`);
+    } catch (e) {
+      failed.push(product.name);
+      process.stdout.write(`  [${++done}/${total}] ${product.name}: ERROR - ${e.message}\n`);
+    }
+
+    await sleep(300); // be polite
+  }
+
+  await browser.close();
+
+  if (failed.length > 0) {
+    console.log(`\n⚠ Failed for ${failed.length} products: ${failed.slice(0, 5).join(', ')}...`);
+  }
+
+  // Save updated clean file
+  clean.generated_at = new Date().toISOString();
+  fs.writeFileSync(CLEAN_FILE, JSON.stringify(clean, null, 2));
+  console.log(`\n✓ Updated ${CLEAN_FILE} with sizes and correct URLs.`);
+
+  // Regenerate TS file
+  const tsContent = generateTS(clean.products);
+  fs.writeFileSync(path.join(__dirname, 'squadlocker-clean.ts'), tsContent);
+  console.log(`✓ Regenerated squadlocker-clean.ts`);
+
+  // Quick summary
+  const withSizes = clean.products.filter(p => p.colors.some(c => c.sizes.length > 0));
+  console.log(`\nProducts with sizes found: ${withSizes.length}/${clean.products.length}`);
+}
+
+function generateTS(products) {
+  return `// Auto-generated by scripts/get-sizes.cjs — do not edit manually.
+
+export interface SquadLockerColor {
+  coloredStyleId: number;
+  itemId: number | null;
+  colorGroup: string;
+  floodColor: string;
+  hex: string | null;
+  price: number | null;
+  images: { front: string; back: string };
+  code: string;
+  sizes: string[];
+}
+
+export interface SquadLockerProduct {
+  styleId: number;
+  name: string;
+  description: string;
+  category: string;
+  brandName: string;
+  brandLogoUrl: string;
+  sizeGroups: string[];
+  colors: SquadLockerColor[];
+  lockerUrl: string;
+  productUrl: string;
+}
+
+export const squadLockerProducts: SquadLockerProduct[] = ${JSON.stringify(products, null, 2)};
+
+export const squadLockerCategories: string[] = [
+  ...new Set(squadLockerProducts.map(p => p.category).filter(Boolean))
+].sort();
+`;
+}
+
+main().catch(err => {
+  console.error('Fatal:', err);
+  process.exit(1);
+});
