@@ -336,6 +336,7 @@ const ContactPage = () => {
 
           {/* ── Left: Inquiry Form ── */}
           <div className="lg:w-1/2">
+          <div className="lg:sticky lg:top-28">
             <div className="mb-8">
               <h1 className="text-4xl md:text-5xl font-medium text-white mb-4">Inquire</h1>
               <p className="text-white">
@@ -531,6 +532,7 @@ const ContactPage = () => {
                 </div>
               </div>
             </div>
+          </div>
           </div>
 
           {/* ── Right: FAQ ── */}
