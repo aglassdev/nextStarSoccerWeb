@@ -23,6 +23,7 @@ import ProfilePage from './pages/ProfilePage';
 import TermsPage from './pages/TermsPage';
 import PrivacyPage from './pages/PrivacyPage';
 import ScholarshipPage from './pages/ScholarshipPage';
+import ScholarshipApplicationPage from './pages/ScholarshipApplicationPage';
 import Layout from './components/layout/Layout';
 import LoadingScreen from './components/common/LoadingScreen';
 import AdminLoginPage from './pages/admin/AdminLoginPage';
@@ -69,6 +70,7 @@ function AppRoutes() {
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="/scholarships" element={<ScholarshipPage />} />
+      <Route path="/scholarships/apply" element={<ScholarshipApplicationPage />} />
 
       {/* Auth routes */}
       <Route path="/login" element={<LoginPage />} />

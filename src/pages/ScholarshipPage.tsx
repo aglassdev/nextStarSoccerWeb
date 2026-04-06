@@ -1,11 +1,10 @@
-import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Navigation from '../components/layout/Navigation';
 import Footer from '../components/layout/Footer';
 import { images } from '../constants/images';
-import ScholarshipApplication from '../components/scholarship/ScholarshipApplication';
 
 const ScholarshipPage = () => {
-  const [showApplication, setShowApplication] = useState(false);
+  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-black flex flex-col font-lt-wave">
@@ -40,6 +39,9 @@ const ScholarshipPage = () => {
                   alt="Next Star Soccer community outreach"
                   className="w-full h-auto object-cover"
                 />
+                <p className="text-gray-500 text-xs mt-2 leading-relaxed">
+                  Next Star Head Coach Phillip Gyau honored by DC United at the MLS All Star Game for his contributions to the D.C. area youth soccer growth
+                </p>
               </div>
 
               <p className="text-lg leading-relaxed">
@@ -62,6 +64,12 @@ const ScholarshipPage = () => {
                   a chance. We want to level the playing field so that the next generation of
                   talent can emerge from every background and every neighborhood. The next star
                   could be anyone — and we want to make sure they get their shot.
+                </p>
+                <p className="mt-4">
+                  Our Scholarship Program is now open for applications. If your family is facing
+                  financial hardship and you have a player with the drive and dedication to train
+                  at the highest level, we encourage you to apply. Spots are limited and reviewed
+                  on a rolling basis — don't wait to take the first step.
                 </p>
               </div>
             </div>
@@ -131,7 +139,7 @@ const ScholarshipPage = () => {
                 </ol>
 
                 <button
-                  onClick={() => setShowApplication(true)}
+                  onClick={() => navigate('/scholarships/apply')}
                   className="mt-8 w-full py-3.5 rounded-xl bg-blue-800 hover:bg-blue-700 transition-colors text-white font-semibold text-lg tracking-wide"
                 >
                   Apply
@@ -143,10 +151,6 @@ const ScholarshipPage = () => {
       </div>
 
       <Footer />
-
-      {showApplication && (
-        <ScholarshipApplication onClose={() => setShowApplication(false)} />
-      )}
     </div>
   );
 };

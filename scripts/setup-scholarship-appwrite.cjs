@@ -74,21 +74,20 @@ async function run() {
     ['playerFirstName',      255, true ],
     ['playerLastName',       255, true ],
     ['playerDOB',             32, true ],
-    ['playerAge',             16, false],
-    ['playerGrade',           32, false],
-    ['playerSchool',         255, false],
-    ['playerPosition',        64, false],
+    ['playerGrade',           32, true ],
+    ['playerSchool',         255, true ],
+    ['clubTeam',             255, false],
     ['trainingHistory',     2000, false],
-    // Household
+    // Household & Financial
     ['householdSize',         16, true ],
-    ['annualHouseholdIncome', 32, true ],
-    ['employmentStatus',      64, false],
-    ['receivesAssistance',    32, false],  // 'yes'|'no'|'prefer-not'
+    ['incomeEarners',         16, true ],
+    ['dependants',            16, true ],
+    ['annualHouseholdIncome', 64, true ],
+    ['employmentStatus',     512, true ],  // pipe-separated for multiple earners
+    ['receivesAssistance',    32, true ],  // 'yes'|'no'
     ['assistanceDetails',    512, false],
     // Application
-    ['requestedAid',          32, true ],  // 'full'|'partial'
-    ['personalStatement',    4000, true ],
-    ['referralSource',       255, false],
+    ['personalStatement',   4000, true ],
     ['coachReference',       255, false],
     // Status
     ['status',                32, true ],  // 'pending'|'reviewing'|'approved'|'denied'
