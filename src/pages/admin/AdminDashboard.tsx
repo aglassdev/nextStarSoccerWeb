@@ -257,7 +257,18 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const activeSection: Section | null = SECTION_FROM_PATH[location.pathname] || null;
-  const setActiveSection = (s: Section | null) => navigate(s ? `/admin/${s}` : '/admin/dashboard');
+  const SECTION_TO_PATH: Record<Section, string> = {
+    players: '/admin/players',
+    coaches: '/admin/coaches',
+    parents: '/admin/parents',
+    messages: '/admin/messages',
+    payments: '/admin/payments',
+    bills: '/admin/bills',
+    requests: '/admin/requests',
+    calendar: '/admin/calendar',
+    eventAssistant: '/admin/event-assistant',
+  };
+  const setActiveSection = (s: Section | null) => navigate(s ? SECTION_TO_PATH[s] : '/admin/dashboard');
 
   // Display name fetched from user's collection
   const [displayName, setDisplayName] = useState('');
