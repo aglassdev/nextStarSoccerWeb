@@ -1,8 +1,12 @@
+import { useState } from 'react';
 import Navigation from '../components/layout/Navigation';
 import Footer from '../components/layout/Footer';
 import { images } from '../constants/images';
+import ScholarshipApplication from '../components/scholarship/ScholarshipApplication';
 
 const ScholarshipPage = () => {
+  const [showApplication, setShowApplication] = useState(false);
+
   return (
     <div className="min-h-screen bg-black flex flex-col font-lt-wave">
       <Navigation />
@@ -126,7 +130,10 @@ const ScholarshipPage = () => {
                   </li>
                 </ol>
 
-                <button className="mt-8 w-full py-3.5 rounded-xl bg-blue-800 hover:bg-blue-700 transition-colors text-white font-semibold text-lg tracking-wide">
+                <button
+                  onClick={() => setShowApplication(true)}
+                  className="mt-8 w-full py-3.5 rounded-xl bg-blue-800 hover:bg-blue-700 transition-colors text-white font-semibold text-lg tracking-wide"
+                >
                   Apply
                 </button>
               </div>
@@ -136,6 +143,10 @@ const ScholarshipPage = () => {
       </div>
 
       <Footer />
+
+      {showApplication && (
+        <ScholarshipApplication onClose={() => setShowApplication(false)} />
+      )}
     </div>
   );
 };

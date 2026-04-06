@@ -66,6 +66,12 @@ export const collections = {
   familyRelationships: import.meta.env.VITE_APPWRITE_FAMILY_RELATIONSHIPS_COLLECTION_ID,
   familyInvitations: import.meta.env.VITE_APPWRITE_FAMILY_INVITATIONS_COLLECTION_ID,
   websiteInquiries: 'website_inquiries',
+  scholarshipApplications: import.meta.env.VITE_APPWRITE_SCHOLARSHIP_COLLECTION_ID || 'scholarship_applications',
+};
+
+// Storage bucket IDs
+export const buckets = {
+  scholarshipDocuments: import.meta.env.VITE_APPWRITE_SCHOLARSHIP_BUCKET_ID || 'scholarship_documents',
 };
 
 // Database ID

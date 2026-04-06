@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -12,8 +12,16 @@ const AdminLoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const { login, logout, loading } = useAuth();
+  const { login, logout, loading, user, initialized } = useAuth();
   const navigate = useNavigate();
+
+  // Auto-redirect if already logged in as an admin
+  useEffect(() => {
+    if (!initialized) return;
+    if (user && ALLOWED_EMAILS.includes(user.email.toLowerCase().trim())) {
+      navigate('/admin/dashboard', { replace: true });
+    }
+  }, [user, initialized]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

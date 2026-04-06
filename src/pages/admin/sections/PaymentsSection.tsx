@@ -126,70 +126,57 @@ const PaymentsSection = () => {
         </div>
       )}
 
-      {/* Slide-in Detail Panel */}
+      {/* Centered Modal */}
       {selectedPayment && (
         <>
-          <div
-            className="fixed inset-0 bg-black/50 z-40"
-            onClick={() => setSelectedPayment(null)}
-          />
-          <div className="fixed right-0 top-0 h-full w-96 bg-gray-900 border-l border-gray-700 z-50 overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-white">Payment Details</h3>
-                <button
-                  onClick={() => setSelectedPayment(null)}
-                  className="text-gray-400 hover:text-white transition-colors"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40" onClick={() => setSelectedPayment(null)} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+            <div className="pointer-events-auto w-full max-w-lg bg-[#111] border border-[#222] rounded-2xl shadow-2xl overflow-hidden">
+
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-[#1e1e1e]">
+                <div className="flex items-center gap-3">
+                  <h3 className="text-white font-semibold text-lg">Payment Details</h3>
+                  {selectedPayment.status && (
+                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColor(selectedPayment.status)}`}>
+                      {selectedPayment.status.charAt(0).toUpperCase() + selectedPayment.status.slice(1)}
+                    </span>
+                  )}
+                </div>
+                <button onClick={() => setSelectedPayment(null)} className="text-gray-500 hover:text-white transition-colors">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>
 
-              <div className="space-y-4">
-                {selectedPayment.status && (
-                  <div>
-                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColor(selectedPayment.status)}`}>
-                      {selectedPayment.status.charAt(0).toUpperCase() + selectedPayment.status.slice(1)}
-                    </span>
-                  </div>
-                )}
+              <div className="px-6 py-5 max-h-[65vh] overflow-y-auto">
+                <div className="grid grid-cols-2 gap-4">
+                  <DetailRow label="Payer" value={selectedPayment.payerName || selectedPayment.parentId} />
+                  <DetailRow label="Event" value={selectedPayment.eventName} />
+                  <DetailRow label="Date" value={selectedPayment.createdAt ? new Date(selectedPayment.createdAt).toLocaleDateString() : undefined} />
+                  <DetailRow label="Amount" value={selectedPayment.amount != null ? `$${Number(selectedPayment.amount).toFixed(2)}` : undefined} />
+                  <DetailRow label="Payment Method" value={selectedPayment.paymentMethod} />
+                  <DetailRow label="Weeks" value={selectedPayment.weeks != null ? String(selectedPayment.weeks) : undefined} />
+                  <DetailRow label="Start Date" value={selectedPayment.startDate ? new Date(selectedPayment.startDate).toLocaleDateString() : undefined} />
+                  <DetailRow label="End Date" value={selectedPayment.endDate ? new Date(selectedPayment.endDate).toLocaleDateString() : undefined} />
+                  <DetailRow label="Subtotal" value={selectedPayment.subtotal != null ? `$${Number(selectedPayment.subtotal).toFixed(2)}` : undefined} />
+                  <DetailRow label="Discount" value={selectedPayment.discount != null ? `$${Number(selectedPayment.discount).toFixed(2)}` : undefined} />
+                  {selectedPayment.stripePaymentIntentId && (
+                    <div className="col-span-2">
+                      <DetailRow label="Stripe Intent ID" value={selectedPayment.stripePaymentIntentId} />
+                    </div>
+                  )}
+                </div>
+              </div>
 
-                <DetailRow label="Payer" value={selectedPayment.payerName || selectedPayment.parentId} />
-                <DetailRow label="Event" value={selectedPayment.eventName} />
-                <DetailRow
-                  label="Date"
-                  value={selectedPayment.createdAt ? new Date(selectedPayment.createdAt).toLocaleDateString() : undefined}
-                />
-                <DetailRow
-                  label="Amount"
-                  value={selectedPayment.amount != null ? `$${Number(selectedPayment.amount).toFixed(2)}` : undefined}
-                />
-                <DetailRow label="Payment Method" value={selectedPayment.paymentMethod} />
-                <DetailRow
-                  label="Weeks"
-                  value={selectedPayment.weeks != null ? String(selectedPayment.weeks) : undefined}
-                />
-                <DetailRow
-                  label="Start Date"
-                  value={selectedPayment.startDate ? new Date(selectedPayment.startDate).toLocaleDateString() : undefined}
-                />
-                <DetailRow
-                  label="End Date"
-                  value={selectedPayment.endDate ? new Date(selectedPayment.endDate).toLocaleDateString() : undefined}
-                />
-                <DetailRow
-                  label="Subtotal"
-                  value={selectedPayment.subtotal != null ? `$${Number(selectedPayment.subtotal).toFixed(2)}` : undefined}
-                />
-                <DetailRow
-                  label="Discount"
-                  value={selectedPayment.discount != null ? `$${Number(selectedPayment.discount).toFixed(2)}` : undefined}
-                />
-                {selectedPayment.stripePaymentIntentId && (
-                  <DetailRow label="Stripe Intent ID" value={selectedPayment.stripePaymentIntentId} />
-                )}
+              <div className="px-6 py-4 border-t border-[#1e1e1e] flex justify-end">
+                <button
+                  onClick={() => setSelectedPayment(null)}
+                  className="px-5 py-2 text-sm text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 rounded-lg transition-colors"
+                >
+                  Close
+                </button>
               </div>
             </div>
           </div>
@@ -201,8 +188,8 @@ const PaymentsSection = () => {
 
 const DetailRow = ({ label, value }: { label: string; value?: string }) => (
   <div>
-    <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">{label}</p>
-    <p className="text-white">{value || '—'}</p>
+    <p className="text-gray-600 text-xs uppercase tracking-wider mb-0.5">{label}</p>
+    <p className="text-white text-sm">{value || '—'}</p>
   </div>
 );
 

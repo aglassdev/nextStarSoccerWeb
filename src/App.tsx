@@ -100,6 +100,8 @@ function AppRoutes() {
       <Route path="/admin/payments" element={<AdminDashboard />} />
       <Route path="/admin/bills" element={<AdminDashboard />} />
       <Route path="/admin/requests" element={<AdminDashboard />} />
+      <Route path="/admin/calendar" element={<AdminDashboard />} />
+      <Route path="/admin/event-assistant" element={<AdminDashboard />} />
 
       {/* Catch all - redirect to home */}
       <Route path="*" element={<Navigate to="/" replace />} />
