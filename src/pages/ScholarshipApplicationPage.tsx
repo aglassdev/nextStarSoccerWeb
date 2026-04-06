@@ -1,9 +1,78 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ID } from 'appwrite';
 import Navigation from '../components/layout/Navigation';
 import Footer from '../components/layout/Footer';
 import { databases, storage, databaseId, collections, buckets } from '../services/appwrite';
+
+// ── Google Places loader ──────────────────────────────────────────────────────
+declare global {
+  interface Window {
+    google: any;
+    __mapsReady: boolean;
+    __mapsCallbacks: Array<() => void>;
+  }
+}
+
+const MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
+
+function loadMapsScript(): Promise<void> {
+  return new Promise(resolve => {
+    if (typeof window === 'undefined') return;
+    if (window.__mapsReady) { resolve(); return; }
+    if (!window.__mapsCallbacks) window.__mapsCallbacks = [];
+    window.__mapsCallbacks.push(resolve);
+    if (document.getElementById('google-maps-script')) return; // already loading
+    const script = document.createElement('script');
+    script.id = 'google-maps-script';
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${MAPS_KEY}&libraries=places`;
+    script.async = true;
+    script.onload = () => {
+      window.__mapsReady = true;
+      (window.__mapsCallbacks || []).forEach(cb => cb());
+      window.__mapsCallbacks = [];
+    };
+    document.head.appendChild(script);
+  });
+}
+
+function SchoolAutocomplete({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!MAPS_KEY || !inputRef.current) return;
+    let listener: any;
+    loadMapsScript().then(() => {
+      if (!inputRef.current || !window.google?.maps?.places) return;
+      const ac = new window.google.maps.places.Autocomplete(inputRef.current, {
+        types: ['establishment'],
+        componentRestrictions: { country: 'us' },
+        fields: ['name'],
+      });
+      listener = ac.addListener('place_changed', () => {
+        const place = ac.getPlace();
+        if (place?.name) onChange(place.name);
+      });
+    });
+    return () => {
+      if (listener && window.google?.maps?.event) {
+        window.google.maps.event.removeListener(listener);
+      }
+    };
+  }, []);
+
+  return (
+    <input
+      ref={inputRef}
+      type="text"
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      placeholder="School name"
+      autoComplete="off"
+      className="w-full px-3.5 py-2.5 bg-[#111] border border-[#2a2a2a] rounded-lg text-white text-sm placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors"
+    />
+  );
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface FormData {
@@ -438,17 +507,17 @@ export default function ScholarshipApplicationPage() {
                 <Field label="Grade" required>
                   <Select value={form.playerGrade} onChange={e => set('playerGrade', e.target.value)}>
                     <option value="">Select grade</option>
-                    {['K','1','2','3','4','5','6','7','8','9','10','11','12','College','Post-grad'].map(g => (
+                    {['K','1','2','3','4','5','6','7','8','9','10','11','12'].map(g => (
                       <option key={g} value={g}>Grade {g}</option>
                     ))}
                   </Select>
                 </Field>
                 <Field label="Club Team">
-                  <Input value={form.clubTeam} onChange={e => set('clubTeam', e.target.value)} placeholder="Club or academy name (optional)" />
+                  <Input value={form.clubTeam} onChange={e => set('clubTeam', e.target.value)} placeholder="Club name (optional)" />
                 </Field>
               </div>
               <Field label="School" required>
-                <Input value={form.playerSchool} onChange={e => set('playerSchool', e.target.value)} placeholder="School or college name" />
+                <SchoolAutocomplete value={form.playerSchool} onChange={v => set('playerSchool', v)} />
               </Field>
               <Field label="Training History">
                 <Textarea
