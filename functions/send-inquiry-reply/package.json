@@ -1,9 +1,10 @@
 {
   "name": "send-inquiry-reply",
   "version": "1.0.0",
-  "description": "Sends a formatted HTML reply email to a website inquiry from the NSS admin dashboard",
+  "description": "Send formatted HTML reply email to a website inquiry",
   "main": "src/main.js",
+  "type": "module",
   "dependencies": {
-    "nodemailer": "^6.9.14"
+    "nodemailer": "^6.9.7"
   }
 }
