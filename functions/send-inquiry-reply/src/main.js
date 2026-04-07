@@ -48,14 +48,7 @@ export default async ({ req, res, log, error }) => {
           <!-- Body -->
           <tr>
             <td style="padding:40px 30px;">
-              <p style="color:#333333;font-size:16px;line-height:1.6;margin:0 0 20px 0;">
-                Hi <strong>${firstName}</strong>,
-              </p>
-
-              <!-- Reply message -->
-              <div style="background-color:#f8f9fa;border-left:4px solid #000000;padding:20px 24px;margin-bottom:28px;border-radius:0 8px 8px 0;">
-                <p style="margin:0;color:#222222;font-size:15px;line-height:1.7;white-space:pre-wrap;">${escapeHtml(replyMessage)}</p>
-              </div>
+              <p style="color:#333333;font-size:16px;line-height:1.7;margin:0 0 24px 0;white-space:pre-wrap;">Hi <strong>${firstName}</strong>, ${escapeHtml(replyMessage)}</p>
 
               ${originalMessage ? `
               <!-- Original message -->
@@ -69,9 +62,16 @@ export default async ({ req, res, log, error }) => {
               ` : ""}
 
               <p style="color:#666666;font-size:14px;line-height:1.6;margin:0;">
-                If you have any further questions, feel free to
-                <a href="https://nextstarsoccer.com/contact" style="color:#000000;text-decoration:underline;">contact us</a>.
+                Want to continue the conversation? Download the <strong>Next Star Soccer</strong> app to message us directly and get faster responses.
               </p>
+              <div style="margin-top:20px;display:flex;gap:12px;">
+                <a href="https://apps.apple.com/us/app/next-star-soccer/id6754170423" style="display:inline-block;margin-right:12px;">
+                  <img src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg" alt="Download on the App Store" style="height:36px;width:auto;" />
+                </a>
+                <a href="https://play.google.com/store/apps/details?id=com.nextstarsoccer.nextstar" style="display:inline-block;">
+                  <img src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg" alt="Get it on Google Play" style="height:36px;width:auto;" />
+                </a>
+              </div>
             </td>
           </tr>
 
