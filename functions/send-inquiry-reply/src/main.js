@@ -41,14 +41,18 @@ export default async ({ req, res, log, error }) => {
           <!-- Header -->
           <tr>
             <td style="background:linear-gradient(135deg,#000000 0%,#1a1a1a 100%);padding:40px 30px;text-align:center;">
-              <h1 style="color:#ffffff;margin:0;font-size:26px;font-weight:bold;">⚽ Next Star Soccer</h1>
+              ${process.env.EMAIL_LOGO_URL
+                ? `<img src="${process.env.EMAIL_LOGO_URL}" alt="Next Star Soccer" style="height:60px;width:auto;display:block;margin:0 auto 12px auto;" />`
+                : ""}
+              <h1 style="color:#ffffff;margin:0;font-size:26px;font-weight:bold;">Next Star Soccer</h1>
             </td>
           </tr>
 
           <!-- Body -->
           <tr>
             <td style="padding:40px 30px;">
-              <p style="color:#333333;font-size:16px;line-height:1.7;margin:0 0 24px 0;white-space:pre-wrap;">Hi <strong>${firstName}</strong>, ${escapeHtml(replyMessage)}</p>
+              <p style="color:#333333;font-size:16px;line-height:1.7;margin:0 0 8px 0;">Hi <strong>${firstName}</strong>,</p>
+              <p style="color:#333333;font-size:16px;line-height:1.7;margin:0 0 24px 0;white-space:pre-wrap;">${escapeHtml(replyMessage)}</p>
 
               ${originalMessage ? `
               <!-- Original message -->
@@ -64,12 +68,12 @@ export default async ({ req, res, log, error }) => {
               <p style="color:#666666;font-size:14px;line-height:1.6;margin:0;">
                 Want to continue the conversation? Download the <strong>Next Star Soccer</strong> app to message us directly and get faster responses.
               </p>
-              <div style="margin-top:20px;display:flex;gap:12px;">
-                <a href="https://apps.apple.com/us/app/next-star-soccer/id6754170423" style="display:inline-block;margin-right:12px;">
-                  <img src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg" alt="Download on the App Store" style="height:36px;width:auto;" />
+              <div style="margin-top:20px;text-align:center;">
+                <a href="https://apps.apple.com/us/app/next-star-soccer/id6754170423" style="display:inline-block;margin-right:10px;">
+                  <img src="${process.env.APPLE_STORE_LOGO_URL || 'https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg'}" alt="Download on the App Store" style="height:36px;width:auto;" />
                 </a>
                 <a href="https://play.google.com/store/apps/details?id=com.nextstarsoccer.nextstar" style="display:inline-block;">
-                  <img src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg" alt="Get it on Google Play" style="height:36px;width:auto;" />
+                  <img src="${process.env.GOOGLE_STORE_LOGO_URL || 'https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg'}" alt="Get it on Google Play" style="height:36px;width:auto;" />
                 </a>
               </div>
             </td>
