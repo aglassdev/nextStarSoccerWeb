@@ -23,17 +23,21 @@ export default async ({ req, res, log, error }) => {
     return res.json({ success: false, error: 'toEmail and replyMessage are required' }, 400);
   }
 
-  // ── SMTP config from function env vars ────────────────────────────────────
-  const smtpHost = process.env.SMTP_HOST;
-  const smtpPort = parseInt(process.env.SMTP_PORT || '587', 10);
-  const smtpUser = process.env.SMTP_USER;
-  const smtpPass = process.env.SMTP_PASS;
+  // ── SMTP config from function env vars (accept common naming variants) ────
+  const smtpHost = process.env.SMTP_HOST || process.env.SMTPHOST || process.env.smtp_host;
+  const smtpPort = parseInt(process.env.SMTP_PORT || process.env.SMTPPORT || '587', 10);
+  const smtpUser = process.env.SMTP_USER || process.env.SMTP_USERNAME || process.env.SMTPUSER || process.env.smtp_user;
+  const smtpPass = process.env.SMTP_PASS || process.env.SMTP_PASSWORD || process.env.SMTPPASS || process.env.smtp_pass;
   const fromEmail = process.env.FROM_EMAIL || smtpUser;
   const fromName  = process.env.FROM_NAME  || 'Next Star Soccer';
 
+  // Debug: log which vars were found (values hidden)
+  log(`SMTP config — host: ${smtpHost || 'MISSING'}, port: ${smtpPort}, user: ${smtpUser ? '✓' : 'MISSING'}, pass: ${smtpPass ? '✓' : 'MISSING'}`);
+  log(`All env keys: ${Object.keys(process.env).filter(k => !k.startsWith('APPWRITE')).join(', ')}`);
+
   if (!smtpHost || !smtpUser || !smtpPass) {
     error('Missing SMTP environment variables');
-    return res.json({ success: false, error: 'Email service not configured' }, 500);
+    return res.json({ success: false, error: `Email service not configured — found keys: ${Object.keys(process.env).join(', ')}` }, 500);
   }
 
   // ── Build HTML email ──────────────────────────────────────────────────────
