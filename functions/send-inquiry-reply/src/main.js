@@ -28,8 +28,10 @@ export default async ({ req, res, log, error }) => {
   const smtpPort = parseInt(process.env.SMTP_PORT || process.env.SMTPPORT || '587', 10);
   const smtpUser = process.env.SMTP_USER || process.env.SMTP_USERNAME || process.env.SMTPUSER || process.env.smtp_user;
   const smtpPass = process.env.SMTP_PASS || process.env.SMTP_PASSWORD || process.env.SMTPPASS || process.env.smtp_pass;
-  const fromEmail = process.env.FROM_EMAIL || smtpUser;
   const fromName  = process.env.FROM_NAME  || 'Next Star Soccer';
+  // Always use the authenticated SMTP user as the from address — SMTP servers
+  // reject FROM addresses that don't match the authenticated account.
+  const fromEmail = smtpUser;
 
   // Debug: log which vars were found (values hidden)
   log(`SMTP config — host: ${smtpHost || 'MISSING'}, port: ${smtpPort}, user: ${smtpUser ? '✓' : 'MISSING'}, pass: ${smtpPass ? '✓' : 'MISSING'}`);
@@ -128,7 +130,7 @@ export default async ({ req, res, log, error }) => {
     });
 
     await transporter.sendMail({
-      from: `"${fromName}" <${fromEmail}>`,
+      from: `"${fromName}" <${smtpUser}>`,
       to: `"${toName || ''}" <${toEmail}>`,
       subject: emailSubject,
       html,
