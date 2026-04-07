@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Query } from 'appwrite';
-import { databases, databaseId, collections } from '../../../services/appwrite';
+import { databases, functions, databaseId, collections } from '../../../services/appwrite';
+
+const REPLY_FUNCTION_ID = import.meta.env.VITE_APPWRITE_REPLY_FUNCTION_ID || '';
 
 type SourceTab = 'website' | 'app';
 type FilterTab = 'unread' | 'read' | 'all' | 'trash';
@@ -35,6 +37,11 @@ const MessagesSection = () => {
   const [sourceTab, setSourceTab] = useState<SourceTab>('website');
   const [filterTab, setFilterTab] = useState<FilterTab>('unread');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [replyingTo, setReplyingTo] = useState<InquiryRecord | null>(null);
+  const [replyText, setReplyText] = useState('');
+  const [replySending, setReplySending] = useState(false);
+  const [replyStatus, setReplyStatus] = useState<'idle' | 'sent' | 'error'>('idle');
+  const [replyError, setReplyError] = useState('');
 
   useEffect(() => { fetchAll(); }, []);
   useEffect(() => { filterMessages(); }, [sourceTab, filterTab, websiteDocs, appDocs]);
@@ -124,12 +131,50 @@ const MessagesSection = () => {
     } catch { /* ignore */ }
   };
 
-  const buildReplyUrl = (msg: InquiryRecord) => {
-    if (!msg.email) return '';
-    const name = `${msg.firstName} ${msg.lastName}`.trim();
-    const subject = `Re: ${msg.subject || 'Your Inquiry'}`;
-    const body = `\n\n\n────────────────────\nOriginal message from ${name} (${msg.email}):\nSubject: ${msg.subject || '—'}\n\n${msg.message || ''}`;
-    return `mailto:${msg.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  const openReply = (msg: InquiryRecord) => {
+    setReplyingTo(msg);
+    setReplyText('');
+    setReplyStatus('idle');
+    setReplyError('');
+  };
+
+  const closeReply = () => {
+    setReplyingTo(null);
+    setReplyText('');
+    setReplyStatus('idle');
+    setReplyError('');
+  };
+
+  const sendReply = async () => {
+    if (!replyingTo || !replyText.trim()) return;
+    setReplySending(true);
+    setReplyStatus('idle');
+    setReplyError('');
+    try {
+      const payload = {
+        toEmail: replyingTo.email,
+        toName: `${replyingTo.firstName || ''} ${replyingTo.lastName || ''}`.trim(),
+        subject: replyingTo.subject || 'Your Inquiry',
+        originalMessage: replyingTo.message || '',
+        originalDate: replyingTo.$createdAt,
+        replyMessage: replyText.trim(),
+      };
+      const res = await functions.createExecution(
+        REPLY_FUNCTION_ID,
+        JSON.stringify(payload),
+        false,
+      );
+      const body = JSON.parse(res.responseBody || '{}');
+      if (res.status !== 'completed' || res.responseStatusCode !== 200 || !body.success) {
+        throw new Error(body.error || 'Function failed');
+      }
+      setReplyStatus('sent');
+    } catch (err: any) {
+      setReplyStatus('error');
+      setReplyError(err.message || 'Failed to send reply');
+    } finally {
+      setReplySending(false);
+    }
   };
 
   const getName = (msg: InquiryRecord) =>
@@ -319,12 +364,12 @@ const MessagesSection = () => {
                           ) : (
                             <>
                               {msg.email && (
-                                <a href={buildReplyUrl(msg)}
-                                  className="inline-flex items-center gap-2 px-4 py-2 bg-white hover:bg-gray-200 text-black text-sm font-medium rounded-lg transition-colors"
-                                  onClick={(e) => e.stopPropagation()}>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); openReply(msg); }}
+                                  className="inline-flex items-center gap-2 px-4 py-2 bg-white hover:bg-gray-200 text-black text-sm font-medium rounded-lg transition-colors">
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10l9 6 9-6M21 10v8a2 2 0 01-2 2H5a2 2 0 01-2-2v-8" /></svg>
                                   Reply
-                                </a>
+                                </button>
                               )}
                               {isWebsite && (
                                 <button onClick={(e) => { e.stopPropagation(); moveToTrash(msg.$id); }}
@@ -343,6 +388,89 @@ const MessagesSection = () => {
               );
             })
           )}
+        </div>
+      )}
+      {/* ── Reply Modal ── */}
+      {replyingTo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" onClick={closeReply} />
+          <div className="relative w-full max-w-lg bg-[#111] border border-[#222] rounded-2xl shadow-2xl z-10 overflow-hidden">
+
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#1e1e1e]">
+              <div>
+                <p className="text-white font-semibold text-sm">
+                  Reply to {replyingTo.firstName} {replyingTo.lastName}
+                </p>
+                <p className="text-gray-500 text-xs mt-0.5">{replyingTo.email}</p>
+              </div>
+              <button onClick={closeReply} className="text-gray-600 hover:text-white transition-colors p-1">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Original message context */}
+            <div className="px-6 pt-4">
+              <p className="text-gray-600 text-xs uppercase tracking-wider font-medium mb-2">
+                Re: {replyingTo.subject || '(No subject)'}
+              </p>
+              <div className="border-l-2 border-[#2a2a2a] pl-3 mb-4 max-h-24 overflow-y-auto">
+                <p className="text-gray-600 text-xs leading-relaxed whitespace-pre-wrap">{replyingTo.message}</p>
+              </div>
+            </div>
+
+            {/* Reply textarea */}
+            <div className="px-6 pb-4">
+              {replyStatus === 'sent' ? (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <div className="w-12 h-12 rounded-full bg-green-500/10 border border-green-500/20 flex items-center justify-center mb-3">
+                    <svg className="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <p className="text-white font-medium mb-1">Reply sent</p>
+                  <p className="text-gray-500 text-sm">
+                    Your message was delivered to {replyingTo.email}
+                  </p>
+                  <button onClick={closeReply} className="mt-5 px-6 py-2 bg-white hover:bg-gray-200 text-black text-sm font-medium rounded-lg transition-colors">
+                    Done
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <textarea
+                    value={replyText}
+                    onChange={e => setReplyText(e.target.value)}
+                    placeholder="Write your reply…"
+                    rows={6}
+                    className="w-full px-4 py-3 bg-[#0d0d0d] border border-[#2a2a2a] rounded-xl text-white text-sm placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none transition-colors"
+                  />
+
+                  {replyStatus === 'error' && (
+                    <p className="mt-2 text-red-400 text-xs">{replyError}</p>
+                  )}
+
+                  <div className="flex items-center gap-3 mt-4">
+                    <button
+                      onClick={sendReply}
+                      disabled={replySending || !replyText.trim()}
+                      className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {replySending && (
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      )}
+                      {replySending ? 'Sending…' : 'Send Reply'}
+                    </button>
+                    <button onClick={closeReply} className="px-5 py-2.5 text-sm text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 rounded-lg transition-colors">
+                      Cancel
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>
