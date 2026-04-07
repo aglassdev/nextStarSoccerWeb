@@ -147,6 +147,11 @@ const MessagesSection = () => {
 
   const sendReply = async () => {
     if (!replyingTo || !replyText.trim()) return;
+    if (!REPLY_FUNCTION_ID) {
+      setReplyStatus('error');
+      setReplyError('Reply function not configured — set VITE_APPWRITE_REPLY_FUNCTION_ID in your environment variables.');
+      return;
+    }
     setReplySending(true);
     setReplyStatus('idle');
     setReplyError('');
@@ -164,9 +169,11 @@ const MessagesSection = () => {
         JSON.stringify(payload),
         false,
       );
-      const body = JSON.parse(res.responseBody || '{}');
-      if (res.status !== 'completed' || res.responseStatusCode !== 200 || !body.success) {
-        throw new Error(body.error || 'Function failed');
+      let body: any = {};
+      try { body = JSON.parse(res.responseBody || '{}'); } catch { /* non-JSON response */ }
+      if (res.status !== 'completed') throw new Error(`Function status: ${res.status}`);
+      if (res.responseStatusCode !== 200 || !body.success) {
+        throw new Error(body.error || `HTTP ${res.responseStatusCode}`);
       }
       setReplyStatus('sent');
     } catch (err: any) {
