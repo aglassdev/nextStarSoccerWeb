@@ -7,6 +7,7 @@ const CampsPage = () => {
             <Navigation />
             <div className="flex-1 flex flex-col items-center justify-start pt-32 px-4">
                 <h1 className="text-white text-3xl font-bold">Camps</h1>
+                <p className="text-gray-400 mt-4 text-base">Camps will be added shortly.</p>
             </div>
             <Footer />
         </div>
