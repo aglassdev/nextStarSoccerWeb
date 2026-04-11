@@ -24,6 +24,7 @@ import TermsPage from './pages/TermsPage';
 import PrivacyPage from './pages/PrivacyPage';
 import ScholarshipPage from './pages/ScholarshipPage';
 import ScholarshipApplicationPage from './pages/ScholarshipApplicationPage';
+import CampsPage from './pages/CampsPage';
 import Layout from './components/layout/Layout';
 import LoadingScreen from './components/common/LoadingScreen';
 import AdminLoginPage from './pages/admin/AdminLoginPage';
@@ -61,6 +62,7 @@ function AppRoutes() {
       <Route path="/coaches" element={<CoachesPage />} />
       <Route path="/coaches/:slug" element={<CoachDetailPage />} />
       <Route path="/services" element={<ServicesPage />} />
+      <Route path="/services/camps" element={<CampsPage />} />
       <Route path="/alumni" element={<AlumniPage />} />
       <Route path="/calendar" element={<CalendarPage />} />
       <Route path="/calendar-embed" element={<CalendarEmbed />} />
