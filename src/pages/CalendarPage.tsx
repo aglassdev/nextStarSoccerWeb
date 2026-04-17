@@ -29,7 +29,10 @@ const CalendarPage = () => {
   const [currentMonthIndex, setCurrentMonthIndex] = useState(0);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [filterOptions, setFilterOptions] = useState<FilterOption[]>([
+    { id: "patrick-mullins", label: "Patrick Mullins", color: "#FFB300", selected: true },
+    { id: "attacking-focus", label: "Attacking Focus", color: "#FF00FF", selected: true },
     { id: "evening-training", label: "Evening Group Training", color: "#E50101", selected: true },
+    { id: "afternoon-training", label: "Afternoon Group Training", color: "#EAB308", selected: true },
     { id: "morning-training", label: "Morning Group Training", color: "#FF8A14", selected: true },
     { id: "next-star-x-nike-evening", label: "Next Star x Nike Evening", color: "#06B6D4", selected: true },
     { id: "youth-group-camp", label: "Camp, Youth Group", color: "#008806", selected: true },
@@ -148,13 +151,33 @@ const CalendarPage = () => {
   const getEventTypeFromTitle = (title: string): string => {
     if (!title || typeof title !== "string") return "other";
     const lowerTitle = title.toLowerCase();
+
+    // ── Highest-priority overrides (beat everything else) ──────────────────
+    if (lowerTitle.includes("patrick mullins")) return "patrick-mullins";
+    if (lowerTitle.includes("attacking focus")) return "attacking-focus";
+
+    // ── Group training variants ─────────────────────────────────────────────
+    if (lowerTitle.includes("afternoon group training")) return "afternoon-training";
     if (lowerTitle.includes("morning group training")) return "morning-training";
     if (lowerTitle.includes("next star x nike evening")) return "next-star-x-nike-evening";
     if (lowerTitle.includes("evening group training")) return "evening-training";
+
+    // ── Specific camp / group types ─────────────────────────────────────────
     if (lowerTitle.includes("youth group")) return "youth-group-camp";
     if (lowerTitle.includes("college/pro group")) return "college-pro-group-camp";
     if (lowerTitle.includes("camp morning")) return "camp-morning";
     if (lowerTitle.includes("camp afternoon")) return "camp-afternoon";
+
+    // ── Generic camp (summer/spring/winter/fall + any unnamed camp)
+    //    as long as it doesn't mention nike, youth, pro, or college ──────────
+    if (
+      lowerTitle.includes("camp") &&
+      !lowerTitle.includes("nike") &&
+      !lowerTitle.includes("youth") &&
+      !lowerTitle.includes("pro") &&
+      !lowerTitle.includes("college")
+    ) return "youth-group-camp";
+
     if (lowerTitle.includes("clinic")) return "clinic";
     if (lowerTitle.includes("showcase")) return "showcase";
     return "other";

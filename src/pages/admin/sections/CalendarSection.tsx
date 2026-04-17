@@ -8,6 +8,41 @@ const MONTH_NAMES = [
 
 const DAY_LABELS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
+// ── Event color classification (mirrors CalendarPage logic) ──────────────────
+function getEventColor(title: string): string {
+  if (!title) return '#D3D3D3';
+  const t = title.toLowerCase();
+
+  // Highest-priority overrides
+  if (t.includes('patrick mullins')) return '#FFB300';
+  if (t.includes('attacking focus')) return '#FF00FF';
+
+  // Group training variants
+  if (t.includes('afternoon group training')) return '#EAB308';
+  if (t.includes('morning group training')) return '#FF8A14';
+  if (t.includes('next star x nike evening')) return '#06B6D4';
+  if (t.includes('evening group training')) return '#E50101';
+
+  // Specific camp / group types
+  if (t.includes('youth group')) return '#008806';
+  if (t.includes('college/pro group')) return '#9FDC59';
+  if (t.includes('camp morning')) return '#1976D2';
+  if (t.includes('camp afternoon')) return '#29B6F6';
+
+  // Generic camp (no nike / youth / pro / college)
+  if (
+    t.includes('camp') &&
+    !t.includes('nike') &&
+    !t.includes('youth') &&
+    !t.includes('pro') &&
+    !t.includes('college')
+  ) return '#008806';
+
+  if (t.includes('clinic')) return '#FF00FF';
+  if (t.includes('showcase')) return '#800080';
+  return '#D3D3D3';
+}
+
 // ── Mini calendar grid ────────────────────────────────────────────────────────
 function CalendarGrid({
   year,
@@ -79,8 +114,12 @@ function CalendarGrid({
               </span>
               {evs.length > 0 && (
                 <div className="flex gap-0.5 flex-wrap justify-center px-0.5">
-                  {evs.slice(0, 3).map((_, di) => (
-                    <div key={di} className="w-1 h-1 rounded-full bg-blue-400 flex-shrink-0" />
+                  {evs.slice(0, 3).map((ev, di) => (
+                    <div
+                      key={di}
+                      className="w-1 h-1 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: getEventColor(ev.title) }}
+                    />
                   ))}
                 </div>
               )}
@@ -112,8 +151,13 @@ function DayEvents({ events, day, month, year }: { events: CalendarEvent[]; day:
         const time = ev.dateOnly
           ? 'All Day'
           : start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/New_York' });
+        const color = getEventColor(ev.title);
         return (
-          <div key={ev.id} className="bg-[#0d0d0d] border border-[#1e1e1e] rounded-lg px-3 py-2">
+          <div
+            key={ev.id}
+            className="bg-[#0d0d0d] border border-[#1e1e1e] rounded-lg px-3 py-2"
+            style={{ borderLeftColor: color, borderLeftWidth: '3px' }}
+          >
             <p className="text-white text-xs font-medium leading-snug">{ev.title}</p>
             <p className="text-gray-500 text-[11px] mt-0.5">{time}</p>
             {ev.location && <p className="text-gray-600 text-[11px] mt-0.5 truncate">{ev.location}</p>}
