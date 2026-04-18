@@ -49,7 +49,9 @@ const Footer = () => {
             </p>
             <ul className="space-y-3 text-center md:text-left">
               {['Maryland', 'Virginia', 'Washington D.C.'].map((loc) => (
-                <li key={loc} className="text-gray-400 text-sm">{loc}</li>
+                <li key={loc}>
+                  <span className="text-gray-400 text-sm">{loc}</span>
+                </li>
               ))}
             </ul>
           </div>
