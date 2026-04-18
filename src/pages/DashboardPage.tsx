@@ -1,12 +1,35 @@
+import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { databases, collections, databaseId } from '../services/appwrite';
+import { Query } from 'appwrite';
 
 const DashboardPage = () => {
   const { user } = useAuth();
+  const [pendingBillTotal, setPendingBillTotal] = useState<number | null>(null);
 
-  // Stats data (this would come from Appwrite in real implementation)
+  useEffect(() => {
+    if (!user) return;
+    databases
+      .listDocuments(databaseId, collections.bills, [
+        Query.equal('userId', user.$id),
+        Query.notEqual('status', 'paid'),
+        Query.limit(100),
+      ])
+      .then((res) => {
+        const total = res.documents.reduce((sum: number, b: any) => sum + (b.totalAmount ?? 0), 0);
+        setPendingBillTotal(total);
+      })
+      .catch(() => setPendingBillTotal(0));
+  }, [user]);
+
   const stats = [
     { label: 'Upcoming Events', value: '3', icon: '📅', color: 'bg-blue-500' },
-    { label: 'Pending Bills', value: '$250', icon: '💳', color: 'bg-yellow-500' },
+    {
+      label: 'Pending Bills',
+      value: pendingBillTotal === null ? '...' : `$${pendingBillTotal}`,
+      icon: '💳',
+      color: 'bg-yellow-500',
+    },
     { label: 'Active Players', value: '2', icon: '⚽', color: 'bg-green-500' },
     { label: 'Messages', value: '5', icon: '✉️', color: 'bg-purple-500' },
   ];
