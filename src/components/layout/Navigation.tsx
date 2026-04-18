@@ -9,10 +9,11 @@ const Navigation = () => {
     { name: 'Coaches', path: '/coaches' },
     { name: 'Alumni', path: '/alumni' },
     { name: 'Services', path: '/services' },
+    { name: 'Camps', path: '/services/camps' },
     { name: 'Calendar', path: '/calendar' },
-    { name: 'Contact', path: '/contact' },
     { name: 'Scholarships', path: '/scholarships' },
     { name: 'Store', path: '/store' },
+    { name: 'Contact', path: '/contact' },
   ];
 
   return (

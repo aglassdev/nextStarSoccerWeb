@@ -61,13 +61,18 @@ const Footer = () => {
             </p>
             <ul className="space-y-3 text-center md:text-left">
               <li>
-                <Link to="/alumni" className="text-gray-400 text-sm hover:text-white transition-colors">
-                  Alumni
+                <Link to="/services" className="text-gray-400 text-sm hover:text-white transition-colors">
+                  Services
                 </Link>
               </li>
               <li>
-                <Link to="/services" className="text-gray-400 text-sm hover:text-white transition-colors">
-                  Services
+                <Link to="/services/camps" className="text-gray-400 text-sm hover:text-white transition-colors">
+                  Camps
+                </Link>
+              </li>
+              <li>
+                <Link to="/calendar" className="text-gray-400 text-sm hover:text-white transition-colors">
+                  Calendar
                 </Link>
               </li>
             </ul>
@@ -85,8 +90,8 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
-                <Link to="/contact" className="text-gray-400 text-sm hover:text-white transition-colors">
-                  Contact
+                <Link to="/alumni" className="text-gray-400 text-sm hover:text-white transition-colors">
+                  Alumni
                 </Link>
               </li>
               <li>
@@ -103,6 +108,11 @@ const Footer = () => {
               Connect
             </p>
             <ul className="space-y-3 text-center md:text-left">
+              <li>
+                <Link to="/contact" className="text-gray-400 text-sm hover:text-white transition-colors">
+                  Contact
+                </Link>
+              </li>
               <li>
                 <a href="https://www.instagram.com/nextstarsoccer/" target="_blank" rel="noopener noreferrer"
                   className="text-gray-400 text-sm hover:text-white transition-colors">
