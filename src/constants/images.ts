@@ -23,6 +23,13 @@ export const images = {
   collage9: '/assets/images/collage9.png',
   collage10: '/assets/images/collage10.png',
 
+  summerCampWhitman: '/assets/images/summerCampWhitman.png',
+  summerCampSomerset: '/assets/images/summerCampSomerset.png',
+  summerCampLewinsville: '/assets/images/summerCampLewinsville.png',
+  summerCampSofive: '/assets/images/summerCampSofive.png',
+  summerCampHoward: '/assets/images/summerCampHoward.png',
+
+
   instagram1: '/assets/images/instagram1.jpg',
   instagram2: '/assets/images/instagram2.jpg',
   instagram3: '/assets/images/instagram3.jpg',
