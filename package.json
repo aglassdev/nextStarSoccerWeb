@@ -10,6 +10,7 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
   },
   "dependencies": {
+    "@types/react-google-recaptcha": "^2.1.9",
     "@types/topojson-client": "^3.1.5",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
@@ -20,6 +21,7 @@
     "lottie-web": "^5.12.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-google-recaptcha": "^3.1.0",
     "react-router-dom": "^6.21.0",
     "react-simple-maps": "^3.0.0",
     "topojson-client": "^3.1.0"

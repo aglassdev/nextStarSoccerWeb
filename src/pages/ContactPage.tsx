@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import ReCAPTCHA from 'react-google-recaptcha';
 
 import { databases, collections, databaseId } from '../services/appwrite';
 import Navigation from '../components/layout/Navigation';
@@ -178,9 +179,12 @@ const ContactPage = () => {
   });
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [inquirySent, setInquirySent] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaError, setCaptchaError] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<number>>(new Set());
   const lottieContainer = useRef<HTMLDivElement>(null);
   const lottieInstance = useRef<any>(null);
+  const captchaRef = useRef<ReCAPTCHA>(null);
 
   useEffect(() => {
     if (inquirySent && lottieContainer.current && !lottieInstance.current) {
@@ -225,7 +229,13 @@ const ContactPage = () => {
     setFieldErrors(errors);
 
     const hasErrors = Object.values(errors).some(Boolean);
-    if (!hasErrors) {
+
+    if (!captchaToken) {
+      setCaptchaError(true);
+      if (hasErrors) return;
+    }
+
+    if (!hasErrors && captchaToken) {
       const fullSubject = subject === 'Other' ? otherSubject : subject;
 
       try {
@@ -248,6 +258,9 @@ const ContactPage = () => {
         setSubject('');
         setMessage('');
         setOtherSubject('');
+        setCaptchaToken(null);
+        setCaptchaError(false);
+        captchaRef.current?.reset();
         setFieldErrors({
           firstName: false,
           lastName: false,
@@ -500,8 +513,25 @@ const ContactPage = () => {
                   />
                 </div>
 
+                {/* CAPTCHA */}
+                <div className="mb-4">
+                  <ReCAPTCHA
+                    ref={captchaRef}
+                    sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY || '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI'}
+                    theme="dark"
+                    onChange={(token) => {
+                      setCaptchaToken(token);
+                      if (token) setCaptchaError(false);
+                    }}
+                    onExpired={() => setCaptchaToken(null)}
+                  />
+                  {captchaError && (
+                    <p className="text-red-500 text-xs mt-1">Please complete the CAPTCHA.</p>
+                  )}
+                </div>
+
                 {/* Send Button */}
-                <div className="mt-6">
+                <div className="mt-2">
                   <button
                     onClick={handleSend}
                     className="bg-white text-black font-medium py-3 px-16 rounded-md hover:bg-gray-200 transition-colors"
