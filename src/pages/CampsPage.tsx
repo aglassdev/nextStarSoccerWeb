@@ -11,7 +11,7 @@ const CampsPage = () => {
       <Navigation />
 
       <div className="flex-1 pt-28 pb-20 px-4 sm:px-6">
-        <div className="max-w-5xl mx-auto">
+        <div className="max-w-6xl mx-auto">
 
           {/* Header */}
           <div className="mb-10">
