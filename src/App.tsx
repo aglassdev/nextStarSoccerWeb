@@ -30,6 +30,8 @@ import Layout from './components/layout/Layout';
 import LoadingScreen from './components/common/LoadingScreen';
 import AdminLoginPage from './pages/admin/AdminLoginPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
+import PlayerProfile from './pages/admin/PlayerProfile';
+import ParentProfile from './pages/admin/ParentProfile';
 import AppDownloadPopup from './components/common/AppDownloadPopup';
 
 // Scroll to top on every route change
@@ -100,8 +102,11 @@ function AppRoutes() {
       <Route path="/admin" element={<AdminLoginPage />} />
       <Route path="/admin/dashboard" element={<AdminDashboard />} />
       <Route path="/admin/players" element={<AdminDashboard />} />
+      <Route path="/admin/players/:type/:id" element={<PlayerProfile />} />
       <Route path="/admin/coaches" element={<AdminDashboard />} />
+      <Route path="/admin/coach-management" element={<AdminDashboard />} />
       <Route path="/admin/parents" element={<AdminDashboard />} />
+      <Route path="/admin/parents/:id" element={<ParentProfile />} />
       <Route path="/admin/messages" element={<AdminDashboard />} />
       <Route path="/admin/payments" element={<AdminDashboard />} />
       <Route path="/admin/bills" element={<AdminDashboard />} />
