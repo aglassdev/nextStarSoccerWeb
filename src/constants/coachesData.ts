@@ -130,43 +130,40 @@ export const coaches: Coach[] = [
   },
   {
     id: 5,
-    name: 'Steve Birnbaum',
+    name: 'Patrick Mullins',
     title: 'Pro Coach',
     handle: 'coach5',
-    slug: 'steve-birnbaum',
+    slug: 'patrick-mullins',
     status: 'Available',
-    avatarUrl: images.coach5,
+    avatarUrl: images.coach7,
     bio: [
-      "Steve Birnbaum, born on January 23, 1991, in Newport Beach, California, is a former professional soccer player, U.S. Men's National Team veteran, and long-time captain of D.C. United. Renowned for his defensive prowess, leadership, and aerial dominance, Birnbaum rose through the ranks of American soccer to become one of Major League Soccer's most respected players. His journey began in Southern California, where he excelled in youth soccer before attending the University of California, Berkeley.",
-      "At Cal, he earned All-American honors and established himself as one of the top defensive prospects in the country. Birnbaum's professional career took off in 2014 when he was selected as the second overall pick in the MLS SuperDraft by D.C. United. He quickly became a key figure in their backline, earning praise for his physicality, tactical awareness, and reliability. Known for his dominance in the air and ability to score from set pieces, Birnbaum was instrumental in D.C. United's success and was named team captain in 2017.",
-      "Internationally, Birnbaum represented the United States Men's National Team, earning multiple caps and contributing crucial moments, including a game-winning goal in a 2016 friendly. He participated in World Cup qualifiers and friendlies, showcasing his abilities at the international level and further establishing his reputation as a dependable and versatile defender. After 11 seasons with D.C. United, Birnbaum retired in 2024, leaving a legacy as one of the club's most influential players.",
-      "At the time of his retirement, he ranked third in all-time appearances for D.C. United, a testament to his durability and dedication throughout his career. He transitioned to coaching, joining the team at Next Star Soccer. He now uses his extensive experience to mentor young athletes, emphasizing technical skill development, mental resilience, and perseverance.",
+      "Patrick Mullins, born on February 5, 1992, in New Orleans, Louisiana developed a passion for soccer early on, excelling in the sport throughout his youth. He attended the University of Maryland, where he became one of the most decorated players in college soccer history. Playing for the Maryland Terrapins, Mullins earned back-to-back MAC Hermann Trophy honors in 2012 and 2013, an accolade awarded to the best collegiate soccer player in the nation.",
+      "During his time at Maryland, Mullins helped lead the Terrapins to two NCAA College Cup appearances, showcasing his ability to rise in critical moments. He finished his collegiate career with an impressive 47 goals and 35 assists. Mullins was selected 11th overall in the 2014 MLS SuperDraft by the New England Revolution, where he made an immediate impact. In his rookie season, he played a key role in helping the team reach the MLS Cup Final.",
+      "Known for his clinical finishing, intelligent positioning, and tireless work rate, Mullins quickly gained recognition as a reliable and dynamic forward. After his stint with New England, Mullins went on to play for several MLS clubs, including New York City FC, D.C. United, Columbus Crew SC, and Toronto FC. His most memorable performances came during his time with D.C. United, particularly in the 2017 season when he scored 13 goals, including a remarkable four-goal game against the San Jose Earthquakes.",
+      "Mullins' career was defined not only by his talent but also by his resilience and professionalism. Known for his strong work ethic and leadership, he was respected by teammates and coaches for his ability to motivate those around him and mentor younger players. Since retiring from professional soccer, Mullins has remained deeply involved in the sport, dedicating his time to mentoring young players and contributing to the development of youth soccer.",
     ],
     career: [
       {
         label: 'Youth',
         entries: [
-          { icon: `${ICONS}pateadoressc.png`, name: 'Pateadores SC' },
+          { icon: `${ICONS}louisianafirejuniors.png`, name: 'Chicago Fire Juniors' },
+          { icon: `${ICONS}batonrougecapitals.png`, name: 'Baton Rouge Capitals' },
         ],
       },
       {
         label: 'College',
         entries: [
-          { icon: `${ICONS}ucberkeley.png`, name: 'UC Berkeley' },
+          { icon: `${ICONS}maryland.png`, name: 'University of Maryland' },
         ],
       },
       {
         label: 'Professional',
         entries: [
+          { icon: `${ICONS}newEnglandRevolution.png`, name: 'New England Revolution' },
+          { icon: `${ICONS}newyorkcityfc.png`, name: 'New York City FC' },
           { icon: `${ICONS}dcUnited.png`, name: 'D.C. United' },
-          { icon: `${ICONS}richmondkickers.png`, name: 'Richmond Kickers' },
-          { icon: `${ICONS}orangeCountyBlueStar.png`, name: 'Orange County Blue Star' },
-        ],
-      },
-      {
-        label: 'National Team',
-        entries: [
-          { icon: `${ICONS}usa.png`, name: 'US Men\'s National Team' },
+          { icon: `${ICONS}columbusCrew.png`, name: 'Columbus Crew' },
+          { icon: `${ICONS}torontofc.png`, name: 'Toronto FC' },
         ],
       },
     ],
@@ -178,7 +175,7 @@ export const coaches: Coach[] = [
     handle: 'coach6',
     slug: 'marco-etcheverry',
     status: 'Available',
-    avatarUrl: images.coach6,
+    avatarUrl: images.coach5,
     bio: [
       "Marco Etcheverry was born on September 26, 1970, in Santa Cruz, Bolivia. He began his soccer journey in Bolivia, showcasing his exceptional talent as a young midfielder with Bolívar and Oriente Petrolero. His performances quickly garnered attention, and he later moved to Colo-Colo in Chile where he solidified his reputation as an electrifying playmaker. Known for his vision, dribbling skills, and ability to control the tempo of a match, Etcheverry became a rising star in South American soccer.",
       "On the international stage, Etcheverry was the face of Bolivian soccer during the 1990s. He earned over 70 caps for the national team and played a pivotal role in Bolivia's qualification for the 1994 FIFA World Cup—their first appearance since 1950. Etcheverry further cemented his legacy by leading Bolivia to a runner-up finish in the 1997 Copa América, where his creativity and leadership shone. His electrifying performances and devilish dribbling earned him the nickname \"El Diablo.\"",
@@ -217,40 +214,43 @@ export const coaches: Coach[] = [
   },
   {
     id: 7,
-    name: 'Patrick Mullins',
+    name: 'Steve Birnbaum',
     title: 'Pro Coach',
     handle: 'coach7',
-    slug: 'patrick-mullins',
+    slug: 'steve-birnbaum',
     status: 'Available',
-    avatarUrl: images.coach7,
+    avatarUrl: images.coach6,
     bio: [
-      "Patrick Mullins, born on February 5, 1992, in New Orleans, Louisiana developed a passion for soccer early on, excelling in the sport throughout his youth. He attended the University of Maryland, where he became one of the most decorated players in college soccer history. Playing for the Maryland Terrapins, Mullins earned back-to-back MAC Hermann Trophy honors in 2012 and 2013, an accolade awarded to the best collegiate soccer player in the nation.",
-      "During his time at Maryland, Mullins helped lead the Terrapins to two NCAA College Cup appearances, showcasing his ability to rise in critical moments. He finished his collegiate career with an impressive 47 goals and 35 assists. Mullins was selected 11th overall in the 2014 MLS SuperDraft by the New England Revolution, where he made an immediate impact. In his rookie season, he played a key role in helping the team reach the MLS Cup Final.",
-      "Known for his clinical finishing, intelligent positioning, and tireless work rate, Mullins quickly gained recognition as a reliable and dynamic forward. After his stint with New England, Mullins went on to play for several MLS clubs, including New York City FC, D.C. United, Columbus Crew SC, and Toronto FC. His most memorable performances came during his time with D.C. United, particularly in the 2017 season when he scored 13 goals, including a remarkable four-goal game against the San Jose Earthquakes.",
-      "Mullins' career was defined not only by his talent but also by his resilience and professionalism. Known for his strong work ethic and leadership, he was respected by teammates and coaches for his ability to motivate those around him and mentor younger players. Since retiring from professional soccer, Mullins has remained deeply involved in the sport, dedicating his time to mentoring young players and contributing to the development of youth soccer.",
+      "Steve Birnbaum, born on January 23, 1991, in Newport Beach, California, is a former professional soccer player, U.S. Men's National Team veteran, and long-time captain of D.C. United. Renowned for his defensive prowess, leadership, and aerial dominance, Birnbaum rose through the ranks of American soccer to become one of Major League Soccer's most respected players. His journey began in Southern California, where he excelled in youth soccer before attending the University of California, Berkeley.",
+      "At Cal, he earned All-American honors and established himself as one of the top defensive prospects in the country. Birnbaum's professional career took off in 2014 when he was selected as the second overall pick in the MLS SuperDraft by D.C. United. He quickly became a key figure in their backline, earning praise for his physicality, tactical awareness, and reliability. Known for his dominance in the air and ability to score from set pieces, Birnbaum was instrumental in D.C. United's success and was named team captain in 2017.",
+      "Internationally, Birnbaum represented the United States Men's National Team, earning multiple caps and contributing crucial moments, including a game-winning goal in a 2016 friendly. He participated in World Cup qualifiers and friendlies, showcasing his abilities at the international level and further establishing his reputation as a dependable and versatile defender. After 11 seasons with D.C. United, Birnbaum retired in 2024, leaving a legacy as one of the club's most influential players.",
+      "At the time of his retirement, he ranked third in all-time appearances for D.C. United, a testament to his durability and dedication throughout his career. He transitioned to coaching, joining the team at Next Star Soccer. He now uses his extensive experience to mentor young athletes, emphasizing technical skill development, mental resilience, and perseverance.",
     ],
     career: [
       {
         label: 'Youth',
         entries: [
-          { icon: `${ICONS}louisianafirejuniors.png`, name: 'Chicago Fire Juniors' },
-          { icon: `${ICONS}batonrougecapitals.png`, name: 'Baton Rouge Capitals' },
+          { icon: `${ICONS}pateadoressc.png`, name: 'Pateadores SC' },
         ],
       },
       {
         label: 'College',
         entries: [
-          { icon: `${ICONS}maryland.png`, name: 'University of Maryland' },
+          { icon: `${ICONS}ucberkeley.png`, name: 'UC Berkeley' },
         ],
       },
       {
         label: 'Professional',
         entries: [
-          { icon: `${ICONS}newEnglandRevolution.png`, name: 'New England Revolution' },
-          { icon: `${ICONS}newyorkcityfc.png`, name: 'New York City FC' },
           { icon: `${ICONS}dcUnited.png`, name: 'D.C. United' },
-          { icon: `${ICONS}columbusCrew.png`, name: 'Columbus Crew' },
-          { icon: `${ICONS}torontofc.png`, name: 'Toronto FC' },
+          { icon: `${ICONS}richmondkickers.png`, name: 'Richmond Kickers' },
+          { icon: `${ICONS}orangeCountyBlueStar.png`, name: 'Orange County Blue Star' },
+        ],
+      },
+      {
+        label: 'National Team',
+        entries: [
+          { icon: `${ICONS}usa.png`, name: 'US Men\'s National Team' },
         ],
       },
     ],

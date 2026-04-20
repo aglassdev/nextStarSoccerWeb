@@ -147,16 +147,16 @@ class GoogleCalendarService {
     return rawEvents.map((e: any) => this.transformCalendarEvent(e));
   }
 
-  // Appwrite function call — only for the PRIVATE calendar
-  private async fetchPrivateCalendarEvents(year: number, month: number): Promise<CalendarEvent[]> {
-    console.log(`🔒 Fetching private calendar via Appwrite: ${year}-${month + 1}`);
+  // Appwrite function call — for PRIVATE or ANALYSIS calendars
+  private async fetchPrivateOrAnalysisCalendarEvents(year: number, month: number, calendarType: "private" | "analysis"): Promise<CalendarEvent[]> {
+    console.log(`🔒 Fetching ${calendarType} calendar via Appwrite: ${year}-${month + 1}`);
 
     const payload = {
       service: "google-calendar",
       action: "getEventsForMonth",
       year,
       month,
-      calendarType: "private",
+      calendarType,
     };
 
     const response = await functions.createExecution(
@@ -166,29 +166,29 @@ class GoogleCalendarService {
     );
 
     if (response.status !== "completed" || response.responseStatusCode !== 200) {
-      console.error("❌ Appwrite function failed for private calendar");
+      console.error(`❌ Appwrite function failed for ${calendarType} calendar`);
       return [];
     }
 
     const result = JSON.parse(response.responseBody);
     if (!result.success) {
-      console.error("❌ Private calendar API error:", result.error);
+      console.error(`❌ ${calendarType} calendar API error:`, result.error);
       return [];
     }
 
     const rawEvents = result.data || [];
-    console.log(`✅ Got ${rawEvents.length} private events`);
+    console.log(`✅ Got ${rawEvents.length} ${calendarType} events`);
     return rawEvents.map((e: any) => this.transformCalendarEvent(e));
   }
 
   async getEventsForMonth(
     year: number,
     month: number,
-    calendarType: "public" | "private" = "public"
+    calendarType: "public" | "private" | "analysis" = "public"
   ): Promise<CalendarEvent[]> {
     try {
-      if (calendarType === "private") {
-        return await this.fetchPrivateCalendarEvents(year, month);
+      if (calendarType === "private" || calendarType === "analysis") {
+        return await this.fetchPrivateOrAnalysisCalendarEvents(year, month, calendarType);
       } else {
         return await this.fetchPublicCalendarEvents(year, month);
       }
