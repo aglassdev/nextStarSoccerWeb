@@ -108,6 +108,40 @@ const ServiceCard: React.FC<{ service: Service }> = ({ service }) => {
     const [isHovered, setIsHovered] = useState(false);
     const navigate = useNavigate();
 
+    // Camps card navigates directly — no flip
+    if (service.buttonType === 'camps') {
+        return (
+            <div
+                className={`relative w-full h-52 sm:h-72 md:h-96 cursor-pointer transition-transform duration-300 ${
+                    isHovered ? 'scale-105' : 'scale-100'
+                }`}
+                onMouseEnter={() => setIsHovered(true)}
+                onMouseLeave={() => setIsHovered(false)}
+                onClick={() => navigate('/services/camps')}
+            >
+                <div className="relative w-full h-full rounded-2xl overflow-hidden shadow-2xl">
+                    <img
+                        src={service.frontImage}
+                        alt={service.name}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                        decoding="async"
+                        onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                            const parent = e.currentTarget.parentElement;
+                            if (parent) {
+                                parent.style.background = 'linear-gradient(135deg, #1e40af 0%, #10b981 100%)';
+                            }
+                        }}
+                    />
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/80 to-transparent p-3 md:p-6">
+                        <h3 className="text-white text-sm md:text-2xl font-bold leading-snug">{service.name}</h3>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     const renderButton = () => {
         if (service.buttonType === 'request-in-app') {
             return (
