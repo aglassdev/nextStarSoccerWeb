@@ -164,12 +164,12 @@ const InquiriesSection = () => {
 
             return (
               <div key={inq.$id}
-                className={`rounded-lg border border-white/[0.08] overflow-hidden transition-all duration-150 ${isRead ? 'opacity-60' : ''}`}
+                className="rounded-lg border border-white/[0.08] overflow-hidden transition-all duration-150"
               >
                 {/* Row */}
                 <button
                   onClick={() => handleExpand(inq)}
-                  className="w-full flex items-center gap-4 px-4 py-3.5 text-left bg-[#1d1c21] hover:bg-[#242228] transition-colors"
+                  className={`w-full flex items-center gap-4 px-4 py-3.5 text-left bg-[#1d1c21] hover:bg-[#242228] transition-all ${isRead && !isExpanded ? 'opacity-60' : ''}`}
                 >
                   {/* Avatar */}
                   <div className="w-8 h-8 rounded-full bg-white/[0.07] border border-white/[0.10] flex items-center justify-center flex-shrink-0">
