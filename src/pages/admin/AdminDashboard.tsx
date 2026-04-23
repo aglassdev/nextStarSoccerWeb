@@ -182,7 +182,7 @@ const SECTION_FROM_PATH: Record<string, Section> = {
   '/admin/messages': 'messages',
   '/admin/payments': 'payments',
   '/admin/bills': 'bills',
-  '/admin/requests': 'requests',
+  '/admin/inquiries': 'requests',
   '/admin/calendar': 'calendar',
   '/admin/event-assistant': 'eventAssistant',
   '/admin/coach-management': 'coachManagement',
@@ -201,7 +201,7 @@ const AdminDashboard = () => {
     messages: '/admin/messages',
     payments: '/admin/payments',
     bills: '/admin/bills',
-    requests: '/admin/requests',
+    requests: '/admin/inquiries',
     calendar: '/admin/calendar',
     eventAssistant: '/admin/event-assistant',
     coachManagement: '/admin/coach-management',
@@ -399,14 +399,11 @@ const AdminDashboard = () => {
         <div className="px-5 pt-5 pb-4 border-b border-white/[0.07]">
           <button onClick={() => setActiveSection(null)}
             className="w-full flex items-center justify-between hover:opacity-75 transition-opacity">
-            <div className="min-w-0">
-              <p className="text-white font-medium text-[13px] truncate">
-                {displayName || user?.email?.split('@')[0] || 'Admin'}
-              </p>
-              <p className="text-white/25 text-[11px] mt-0.5">Next Star Soccer</p>
-            </div>
+            <p className="text-white font-medium text-[13px] truncate min-w-0">
+              {displayName || user?.email?.split('@')[0] || 'Admin'}
+            </p>
             <img src="/assets/images/NextStarBall.png" alt="NSS"
-              className="w-6 h-6 flex-shrink-0 ml-3 opacity-40"
+              className="w-6 h-6 flex-shrink-0 ml-3"
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
           </button>
         </div>
@@ -416,8 +413,8 @@ const AdminDashboard = () => {
 
           {/* Dashboard */}
           <button onClick={() => setActiveSection(null)}
-            className={`w-full flex items-center gap-2.5 px-3 py-[7px] rounded-md text-[13px] transition-all duration-150 text-left ${
-              activeSection === null ? 'bg-white/[0.08] text-white' : 'text-white/50 hover:text-white hover:bg-white/[0.05]'
+            className={`w-full flex items-center gap-2.5 px-3 py-[7px] rounded-md text-[13px] transition-all duration-150 text-left text-white ${
+              activeSection === null ? 'bg-white/[0.08]' : 'hover:bg-white/[0.05]'
             }`}>
             <svg className="w-[15px] h-[15px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <rect x="3" y="3" width="7" height="7" rx="1.5" strokeWidth={1.5} />
@@ -435,17 +432,15 @@ const AdminDashboard = () => {
               icon={<svg className="w-[13px] h-[13px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>} />
             <NavChild section="parents" label="Parents" active={activeSection === 'parents'} onSelect={setActiveSection}
               icon={<svg className="w-[13px] h-[13px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>} />
-            <NavChild section="coaches" label="Coaches" active={activeSection === 'coaches'} onSelect={setActiveSection}
-              icon={<svg className="w-[13px] h-[13px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" /></svg>} />
           </NavGroupItem>
 
           {/* Coach Management — standalone */}
           <button
             onClick={() => setActiveSection('coachManagement')}
-            className={`w-full flex items-center gap-2.5 px-3 py-[7px] rounded-md text-[13px] transition-all duration-150 text-left ${
+            className={`w-full flex items-center gap-2.5 px-3 py-[7px] rounded-md text-[13px] transition-all duration-150 text-left text-white ${
               activeSection === 'coachManagement'
-                ? 'bg-white/[0.08] text-white'
-                : 'text-white/50 hover:text-white hover:bg-white/[0.05]'
+                ? 'bg-white/[0.08]'
+                : 'hover:bg-white/[0.05]'
             }`}
           >
             <svg className="w-[15px] h-[15px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -488,7 +483,7 @@ const AdminDashboard = () => {
         {/* Sign out */}
         <div className="px-3 py-3 border-t border-white/[0.07]">
           <button onClick={handleLogout}
-            className="w-full flex items-center gap-2.5 px-3 py-[7px] rounded-md text-[13px] text-white/25 hover:text-white hover:bg-white/[0.05] transition-all duration-150">
+            className="w-full flex items-center gap-2.5 px-3 py-[7px] rounded-md text-[13px] text-white hover:bg-white/[0.05] transition-all duration-150">
             <svg className="w-[15px] h-[15px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             </svg>
@@ -695,7 +690,7 @@ const NavGroupItem = ({ label, icon, open, onToggle, badge, children }: {
 }) => (
   <div>
     <button onClick={onToggle}
-      className="w-full flex items-center gap-2.5 px-3 py-[7px] rounded-md text-[13px] transition-all duration-150 text-left text-white/50 hover:text-white hover:bg-white/[0.05]">
+      className="w-full flex items-center gap-2.5 px-3 py-[7px] rounded-md text-[13px] transition-all duration-150 text-left text-white hover:bg-white/[0.05]">
       {icon}
       <span className="flex-1 leading-none">{label}</span>
       {badge !== undefined && !open && (
@@ -714,8 +709,8 @@ const NavChild = ({ section, label, active, onSelect, icon }: {
   section: Section; label: string; active: boolean; onSelect: (s: Section) => void; icon: React.ReactNode;
 }) => (
   <button onClick={() => onSelect(section)}
-    className={`w-full flex items-center gap-2 pl-3 pr-3 py-[6px] rounded-md text-[12px] transition-all duration-150 text-left ${
-      active ? 'bg-white/[0.08] text-white' : 'text-white/40 hover:text-white hover:bg-white/[0.04]'
+    className={`w-full flex items-center gap-2 pl-3 pr-3 py-[6px] rounded-md text-[12px] transition-all duration-150 text-left text-white ${
+      active ? 'bg-white/[0.08]' : 'hover:bg-white/[0.04]'
     }`}>
     {icon}
     <span>{label}</span>
