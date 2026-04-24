@@ -67,6 +67,7 @@ export const collections = {
   familyInvitations: import.meta.env.VITE_APPWRITE_FAMILY_INVITATIONS_COLLECTION_ID,
   websiteInquiries: 'website_inquiries',
   scholarshipApplications: import.meta.env.VITE_APPWRITE_SCHOLARSHIP_COLLECTION_ID || 'scholarship_applications',
+  devSupport: 'dev-support',
 };
 
 // Storage bucket IDs

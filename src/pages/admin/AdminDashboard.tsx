@@ -11,6 +11,8 @@ import BillsSection from './sections/BillsSection';
 import PaymentsSection from './sections/PaymentsSection';
 import MessagesSection from './sections/MessagesSection';
 import InquiriesSection from './sections/InquiriesSection';
+import DevelopmentSection from './sections/DevelopmentSection';
+import AppFeedbackSection from './sections/AppFeedbackSection';
 import CalendarSection from './sections/CalendarSection';
 import EventAssistantSection from './sections/EventAssistantSection';
 import CoachManagementSection from './sections/CoachManagementSection';
@@ -32,15 +34,16 @@ const REQUEST_TYPES = [
   'Player Report',
 ];
 
-type Section = 'players' | 'coaches' | 'parents' | 'bills' | 'payments' | 'messages' | 'requests' | 'calendar' | 'eventAssistant' | 'coachManagement';
+type Section = 'players' | 'coaches' | 'parents' | 'bills' | 'payments' | 'messages' | 'requests' | 'calendar' | 'eventAssistant' | 'coachManagement' | 'devOverview' | 'appFeedback';
 
-type NavGroup = 'Directory' | 'Messages' | 'Payments' | 'Events';
+type NavGroup = 'Directory' | 'Messages' | 'Payments' | 'Events' | 'Development';
 
 const SECTION_TO_GROUP: Partial<Record<Section, NavGroup>> = {
   players: 'Directory', coaches: 'Directory', parents: 'Directory', coachManagement: 'Directory',
   messages: 'Messages', requests: 'Messages',
   bills: 'Payments', payments: 'Payments',
   calendar: 'Events', eventAssistant: 'Events',
+  devOverview: 'Development', appFeedback: 'Development',
 };
 
 const SECTION_LABELS: Partial<Record<Section, string>> = {
@@ -48,6 +51,8 @@ const SECTION_LABELS: Partial<Record<Section, string>> = {
   requests: 'Inquiries',
   bills: 'Billing',
   coachManagement: 'Coach Management',
+  devOverview: 'Overview',
+  appFeedback: 'App Feedback',
 };
 
 interface CalEvent {
@@ -186,6 +191,8 @@ const SECTION_FROM_PATH: Record<string, Section> = {
   '/admin/calendar': 'calendar',
   '/admin/event-assistant': 'eventAssistant',
   '/admin/coach-management': 'coachManagement',
+  '/admin/dev': 'devOverview',
+  '/admin/dev/feedback': 'appFeedback',
 };
 
 const AdminDashboard = () => {
@@ -205,6 +212,8 @@ const AdminDashboard = () => {
     calendar: '/admin/calendar',
     eventAssistant: '/admin/event-assistant',
     coachManagement: '/admin/coach-management',
+    devOverview: '/admin/dev',
+    appFeedback: '/admin/dev/feedback',
   };
   const setActiveSection = (s: Section | null) => navigate(s ? SECTION_TO_PATH[s] : '/admin/dashboard');
 
@@ -385,6 +394,8 @@ const AdminDashboard = () => {
     messages: <MessagesSection />,
     requests: <InquiriesSection />,
     calendar: <CalendarSection />,
+    devOverview: <DevelopmentSection />,
+    appFeedback: <AppFeedbackSection />,
     eventAssistant: <EventAssistantSection />,
     coachManagement: <CoachManagementSection />,
   };
@@ -467,6 +478,15 @@ const AdminDashboard = () => {
               icon={<svg className="w-[13px] h-[13px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>} />
             <NavChild section="payments" label="Payments" active={activeSection === 'payments'} onSelect={setActiveSection}
               icon={<svg className="w-[13px] h-[13px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} />
+          </NavGroupItem>
+
+          {/* Development */}
+          <NavGroupItem label="Development" open={openGroups.has('Development')} onToggle={() => toggleGroup('Development')}
+            icon={<svg className="w-[15px] h-[15px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>}>
+            <NavChild section="devOverview" label="Overview" active={activeSection === 'devOverview'} onSelect={setActiveSection}
+              icon={<svg className="w-[13px] h-[13px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>} />
+            <NavChild section="appFeedback" label="App Feedback" active={activeSection === 'appFeedback'} onSelect={setActiveSection}
+              icon={<svg className="w-[13px] h-[13px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" /></svg>} />
           </NavGroupItem>
 
           {/* Events */}
