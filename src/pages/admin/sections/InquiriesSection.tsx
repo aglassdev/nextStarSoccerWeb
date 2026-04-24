@@ -197,19 +197,12 @@ const InquiriesSection = () => {
         replyMessage: replyBody.trim(),
       });
 
-      const exec = await functions.createExecution(SEND_INQUIRY_REPLY_FN, payload, false);
-      console.log('Execution result:', exec);
+      // async: true — fire and forget, don't wait for email delivery to respond
+      await functions.createExecution(SEND_INQUIRY_REPLY_FN, payload, true);
 
-      // status === 'completed' means the function ran — responseStatusCode can be
-      // 0 if the function doesn't set one explicitly, so treat both 0 and 200 as ok
-      const ok = exec.status === 'completed';
-      setSendResult(ok ? 'success' : 'error');
-      if (ok) {
-        if (!inq.read) markRead(inq.$id);
-        setTimeout(() => closeReplyModal(), 1800);
-      } else {
-        console.error('Function did not complete:', exec.status, exec.errors);
-      }
+      setSendResult('success');
+      if (!inq.read) markRead(inq.$id);
+      setTimeout(() => closeReplyModal(), 1800);
     } catch (err) {
       console.error('sendReply error:', err);
       setSendResult('error');
@@ -225,7 +218,7 @@ const InquiriesSection = () => {
     const body = encodeURIComponent(
       `Hi ${name},\n\n${replyBody}\n\nBest regards,\nNext Star Soccer\n\n────────────────────\nYour original message:\n\n${inq.message || ''}`
     );
-    window.open(`https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(inq.email)}&su=${subject}&body=${body}`, '_blank');
+    window.open(`https://mail.google.com/mail/u/0/?view=cm&fs=1&to=${encodeURIComponent(inq.email)}&su=${subject}&body=${body}`, '_blank');
   };
 
   // ── Helpers ───────────────────────────────────────────────────────────────
