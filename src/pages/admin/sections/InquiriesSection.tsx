@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Query } from 'appwrite';
 import { databases, databaseId, collections, functions } from '../../../services/appwrite';
 
-const SEND_INQUIRY_REPLY_FN = '68d31288862f4a5ea06a';
+const SEND_INQUIRY_REPLY_FN = import.meta.env.VITE_APPWRITE_REPLY_FUNCTION_ID || '';
 
 interface Inquiry {
   $id: string;
@@ -197,17 +197,18 @@ const InquiriesSection = () => {
         replyMessage: replyBody.trim(),
       });
 
-      const execution = await functions.createExecution(SEND_INQUIRY_REPLY_FN, payload);
-      console.log('sendReply execution:', execution.status, execution.responseStatusCode, execution.responseBody);
+      if (!SEND_INQUIRY_REPLY_FN) throw new Error('Reply function not configured — add VITE_APPWRITE_REPLY_FUNCTION_ID to Vercel env');
 
-      if (execution.responseStatusCode === 200) {
-        setSendResult('success');
-        if (!inq.read) markRead(inq.$id);
-        setTimeout(() => closeReplyModal(), 1800);
-      } else {
-        console.error('Function returned non-200:', execution.responseStatusCode, execution.errors);
-        setSendResult('error');
-      }
+      const res = await functions.createExecution(SEND_INQUIRY_REPLY_FN, payload, false);
+      let body: any = {};
+      try { body = JSON.parse(res.responseBody || '{}'); } catch { /* non-JSON */ }
+
+      if (res.status !== 'completed' || res.responseStatusCode !== 200 || !body.success)
+        throw new Error(body.error || `HTTP ${res.responseStatusCode}`);
+
+      setSendResult('success');
+      if (!inq.read) markRead(inq.$id);
+      setTimeout(() => closeReplyModal(), 1800);
     } catch (err) {
       console.error('sendReply error:', err);
       setSendResult('error');
@@ -219,11 +220,11 @@ const InquiriesSection = () => {
   const openInGmail = (inq: Inquiry) => {
     if (!inq.email) return;
     const name = `${inq.firstName || ''} ${inq.lastName || ''}`.trim() || 'there';
-    const to = inq.email;
-    const subject = `Re: ${inq.subject || 'Your Inquiry'}`;
-    const body = `Hi ${name},\n\n${replyBody}\n\nBest regards,\nNext Star Soccer\n\n────────────────────\nYour original message:\n\n${inq.message || ''}`;
-    const url = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.open(url, '_blank', 'noopener,noreferrer');
+    const subject = encodeURIComponent(`Re: ${inq.subject || 'Your Inquiry'}`);
+    const body = encodeURIComponent(
+      `Hi ${name},\n\n${replyBody}\n\nBest regards,\nNext Star Soccer\n\n────────────────────\nYour original message:\n\n${inq.message || ''}`
+    );
+    window.open(`https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(inq.email)}&su=${subject}&body=${body}`, '_blank');
   };
 
   // ── Helpers ───────────────────────────────────────────────────────────────
