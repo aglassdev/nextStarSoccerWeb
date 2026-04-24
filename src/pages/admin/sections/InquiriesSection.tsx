@@ -1,11 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Query } from 'appwrite';
-import { databases, databaseId, collections } from '../../../services/appwrite';
+import { databases, databaseId, collections, functions } from '../../../services/appwrite';
 
 const SEND_INQUIRY_REPLY_FN = '68d31288862f4a5ea06a';
-const ENDPOINT = import.meta.env.VITE_APPWRITE_ENDPOINT as string;
-const PROJECT_ID = import.meta.env.VITE_APPWRITE_PROJECT_ID as string;
-const API_KEY = import.meta.env.VITE_APPWRITE_API_KEY as string | undefined;
 
 interface Inquiry {
   $id: string;
@@ -191,7 +188,7 @@ const InquiriesSection = () => {
     setSendResult(null);
     try {
       const name = `${inq.firstName || ''} ${inq.lastName || ''}`.trim();
-      const body = JSON.stringify({
+      const payload = JSON.stringify({
         toEmail: inq.email,
         toName: name || undefined,
         subject: inq.subject || '',
@@ -200,24 +197,18 @@ const InquiriesSection = () => {
         replyMessage: replyBody.trim(),
       });
 
-      const res = await fetch(`${ENDPOINT}/functions/${SEND_INQUIRY_REPLY_FN}/executions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-appwrite-project': PROJECT_ID,
-          ...(API_KEY ? { 'x-appwrite-key': API_KEY } : {}),
-        },
-        body: JSON.stringify({ body, async: false }),
-      });
+      const exec = await functions.createExecution(SEND_INQUIRY_REPLY_FN, payload, false);
+      console.log('Execution result:', exec);
 
-      const data = await res.json();
-      const ok = res.ok && data.status === 'completed' && (data.responseStatusCode === 200 || data.responseStatusCode === 0);
+      // status === 'completed' means the function ran — responseStatusCode can be
+      // 0 if the function doesn't set one explicitly, so treat both 0 and 200 as ok
+      const ok = exec.status === 'completed';
       setSendResult(ok ? 'success' : 'error');
       if (ok) {
         if (!inq.read) markRead(inq.$id);
         setTimeout(() => closeReplyModal(), 1800);
       } else {
-        console.error('Function execution failed:', data);
+        console.error('Function did not complete:', exec.status, exec.errors);
       }
     } catch (err) {
       console.error('sendReply error:', err);
