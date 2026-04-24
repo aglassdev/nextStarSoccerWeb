@@ -1,8 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Query } from 'appwrite';
-import { databases, databaseId, collections, functions } from '../../../services/appwrite';
+import { databases, databaseId, collections } from '../../../services/appwrite';
 
 const SEND_INQUIRY_REPLY_FN = '68d31288862f4a5ea06a';
+const ENDPOINT = import.meta.env.VITE_APPWRITE_ENDPOINT as string;
+const PROJECT_ID = import.meta.env.VITE_APPWRITE_PROJECT_ID as string;
+const API_KEY = import.meta.env.VITE_APPWRITE_API_KEY as string | undefined;
 
 interface Inquiry {
   $id: string;
@@ -188,7 +191,7 @@ const InquiriesSection = () => {
     setSendResult(null);
     try {
       const name = `${inq.firstName || ''} ${inq.lastName || ''}`.trim();
-      const payload = JSON.stringify({
+      const body = JSON.stringify({
         toEmail: inq.email,
         toName: name || undefined,
         subject: inq.subject || '',
@@ -196,15 +199,28 @@ const InquiriesSection = () => {
         originalDate: inq.$createdAt,
         replyMessage: replyBody.trim(),
       });
-      const exec = await functions.createExecution(SEND_INQUIRY_REPLY_FN, payload, false);
-      const ok = exec.status === 'completed' && exec.responseStatusCode === 200;
+
+      const res = await fetch(`${ENDPOINT}/functions/${SEND_INQUIRY_REPLY_FN}/executions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-appwrite-project': PROJECT_ID,
+          ...(API_KEY ? { 'x-appwrite-key': API_KEY } : {}),
+        },
+        body: JSON.stringify({ body, async: false }),
+      });
+
+      const data = await res.json();
+      const ok = res.ok && data.status === 'completed' && (data.responseStatusCode === 200 || data.responseStatusCode === 0);
       setSendResult(ok ? 'success' : 'error');
       if (ok) {
-        // Mark as read if not already
         if (!inq.read) markRead(inq.$id);
         setTimeout(() => closeReplyModal(), 1800);
+      } else {
+        console.error('Function execution failed:', data);
       }
-    } catch {
+    } catch (err) {
+      console.error('sendReply error:', err);
       setSendResult('error');
     } finally {
       setIsSending(false);
