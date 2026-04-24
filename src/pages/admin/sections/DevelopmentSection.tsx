@@ -35,7 +35,7 @@ interface ProjectUsage {
 
 interface Stats {
   totalUsers: number | null;
-  totalRequests: number | null;
+  totalRequests: number | null;      // null = not yet loaded / scope missing
   totalBandwidth: number | null;
   totalExecutions: number | null;
   storageUsed: number | null;
@@ -151,57 +151,103 @@ const DevelopmentSection = () => {
       };
 
       try {
-        // Fetch usage (range param) and users in parallel
-        const [usageRes, usersRes] = await Promise.all([
+        // Fetch all in parallel: project usage, users, per-service fallbacks
+        const [usageRes, usersRes, bucketsRes, functionsRes] = await Promise.all([
           fetch(`${ENDPOINT}/project/usage?range=30d`, { headers }),
           fetch(`${ENDPOINT}/users?limit=1`, { headers }),
+          fetch(`${ENDPOINT}/storage/buckets?limit=25`, { headers }),
+          fetch(`${ENDPOINT}/functions?limit=25`, { headers }),
         ]);
-
-        // Log raw status for debugging
-        console.log('[Dev] usage status:', usageRes.status, '| users status:', usersRes.status);
 
         let usage: Partial<ProjectUsage> = {};
         let totalUsers: number | null = null;
+        let fallbackStorage: number | null = null;
+        let fallbackFiles: number | null = null;
+        let fallbackExecutions: number | null = null;
 
+        // Project usage (needs projects.read scope)
         if (usageRes.ok) {
-          const raw = await usageRes.json();
-          console.log('[Dev] usage payload keys:', Object.keys(raw));
-          usage = raw;
+          usage = await usageRes.json();
         } else {
-          const errText = await usageRes.text().catch(() => '');
-          console.warn('[Dev] usage fetch failed:', usageRes.status, errText);
-          setApiError(`Usage API ${usageRes.status}: ${errText.slice(0, 120)}`);
+          const errBody = await usageRes.json().catch(() => ({})) as any;
+          const missing = errBody?.message ?? `HTTP ${usageRes.status}`;
+          setApiError(`${missing} — add "projects.read" scope to your API key in Appwrite Console.`);
         }
 
+        // Users total (needs users.read)
         if (usersRes.ok) {
           const ud = await usersRes.json();
-          console.log('[Dev] users total:', ud.total);
           totalUsers = ud.total ?? null;
-        } else {
-          const errText = await usersRes.text().catch(() => '');
-          console.warn('[Dev] users fetch failed:', usersRes.status, errText);
+        }
+
+        // Storage fallback: sum file sizes across buckets (needs storage.read + files.read)
+        if (bucketsRes.ok) {
+          const bd = await bucketsRes.json();
+          const bucketList: any[] = bd.buckets ?? [];
+          // Fetch per-bucket usage
+          const bucketUsages = await Promise.all(
+            bucketList.map(b =>
+              fetch(`${ENDPOINT}/storage/${b.$id}/usage?range=30d`, { headers })
+                .then(r => r.ok ? r.json() : null)
+                .catch(() => null)
+            )
+          );
+          let totalBytes = 0, totalFiles = 0;
+          for (const bu of bucketUsages) {
+            if (!bu) continue;
+            const storageLatest = Array.isArray(bu.storage) && bu.storage.length
+              ? bu.storage[bu.storage.length - 1]?.value ?? 0 : 0;
+            const filesLatest = Array.isArray(bu.files) && bu.files.length
+              ? bu.files[bu.files.length - 1]?.value ?? 0 : 0;
+            totalBytes += storageLatest;
+            totalFiles += filesLatest;
+          }
+          if (totalBytes > 0) fallbackStorage = totalBytes;
+          if (totalFiles > 0) fallbackFiles = totalFiles;
+        }
+
+        // Executions fallback: sum from per-function usage (needs functions.read + execution.read)
+        if (functionsRes.ok) {
+          const fd = await functionsRes.json();
+          const fnList: any[] = fd.functions ?? [];
+          const fnUsages = await Promise.all(
+            fnList.map(fn =>
+              fetch(`${ENDPOINT}/functions/${fn.$id}/usage?range=30d`, { headers })
+                .then(r => r.ok ? r.json() : null)
+                .catch(() => null)
+            )
+          );
+          let totalExec = 0;
+          for (const fu of fnUsages) {
+            if (!fu || !Array.isArray(fu.executions)) continue;
+            totalExec += fu.executions.reduce((s: number, p: any) => s + (p?.value ?? 0), 0);
+          }
+          if (totalExec > 0) fallbackExecutions = totalExec;
         }
 
         const sum = (series?: UsageSeries[]) =>
-          Array.isArray(series) ? series.reduce((acc, p) => acc + (p?.value ?? 0), 0) : 0;
+          Array.isArray(series) ? series.reduce((acc, p) => acc + (p?.value ?? 0), 0) : null;
         const latest = (series?: UsageSeries[]) =>
           Array.isArray(series) && series.length ? series[series.length - 1]?.value ?? null : null;
 
+        const projectRequests = sum(usage.requests);
+        const projectExecs = sum(usage.executions);
+
         setStats({
           totalUsers,
-          totalRequests: sum(usage.requests),
+          totalRequests: projectRequests,
           totalBandwidth: sum(usage.network),
-          totalExecutions: sum(usage.executions),
-          storageUsed: latest(usage.storage),
+          totalExecutions: projectExecs ?? fallbackExecutions,
+          storageUsed: latest(usage.storage) ?? fallbackStorage,
           totalDocuments: latest(usage.documents),
-          totalFiles: latest(usage.files),
+          totalFiles: latest(usage.files) ?? fallbackFiles,
           activeSessions: latest(usage.sessions),
           requestSeries: (usage.requests ?? []).map(p => p?.value ?? 0),
           executionSeries: (usage.executions ?? []).map(p => p?.value ?? 0),
         });
       } catch (err: any) {
-        console.error('[Dev] fetch error (possible CORS):', err);
-        setApiError(err?.message ?? 'Network error — may be a CORS issue with the API key.');
+        console.error('[Dev] fetch error:', err);
+        setApiError(err?.message ?? 'Network error fetching usage data.');
       }
 
       setLoading(false);
@@ -230,9 +276,9 @@ const DevelopmentSection = () => {
           </div>
         )}
         {apiError && (
-          <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 max-w-lg">
-            <div className="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0 mt-1" />
-            <p className="text-red-400 text-[11px] font-mono break-all">{apiError}</p>
+          <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 max-w-xl">
+            <div className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0 mt-1" />
+            <p className="text-amber-300 text-[11px] font-mono">{apiError}</p>
           </div>
         )}
       </div>
