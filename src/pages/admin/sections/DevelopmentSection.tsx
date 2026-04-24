@@ -6,114 +6,62 @@ const ENDPOINT = import.meta.env.VITE_APPWRITE_ENDPOINT as string;
 const PROJECT_ID = import.meta.env.VITE_APPWRITE_PROJECT_ID as string;
 const API_KEY = import.meta.env.VITE_APPWRITE_API_KEY as string | undefined;
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-const fmtBytes = (b: number) => {
-  if (!b) return '0 B';
-  const k = 1024;
-  const sz = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(b) / Math.log(k));
-  return `${(b / Math.pow(k, i)).toFixed(1)} ${sz[i]}`;
-};
+// ── Helpers ────────────────────────────────────────────────────────────────────
 const fmtNum = (n: number) => {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
   return n.toLocaleString();
 };
 
-interface UsageSeries { date: string; value: number }
-
-interface ProjectUsage {
-  requests: UsageSeries[];
-  network: UsageSeries[];
-  executions: UsageSeries[];
-  storage: UsageSeries[];
-  users: UsageSeries[];
-  documents: UsageSeries[];
-  files: UsageSeries[];
-  sessions: UsageSeries[];
-}
-
-interface Stats {
-  totalUsers: number | null;
-  totalRequests: number | null;      // null = not yet loaded / scope missing
-  totalBandwidth: number | null;
-  totalExecutions: number | null;
-  storageUsed: number | null;
-  totalDocuments: number | null;
-  totalFiles: number | null;
-  activeSessions: number | null;
-  requestSeries: number[];
-  executionSeries: number[];
-}
-
 interface CollectionCount { label: string; count: number; collectionId: string | undefined }
 
-// ── Sparkline bar chart ────────────────────────────────────────────────────────
-const BarSparkline = ({ data, color = 'rgba(255,255,255,0.5)' }: { data: number[]; color?: string }) => {
-  if (!data.length) return <div className="w-full h-full bg-white/[0.03] rounded" />;
-  const max = Math.max(...data, 1);
-  return (
-    <div className="flex items-end gap-px w-full h-full">
-      {data.map((v, i) => (
-        <div
-          key={i}
-          className="flex-1 rounded-sm min-h-px transition-all duration-300"
-          style={{
-            height: `${Math.max(4, (v / max) * 100)}%`,
-            backgroundColor: color,
-            opacity: i === data.length - 1 ? 1 : 0.4 + (i / data.length) * 0.6,
-          }}
-        />
-      ))}
-    </div>
-  );
-};
+interface FunctionStat {
+  id: string;
+  name: string;
+  runtime: string;
+  executions: number | null;
+  enabled: boolean;
+}
 
-// ── Stat card ─────────────────────────────────────────────────────────────────
+interface BucketStat {
+  id: string;
+  name: string;
+  files: number | null;
+}
+
+// ── Stat card ──────────────────────────────────────────────────────────────────
 const StatCard = ({
-  label, value, sub, accent = false, sparkline, sparklineColor,
+  label, value, sub, accent = false,
 }: {
-  label: string; value: string | null; sub?: string;
-  accent?: boolean; sparkline?: number[]; sparklineColor?: string;
+  label: string; value: string | null; sub?: string; accent?: boolean;
 }) => (
-  <div className="bg-[#131211] border border-white/[0.07] rounded-xl p-4 flex flex-col gap-3 overflow-hidden relative">
+  <div className="bg-[#131211] border border-white/[0.07] rounded-xl p-5 flex flex-col gap-2">
     <p className="text-[10px] font-mono tracking-widest text-white/35 uppercase">{label}</p>
-    <div className="flex-1">
-      {value === null ? (
-        <div className="h-7 w-20 bg-white/[0.06] rounded animate-pulse" />
-      ) : (
-        <p className={`text-2xl font-mono font-semibold leading-none ${accent ? 'text-green-400' : 'text-white'}`}>
-          {value}
-        </p>
-      )}
-      {sub && <p className="text-[11px] text-white/30 mt-1.5 font-mono">{sub}</p>}
-    </div>
-    {sparkline && sparkline.length > 0 && (
-      <div className="h-8 w-full">
-        <BarSparkline data={sparkline} color={sparklineColor ?? (accent ? '#4ade80' : 'rgba(255,255,255,0.35)')} />
-      </div>
+    {value === null ? (
+      <div className="h-8 w-24 bg-white/[0.06] rounded animate-pulse mt-1" />
+    ) : (
+      <p className={`text-3xl font-mono font-semibold leading-none tabular-nums ${accent ? 'text-green-400' : 'text-white'}`}>
+        {value}
+      </p>
     )}
+    {sub && <p className="text-[11px] text-white/30 font-mono">{sub}</p>}
   </div>
 );
 
-// ── Main section ──────────────────────────────────────────────────────────────
+// ── Main ───────────────────────────────────────────────────────────────────────
 const DevelopmentSection = () => {
-  const [stats, setStats] = useState<Stats>({
-    totalUsers: null, totalRequests: null, totalBandwidth: null,
-    totalExecutions: null, storageUsed: null, totalDocuments: null,
-    totalFiles: null, activeSessions: null, requestSeries: [], executionSeries: [],
-  });
+  const [authUsers, setAuthUsers] = useState<number | null>(null);
+  const [fnStats, setFnStats] = useState<FunctionStat[]>([]);
+  const [bucketStats, setBucketStats] = useState<BucketStat[]>([]);
   const [collCounts, setCollCounts] = useState<CollectionCount[]>([]);
   const [loading, setLoading] = useState(true);
   const [apiKeyMissing, setApiKeyMissing] = useState(false);
-  const [apiError, setApiError] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
       setLoading(true);
-      setApiError(null);
 
-      // ── Collection counts (no API key needed) ────────────────────────────
+      // ── 1. Collection counts — SDK (no API key needed) ─────────────────
       const collDefs: CollectionCount[] = [
         { label: 'Parents', collectionId: collections.parentUsers, count: 0 },
         { label: 'Youth Players', collectionId: collections.youthPlayers, count: 0 },
@@ -126,267 +74,216 @@ const DevelopmentSection = () => {
         { label: 'Inquiries', collectionId: collections.websiteInquiries, count: 0 },
         { label: 'Dev Support', collectionId: collections.devSupport, count: 0 },
       ];
-
       const counts = await Promise.all(
         collDefs.map(async (def) => {
           if (!def.collectionId) return { ...def, count: 0 };
           try {
-            const res = await databases.listDocuments(databaseId, def.collectionId, [Query.limit(1)]);
-            return { ...def, count: (res as any).total ?? 0 };
+            const r = await databases.listDocuments(databaseId, def.collectionId, [Query.limit(1)]);
+            return { ...def, count: (r as any).total ?? 0 };
           } catch { return { ...def, count: 0 }; }
         })
       );
       setCollCounts(counts);
 
-      // ── Project usage API (requires VITE_APPWRITE_API_KEY) ──────────────
-      if (!API_KEY) {
-        setApiKeyMissing(true);
-        setLoading(false);
-        return;
-      }
+      if (!API_KEY) { setApiKeyMissing(true); setLoading(false); return; }
 
-      const headers: Record<string, string> = {
-        'x-appwrite-project': PROJECT_ID,
-        'x-appwrite-key': API_KEY,
-      };
+      const h = { 'x-appwrite-project': PROJECT_ID, 'x-appwrite-key': API_KEY };
 
+      // ── 2. Auth users ──────────────────────────────────────────────────
       try {
-        // Fetch all in parallel: project usage, users, per-service fallbacks
-        const [usageRes, usersRes, bucketsRes, functionsRes] = await Promise.all([
-          fetch(`${ENDPOINT}/project/usage?range=30d`, { headers }),
-          fetch(`${ENDPOINT}/users?limit=1`, { headers }),
-          fetch(`${ENDPOINT}/storage/buckets?limit=25`, { headers }),
-          fetch(`${ENDPOINT}/functions?limit=25`, { headers }),
-        ]);
-
-        let usage: Partial<ProjectUsage> = {};
-        let totalUsers: number | null = null;
-        let fallbackStorage: number | null = null;
-        let fallbackFiles: number | null = null;
-        let fallbackExecutions: number | null = null;
-
-        // Project usage (needs projects.read scope)
-        if (usageRes.ok) {
-          usage = await usageRes.json();
-        } else {
-          const errBody = await usageRes.json().catch(() => ({})) as any;
-          const missing = errBody?.message ?? `HTTP ${usageRes.status}`;
-          setApiError(`${missing} — add "projects.read" scope to your API key in Appwrite Console.`);
+        const r = await fetch(`${ENDPOINT}/users?limit=1`, { headers: h });
+        if (r.ok) {
+          const d = await r.json();
+          setAuthUsers(d.total ?? 0);
         }
+      } catch { /* silent */ }
 
-        // Users total (needs users.read)
-        if (usersRes.ok) {
-          const ud = await usersRes.json();
-          totalUsers = ud.total ?? null;
-        }
+      // ── 3. Functions list + per-function execution counts ──────────────
+      try {
+        const fnRes = await fetch(`${ENDPOINT}/functions?limit=25`, { headers: h });
+        if (fnRes.ok) {
+          const fnData = await fnRes.json();
+          const fnList: any[] = fnData.functions ?? [];
 
-        // Storage fallback: sum file sizes across buckets (needs storage.read + files.read)
-        if (bucketsRes.ok) {
-          const bd = await bucketsRes.json();
-          const bucketList: any[] = bd.buckets ?? [];
-          // Fetch per-bucket usage
-          const bucketUsages = await Promise.all(
-            bucketList.map(b =>
-              fetch(`${ENDPOINT}/storage/${b.$id}/usage?range=30d`, { headers })
-                .then(r => r.ok ? r.json() : null)
-                .catch(() => null)
-            )
+          const withExec = await Promise.all(
+            fnList.map(async (fn): Promise<FunctionStat> => {
+              let execTotal: number | null = null;
+              try {
+                const er = await fetch(`${ENDPOINT}/functions/${fn.$id}/executions?limit=1`, { headers: h });
+                if (er.ok) {
+                  const ed = await er.json();
+                  execTotal = ed.total ?? 0;
+                }
+              } catch { /* silent */ }
+              return {
+                id: fn.$id,
+                name: fn.name,
+                runtime: fn.runtime ?? '',
+                executions: execTotal,
+                enabled: fn.enabled !== false,
+              };
+            })
           );
-          let totalBytes = 0, totalFiles = 0;
-          for (const bu of bucketUsages) {
-            if (!bu) continue;
-            const storageLatest = Array.isArray(bu.storage) && bu.storage.length
-              ? bu.storage[bu.storage.length - 1]?.value ?? 0 : 0;
-            const filesLatest = Array.isArray(bu.files) && bu.files.length
-              ? bu.files[bu.files.length - 1]?.value ?? 0 : 0;
-            totalBytes += storageLatest;
-            totalFiles += filesLatest;
-          }
-          if (totalBytes > 0) fallbackStorage = totalBytes;
-          if (totalFiles > 0) fallbackFiles = totalFiles;
+          setFnStats(withExec);
         }
+      } catch { /* silent */ }
 
-        // Executions fallback: sum from per-function usage (needs functions.read + execution.read)
-        if (functionsRes.ok) {
-          const fd = await functionsRes.json();
-          const fnList: any[] = fd.functions ?? [];
-          const fnUsages = await Promise.all(
-            fnList.map(fn =>
-              fetch(`${ENDPOINT}/functions/${fn.$id}/usage?range=30d`, { headers })
-                .then(r => r.ok ? r.json() : null)
-                .catch(() => null)
-            )
+      // ── 4. Storage buckets + per-bucket file counts ───────────────────
+      try {
+        const bkRes = await fetch(`${ENDPOINT}/storage/buckets?limit=25`, { headers: h });
+        if (bkRes.ok) {
+          const bkData = await bkRes.json();
+          const bkList: any[] = bkData.buckets ?? [];
+
+          const withFiles = await Promise.all(
+            bkList.map(async (bk): Promise<BucketStat> => {
+              let fileCount: number | null = null;
+              try {
+                const fr = await fetch(`${ENDPOINT}/storage/buckets/${bk.$id}/files?limit=1`, { headers: h });
+                if (fr.ok) {
+                  const fd = await fr.json();
+                  fileCount = fd.total ?? 0;
+                }
+              } catch { /* silent */ }
+              return { id: bk.$id, name: bk.name, files: fileCount };
+            })
           );
-          let totalExec = 0;
-          for (const fu of fnUsages) {
-            if (!fu || !Array.isArray(fu.executions)) continue;
-            totalExec += fu.executions.reduce((s: number, p: any) => s + (p?.value ?? 0), 0);
-          }
-          if (totalExec > 0) fallbackExecutions = totalExec;
+          setBucketStats(withFiles);
         }
-
-        const sum = (series?: UsageSeries[]) =>
-          Array.isArray(series) ? series.reduce((acc, p) => acc + (p?.value ?? 0), 0) : null;
-        const latest = (series?: UsageSeries[]) =>
-          Array.isArray(series) && series.length ? series[series.length - 1]?.value ?? null : null;
-
-        const projectRequests = sum(usage.requests);
-        const projectExecs = sum(usage.executions);
-
-        setStats({
-          totalUsers,
-          totalRequests: projectRequests,
-          totalBandwidth: sum(usage.network),
-          totalExecutions: projectExecs ?? fallbackExecutions,
-          storageUsed: latest(usage.storage) ?? fallbackStorage,
-          totalDocuments: latest(usage.documents),
-          totalFiles: latest(usage.files) ?? fallbackFiles,
-          activeSessions: latest(usage.sessions),
-          requestSeries: (usage.requests ?? []).map(p => p?.value ?? 0),
-          executionSeries: (usage.executions ?? []).map(p => p?.value ?? 0),
-        });
-      } catch (err: any) {
-        console.error('[Dev] fetch error:', err);
-        setApiError(err?.message ?? 'Network error fetching usage data.');
-      }
+      } catch { /* silent */ }
 
       setLoading(false);
     })();
   }, []);
 
+  // ── Derived totals ─────────────────────────────────────────────────────────
+  const totalDocuments = collCounts.reduce((s, c) => s + c.count, 0);
+  const totalExecutions = fnStats.length
+    ? fnStats.reduce((s, f) => s + (f.executions ?? 0), 0)
+    : null;
+  const totalFiles = bucketStats.length
+    ? bucketStats.reduce((s, b) => s + (b.files ?? 0), 0)
+    : null;
   const maxCollCount = Math.max(...collCounts.map(c => c.count), 1);
+  const maxExec = Math.max(...fnStats.map(f => f.executions ?? 0), 1);
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
+    <div className="p-6 max-w-6xl mx-auto space-y-5">
 
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-white text-[15px] font-medium font-mono flex items-center gap-2">
-            <span className="text-white/30">{'</'}</span>
-            <span>System Overview</span>
-            <span className="text-white/30">{'>'}</span>
+          <h2 className="text-white text-[15px] font-medium font-mono">
+            <span className="text-white/25">{'// '}</span>system overview
           </h2>
-          <p className="text-white/30 text-[11px] font-mono mt-0.5">last 30 days · {new Date().toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric' })}</p>
+          <p className="text-white/25 text-[11px] font-mono mt-0.5">
+            {new Date().toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+          </p>
         </div>
         {apiKeyMissing && (
           <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
             <div className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
-            <p className="text-amber-400 text-[11px] font-mono">Add <code className="bg-white/10 px-1 rounded">VITE_APPWRITE_API_KEY</code> to see usage stats</p>
-          </div>
-        )}
-        {apiError && (
-          <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 max-w-xl">
-            <div className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0 mt-1" />
-            <p className="text-amber-300 text-[11px] font-mono">{apiError}</p>
+            <p className="text-amber-400 text-[11px] font-mono">
+              Add <code className="bg-white/10 px-1 rounded">VITE_APPWRITE_API_KEY</code> to Vercel env
+            </p>
           </div>
         )}
       </div>
 
-      {/* Row 1 — 4 stat cards */}
-      <div className="grid grid-cols-4 gap-3">
+      {/* Top stat cards */}
+      <div className="grid grid-cols-3 gap-3">
         <StatCard
           label="// auth users"
-          value={stats.totalUsers !== null ? fmtNum(stats.totalUsers) : (apiKeyMissing ? '—' : null)}
+          value={authUsers !== null ? fmtNum(authUsers) : (apiKeyMissing ? '—' : null)}
           sub="registered accounts"
           accent
         />
         <StatCard
-          label="// api requests"
-          value={stats.totalRequests !== null ? fmtNum(stats.totalRequests) : (apiKeyMissing ? '—' : null)}
-          sub="last 30 days"
-          sparkline={stats.requestSeries}
-        />
-        <StatCard
-          label="// bandwidth"
-          value={stats.totalBandwidth !== null ? fmtBytes(stats.totalBandwidth) : (apiKeyMissing ? '—' : null)}
-          sub="data transferred"
-        />
-        <StatCard
           label="// fn executions"
-          value={stats.totalExecutions !== null ? fmtNum(stats.totalExecutions) : (apiKeyMissing ? '—' : null)}
-          sub="last 30 days"
-          sparkline={stats.executionSeries}
-          sparklineColor="#818cf8"
-        />
-      </div>
-
-      {/* Row 2 — 4 more stat cards */}
-      <div className="grid grid-cols-4 gap-3">
-        <StatCard
-          label="// storage used"
-          value={stats.storageUsed !== null ? fmtBytes(stats.storageUsed) : (apiKeyMissing ? '—' : null)}
-          sub="across all buckets"
-        />
-        <StatCard
-          label="// total documents"
-          value={stats.totalDocuments !== null ? fmtNum(stats.totalDocuments) : (apiKeyMissing ? '—' : null)}
-          sub="all collections"
-          accent
+          value={totalExecutions !== null ? fmtNum(totalExecutions) : (apiKeyMissing ? '—' : null)}
+          sub="all-time across all functions"
         />
         <StatCard
           label="// stored files"
-          value={stats.totalFiles !== null ? fmtNum(stats.totalFiles) : (apiKeyMissing ? '—' : null)}
-          sub="across all buckets"
-        />
-        <StatCard
-          label="// active sessions"
-          value={stats.activeSessions !== null ? fmtNum(stats.activeSessions) : (apiKeyMissing ? '—' : null)}
-          sub="current"
+          value={totalFiles !== null ? fmtNum(totalFiles) : (apiKeyMissing ? '—' : null)}
+          sub="across all storage buckets"
         />
       </div>
 
-      {/* Row 3 — Charts */}
-      {!apiKeyMissing && (stats.requestSeries.length > 0 || loading) && (
-        <div className="grid grid-cols-2 gap-3">
-          {/* Requests chart */}
-          <div className="bg-[#131211] border border-white/[0.07] rounded-xl p-4">
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-[10px] font-mono tracking-widest text-white/35 uppercase">// api requests · 30d</p>
-              {stats.totalRequests !== null && (
-                <p className="text-white font-mono text-sm">{fmtNum(stats.totalRequests)} total</p>
-              )}
-            </div>
-            <div className="h-20">
-              {loading ? (
-                <div className="w-full h-full bg-white/[0.03] rounded animate-pulse" />
-              ) : (
-                <BarSparkline data={stats.requestSeries} color="rgba(255,255,255,0.5)" />
-              )}
-            </div>
-          </div>
+      <div className="grid grid-cols-3 gap-3">
+        <StatCard
+          label="// total db documents"
+          value={fmtNum(totalDocuments)}
+          sub="sum of all collections"
+          accent
+        />
+        <StatCard
+          label="// active functions"
+          value={fnStats.length ? fmtNum(fnStats.filter(f => f.enabled).length) : (apiKeyMissing ? '—' : null)}
+          sub={`of ${fnStats.length || '—'} deployed`}
+        />
+        <StatCard
+          label="// storage buckets"
+          value={bucketStats.length ? fmtNum(bucketStats.length) : (apiKeyMissing ? '—' : null)}
+          sub="configured buckets"
+        />
+      </div>
 
-          {/* Executions chart */}
-          <div className="bg-[#131211] border border-white/[0.07] rounded-xl p-4">
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-[10px] font-mono tracking-widest text-white/35 uppercase">// fn executions · 30d</p>
-              {stats.totalExecutions !== null && (
-                <p className="text-white font-mono text-sm">{fmtNum(stats.totalExecutions)} total</p>
-              )}
-            </div>
-            <div className="h-20">
-              {loading ? (
-                <div className="w-full h-full bg-white/[0.03] rounded animate-pulse" />
-              ) : (
-                <BarSparkline data={stats.executionSeries} color="#818cf8" />
-              )}
-            </div>
+      {/* Functions breakdown */}
+      {!apiKeyMissing && (
+        <div className="bg-[#131211] border border-white/[0.07] rounded-xl overflow-hidden">
+          <div className="flex items-center px-5 py-3.5 border-b border-white/[0.06]">
+            <p className="text-[10px] font-mono tracking-widest text-white/35 uppercase">// functions</p>
+            {!loading && <span className="ml-auto text-white/20 text-[11px] font-mono">{fnStats.length} deployed</span>}
+          </div>
+          <div className="divide-y divide-white/[0.04]">
+            {loading
+              ? Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-4 px-5 py-3.5 animate-pulse">
+                    <div className="w-44 h-3 bg-white/[0.06] rounded" />
+                    <div className="w-16 h-3 bg-white/[0.03] rounded" />
+                    <div className="flex-1 h-2 bg-white/[0.03] rounded-full" />
+                    <div className="w-12 h-3 bg-white/[0.06] rounded" />
+                  </div>
+                ))
+              : fnStats.length === 0
+                ? <p className="text-white/20 text-[12px] font-mono text-center py-6">no functions found</p>
+                : fnStats.map(fn => (
+                    <div key={fn.id} className="flex items-center gap-4 px-5 py-3">
+                      <div className="flex items-center gap-2 w-44 flex-shrink-0 min-w-0">
+                        <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${fn.enabled ? 'bg-green-400' : 'bg-white/20'}`} />
+                        <p className="text-white/70 text-[12px] font-mono truncate">{fn.name}</p>
+                      </div>
+                      <span className="text-white/25 text-[11px] font-mono w-20 flex-shrink-0">{fn.runtime}</span>
+                      <div className="flex-1 h-[3px] bg-white/[0.05] rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-indigo-400/50 rounded-full transition-all duration-700"
+                          style={{ width: `${Math.max(2, ((fn.executions ?? 0) / maxExec) * 100)}%` }}
+                        />
+                      </div>
+                      <p className="text-white font-mono text-[12px] w-16 text-right tabular-nums">
+                        {fn.executions !== null ? fmtNum(fn.executions) : '—'}
+                      </p>
+                    </div>
+                  ))
+            }
           </div>
         </div>
       )}
 
-      {/* Row 4 — Collection breakdown */}
+      {/* Collection breakdown */}
       <div className="bg-[#131211] border border-white/[0.07] rounded-xl overflow-hidden">
         <div className="flex items-center px-5 py-3.5 border-b border-white/[0.06]">
           <p className="text-[10px] font-mono tracking-widest text-white/35 uppercase">// collection breakdown</p>
+          {!loading && <span className="ml-auto text-white/20 text-[11px] font-mono">{fmtNum(totalDocuments)} total</span>}
         </div>
         <div className="divide-y divide-white/[0.04]">
           {loading
             ? Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-4 px-5 py-3.5">
-                  <div className="w-28 h-3 bg-white/[0.06] rounded animate-pulse" />
-                  <div className="flex-1 h-2 bg-white/[0.03] rounded-full animate-pulse" />
-                  <div className="w-12 h-3 bg-white/[0.06] rounded animate-pulse" />
+                <div key={i} className="flex items-center gap-4 px-5 py-3.5 animate-pulse">
+                  <div className="w-32 h-3 bg-white/[0.06] rounded" />
+                  <div className="flex-1 h-2 bg-white/[0.03] rounded-full" />
+                  <div className="w-12 h-3 bg-white/[0.06] rounded" />
                 </div>
               ))
             : collCounts.map(col => (
@@ -394,16 +291,36 @@ const DevelopmentSection = () => {
                   <p className="text-white/60 text-[12px] font-mono w-36 flex-shrink-0">{col.label}</p>
                   <div className="flex-1 h-[3px] bg-white/[0.05] rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-white/30 rounded-full transition-all duration-700"
+                      className="h-full bg-white/25 rounded-full transition-all duration-700"
                       style={{ width: `${Math.max(2, (col.count / maxCollCount) * 100)}%` }}
                     />
                   </div>
-                  <p className="text-white font-mono text-[12px] w-14 text-right">{fmtNum(col.count)}</p>
+                  <p className="text-white font-mono text-[12px] w-14 text-right tabular-nums">{fmtNum(col.count)}</p>
                 </div>
               ))
           }
         </div>
       </div>
+
+      {/* Storage buckets */}
+      {!apiKeyMissing && bucketStats.length > 0 && (
+        <div className="bg-[#131211] border border-white/[0.07] rounded-xl overflow-hidden">
+          <div className="flex items-center px-5 py-3.5 border-b border-white/[0.06]">
+            <p className="text-[10px] font-mono tracking-widest text-white/35 uppercase">// storage buckets</p>
+          </div>
+          <div className="divide-y divide-white/[0.04]">
+            {bucketStats.map(bk => (
+              <div key={bk.id} className="flex items-center gap-4 px-5 py-3">
+                <p className="text-white/60 text-[12px] font-mono flex-1 truncate">{bk.name}</p>
+                <p className="text-white/30 text-[11px] font-mono">{bk.id}</p>
+                <p className="text-white font-mono text-[12px] w-20 text-right tabular-nums">
+                  {bk.files !== null ? `${fmtNum(bk.files)} files` : '—'}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
     </div>
   );
