@@ -106,10 +106,12 @@ const DevelopmentSection = () => {
   const [collCounts, setCollCounts] = useState<CollectionCount[]>([]);
   const [loading, setLoading] = useState(true);
   const [apiKeyMissing, setApiKeyMissing] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
       setLoading(true);
+      setApiError(null);
 
       // ── Collection counts (no API key needed) ────────────────────────────
       const collDefs: CollectionCount[] = [
@@ -146,45 +148,61 @@ const DevelopmentSection = () => {
       const headers: Record<string, string> = {
         'x-appwrite-project': PROJECT_ID,
         'x-appwrite-key': API_KEY,
-        'Content-Type': 'application/json',
       };
 
-      const endDate = new Date().toISOString().split('T')[0];
-      const startDate = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
+      try {
+        // Fetch usage (range param) and users in parallel
+        const [usageRes, usersRes] = await Promise.all([
+          fetch(`${ENDPOINT}/project/usage?range=30d`, { headers }),
+          fetch(`${ENDPOINT}/users?limit=1`, { headers }),
+        ]);
 
-      const [usageRes, usersRes] = await Promise.all([
-        fetch(`${ENDPOINT}/project/usage?startDate=${startDate}&endDate=${endDate}`, { headers }).catch(() => null),
-        fetch(`${ENDPOINT}/users?queries=${encodeURIComponent(JSON.stringify([{ method: 'limit', values: [1] }]))}`, { headers }).catch(() => null),
-      ]);
+        // Log raw status for debugging
+        console.log('[Dev] usage status:', usageRes.status, '| users status:', usersRes.status);
 
-      let usage: Partial<ProjectUsage> = {};
-      let totalUsers: number | null = null;
+        let usage: Partial<ProjectUsage> = {};
+        let totalUsers: number | null = null;
 
-      if (usageRes?.ok) {
-        try { usage = await usageRes.json(); } catch { /* ignore */ }
-      }
-      if (usersRes?.ok) {
-        try {
+        if (usageRes.ok) {
+          const raw = await usageRes.json();
+          console.log('[Dev] usage payload keys:', Object.keys(raw));
+          usage = raw;
+        } else {
+          const errText = await usageRes.text().catch(() => '');
+          console.warn('[Dev] usage fetch failed:', usageRes.status, errText);
+          setApiError(`Usage API ${usageRes.status}: ${errText.slice(0, 120)}`);
+        }
+
+        if (usersRes.ok) {
           const ud = await usersRes.json();
+          console.log('[Dev] users total:', ud.total);
           totalUsers = ud.total ?? null;
-        } catch { /* ignore */ }
+        } else {
+          const errText = await usersRes.text().catch(() => '');
+          console.warn('[Dev] users fetch failed:', usersRes.status, errText);
+        }
+
+        const sum = (series?: UsageSeries[]) =>
+          Array.isArray(series) ? series.reduce((acc, p) => acc + (p?.value ?? 0), 0) : 0;
+        const latest = (series?: UsageSeries[]) =>
+          Array.isArray(series) && series.length ? series[series.length - 1]?.value ?? null : null;
+
+        setStats({
+          totalUsers,
+          totalRequests: sum(usage.requests),
+          totalBandwidth: sum(usage.network),
+          totalExecutions: sum(usage.executions),
+          storageUsed: latest(usage.storage),
+          totalDocuments: latest(usage.documents),
+          totalFiles: latest(usage.files),
+          activeSessions: latest(usage.sessions),
+          requestSeries: (usage.requests ?? []).map(p => p?.value ?? 0),
+          executionSeries: (usage.executions ?? []).map(p => p?.value ?? 0),
+        });
+      } catch (err: any) {
+        console.error('[Dev] fetch error (possible CORS):', err);
+        setApiError(err?.message ?? 'Network error — may be a CORS issue with the API key.');
       }
-
-      const sum = (series?: UsageSeries[]) => (series ?? []).reduce((acc, p) => acc + (p.value ?? 0), 0);
-      const latest = (series?: UsageSeries[]) => series?.length ? series[series.length - 1].value : null;
-
-      setStats({
-        totalUsers,
-        totalRequests: sum(usage.requests),
-        totalBandwidth: sum(usage.network),
-        totalExecutions: sum(usage.executions),
-        storageUsed: latest(usage.storage),
-        totalDocuments: latest(usage.documents),
-        totalFiles: latest(usage.files),
-        activeSessions: latest(usage.sessions),
-        requestSeries: (usage.requests ?? []).map(p => p.value),
-        executionSeries: (usage.executions ?? []).map(p => p.value),
-      });
 
       setLoading(false);
     })();
@@ -209,6 +227,12 @@ const DevelopmentSection = () => {
           <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
             <div className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
             <p className="text-amber-400 text-[11px] font-mono">Add <code className="bg-white/10 px-1 rounded">VITE_APPWRITE_API_KEY</code> to see usage stats</p>
+          </div>
+        )}
+        {apiError && (
+          <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 max-w-lg">
+            <div className="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0 mt-1" />
+            <p className="text-red-400 text-[11px] font-mono break-all">{apiError}</p>
           </div>
         )}
       </div>
