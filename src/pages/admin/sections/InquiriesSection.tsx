@@ -197,12 +197,17 @@ const InquiriesSection = () => {
         replyMessage: replyBody.trim(),
       });
 
-      // async: true — fire and forget, don't wait for email delivery to respond
-      await functions.createExecution(SEND_INQUIRY_REPLY_FN, payload, true);
+      const execution = await functions.createExecution(SEND_INQUIRY_REPLY_FN, payload);
+      console.log('sendReply execution:', execution.status, execution.responseStatusCode, execution.responseBody);
 
-      setSendResult('success');
-      if (!inq.read) markRead(inq.$id);
-      setTimeout(() => closeReplyModal(), 1800);
+      if (execution.responseStatusCode === 200) {
+        setSendResult('success');
+        if (!inq.read) markRead(inq.$id);
+        setTimeout(() => closeReplyModal(), 1800);
+      } else {
+        console.error('Function returned non-200:', execution.responseStatusCode, execution.errors);
+        setSendResult('error');
+      }
     } catch (err) {
       console.error('sendReply error:', err);
       setSendResult('error');
@@ -214,11 +219,11 @@ const InquiriesSection = () => {
   const openInGmail = (inq: Inquiry) => {
     if (!inq.email) return;
     const name = `${inq.firstName || ''} ${inq.lastName || ''}`.trim() || 'there';
-    const subject = encodeURIComponent(`Re: ${inq.subject || 'Your Inquiry'}`);
-    const body = encodeURIComponent(
-      `Hi ${name},\n\n${replyBody}\n\nBest regards,\nNext Star Soccer\n\n────────────────────\nYour original message:\n\n${inq.message || ''}`
-    );
-    window.open(`https://mail.google.com/mail/u/0/?view=cm&fs=1&to=${encodeURIComponent(inq.email)}&su=${subject}&body=${body}`, '_blank');
+    const to = inq.email;
+    const subject = `Re: ${inq.subject || 'Your Inquiry'}`;
+    const body = `Hi ${name},\n\n${replyBody}\n\nBest regards,\nNext Star Soccer\n\n────────────────────\nYour original message:\n\n${inq.message || ''}`;
+    const url = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   // ── Helpers ───────────────────────────────────────────────────────────────
