@@ -21,6 +21,7 @@ export default async ({ req, res, log, error }) => {
       ? new Date(originalDate).toLocaleDateString("en-US", {
           month: "long", day: "numeric", year: "numeric",
           hour: "numeric", minute: "2-digit", hour12: true,
+          timeZone: "America/New_York",
         })
       : null;
 
@@ -40,11 +41,8 @@ export default async ({ req, res, log, error }) => {
 
           <!-- Header -->
           <tr>
-            <td style="background:linear-gradient(135deg,#000000 0%,#1a1a1a 100%);padding:40px 30px;text-align:center;">
-              ${process.env.EMAIL_LOGO_URL
-                ? `<img src="${process.env.EMAIL_LOGO_URL}" alt="Next Star Soccer" style="height:60px;width:auto;display:block;margin:0 auto 12px auto;" />`
-                : ""}
-              <h1 style="color:#ffffff;margin:0;font-size:26px;font-weight:bold;">Next Star Soccer</h1>
+            <td style="background-color:#000000;padding:32px 30px;text-align:center;">
+              ${process.env.EMAIL_LOGO_URL ? `<img src="${process.env.EMAIL_LOGO_URL}" alt="Next Star Soccer" style="width:250px;display:block;margin:0 auto;" />` : ""}
             </td>
           </tr>
 

@@ -224,7 +224,7 @@ const InquiriesSection = () => {
     const body = encodeURIComponent(
       `Hi ${name},\n\n${replyBody}\n\nBest regards,\nNext Star Soccer\n\n────────────────────\nYour original message:\n\n${inq.message || ''}`
     );
-    window.open(`https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(inq.email)}&su=${subject}&body=${body}`, '_blank');
+    window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(inq.email)}&su=${subject}&body=${body}`, '_blank');
   };
 
   // ── Helpers ───────────────────────────────────────────────────────────────
