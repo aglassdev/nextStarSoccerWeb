@@ -217,14 +217,8 @@ const InquiriesSection = () => {
     }
   };
 
-  const openInGmail = (inq: Inquiry) => {
-    if (!inq.email) return;
-    const name = `${inq.firstName || ''} ${inq.lastName || ''}`.trim() || 'there';
-    const subject = encodeURIComponent(`Re: ${inq.subject || 'Your Inquiry'}`);
-    const body = encodeURIComponent(
-      `Hi ${name},\n\n${replyBody}\n\nBest regards,\nNext Star Soccer\n\n────────────────────\nYour original message:\n\n${inq.message || ''}`
-    );
-    window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(inq.email)}&su=${subject}&body=${body}`, '_blank');
+  const openInGmail = (_inq: Inquiry) => {
+    window.open('https://mail.google.com/mail/', '_blank');
   };
 
   // ── Helpers ───────────────────────────────────────────────────────────────
