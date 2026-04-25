@@ -15,9 +15,11 @@ interface Inquiry {
   read?: boolean;
   trashed?: boolean;
   trashedAt?: string;
+  resolved?: boolean;
+  resolvedAt?: string;
 }
 
-type Tab = 'priority' | 'trash';
+type Tab = 'priority' | 'resolved' | 'trash';
 
 const TRASH_TTL_DAYS = 30;
 
@@ -73,35 +75,32 @@ const InquiriesSection = () => {
   useEffect(() => { fetchAndPurge(); }, [fetchAndPurge]);
 
   // ── Derived lists ─────────────────────────────────────────────────────────
-  const active = allDocs.filter(d => !d.trashed);
+  const active = allDocs.filter(d => !d.trashed && !d.resolved);
+  const resolved = allDocs.filter(d => !d.trashed && d.resolved);
   const trashed = allDocs.filter(d => d.trashed);
   const unreadCount = active.filter(i => !i.read).length;
+  const resolvedCount = resolved.length;
   const trashCount = trashed.length;
 
-  const filteredActive = active.filter(inq => {
-    if (filterUnread && inq.read) return false;
-    if (!searchQuery) return true;
+  const applySearch = (list: Inquiry[]) => {
+    if (!searchQuery) return list;
     const q = searchQuery.toLowerCase();
-    const name = `${inq.firstName || ''} ${inq.lastName || ''}`.toLowerCase();
-    return (
-      name.includes(q) ||
-      (inq.email || '').toLowerCase().includes(q) ||
-      (inq.subject || '').toLowerCase().includes(q) ||
-      (inq.message || '').toLowerCase().includes(q)
-    );
-  });
+    return list.filter(inq => {
+      const name = `${inq.firstName || ''} ${inq.lastName || ''}`.toLowerCase();
+      return (
+        name.includes(q) ||
+        (inq.email || '').toLowerCase().includes(q) ||
+        (inq.subject || '').toLowerCase().includes(q) ||
+        (inq.message || '').toLowerCase().includes(q)
+      );
+    });
+  };
 
-  const filteredTrashed = trashed.filter(inq => {
-    if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
-    const name = `${inq.firstName || ''} ${inq.lastName || ''}`.toLowerCase();
-    return (
-      name.includes(q) ||
-      (inq.email || '').toLowerCase().includes(q) ||
-      (inq.subject || '').toLowerCase().includes(q) ||
-      (inq.message || '').toLowerCase().includes(q)
-    );
-  });
+  const filteredActive = applySearch(
+    filterUnread ? active.filter(i => !i.read) : active
+  );
+  const filteredResolved = applySearch(resolved);
+  const filteredTrashed = applySearch(trashed);
 
   // ── Actions ───────────────────────────────────────────────────────────────
   const markRead = async (id: string) => {
@@ -115,6 +114,37 @@ const InquiriesSection = () => {
     if (expandedId === inq.$id) { setExpandedId(null); return; }
     setExpandedId(inq.$id);
     if (!inq.read) markRead(inq.$id);
+  };
+
+  const markResolved = async (id: string) => {
+    try {
+      const resolvedAt = new Date().toISOString();
+      await databases.updateDocument(databaseId, collections.websiteInquiries, id, {
+        resolved: true,
+        resolvedAt,
+        read: true,
+      });
+      setAllDocs(prev => prev.map(i =>
+        i.$id === id ? { ...i, resolved: true, resolvedAt, read: true } : i
+      ));
+      if (expandedId === id) setExpandedId(null);
+    } catch { /* silent */ }
+  };
+
+  const unresolve = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActioningId(id);
+    try {
+      await databases.updateDocument(databaseId, collections.websiteInquiries, id, {
+        resolved: false,
+        resolvedAt: null,
+      });
+      setAllDocs(prev => prev.map(i =>
+        i.$id === id ? { ...i, resolved: false, resolvedAt: undefined } : i
+      ));
+      if (expandedId === id) setExpandedId(null);
+    } catch { /* silent */ }
+    setActioningId(null);
   };
 
   const moveToTrash = async (id: string, e: React.MouseEvent) => {
@@ -207,7 +237,7 @@ const InquiriesSection = () => {
         throw new Error(body.error || `HTTP ${res.responseStatusCode}`);
 
       setSendResult('success');
-      if (!inq.read) markRead(inq.$id);
+      await markResolved(inq.$id);
       setTimeout(() => closeReplyModal(), 1800);
     } catch (err) {
       console.error('sendReply error:', err);
@@ -217,7 +247,8 @@ const InquiriesSection = () => {
     }
   };
 
-  const openInGmail = (_inq: Inquiry) => {
+  const openInGmail = (inq: Inquiry) => {
+    markResolved(inq.$id);
     window.open('https://mail.google.com/mail/', '_blank');
   };
 
@@ -240,10 +271,12 @@ const InquiriesSection = () => {
   };
 
   // ── Shared row renderer ───────────────────────────────────────────────────
-  const renderRow = (inq: Inquiry, inTrash: boolean) => {
+  const renderRow = (inq: Inquiry, context: 'priority' | 'resolved' | 'trash') => {
     const isExpanded = expandedId === inq.$id;
     const isRead = !!inq.read;
     const isActioning = actioningId === inq.$id;
+    const inTrash = context === 'trash';
+    const inResolved = context === 'resolved';
     const name = `${inq.firstName || ''} ${inq.lastName || ''}`.trim() || 'Unknown';
     const initial = name[0]?.toUpperCase() || '?';
     const daysLeft = inTrash && inq.trashedAt ? daysUntilDelete(inq.trashedAt) : null;
@@ -251,7 +284,7 @@ const InquiriesSection = () => {
     return (
       <div key={inq.$id} className="rounded-lg border border-white/[0.08] overflow-hidden">
 
-        {/* Collapsed row — div so we can nest action buttons */}
+        {/* Collapsed row */}
         <div
           onClick={() => handleExpand(inq)}
           className={`flex items-center gap-4 px-4 py-3.5 cursor-pointer bg-[#1d1c21] hover:bg-[#242228] transition-all select-none ${isRead && !isExpanded && !inTrash ? 'opacity-60' : ''}`}
@@ -264,8 +297,11 @@ const InquiriesSection = () => {
           {/* Name + subject */}
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              {!isRead && !inTrash && (
+              {!isRead && !inTrash && !inResolved && (
                 <div className="w-1.5 h-1.5 rounded-full bg-white flex-shrink-0" />
+              )}
+              {inResolved && (
+                <div className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" />
               )}
               <span className="text-white text-[13px] font-medium truncate">{name}</span>
             </div>
@@ -280,6 +316,8 @@ const InquiriesSection = () => {
               <span className="text-white/25 text-[11px]">
                 {daysLeft === 0 ? 'Deletes today' : `${daysLeft}d left`}
               </span>
+            ) : inResolved && inq.resolvedAt ? (
+              <span className="text-green-400/50 text-[11px]">Resolved {fmtDate(inq.resolvedAt)}</span>
             ) : (
               <p className="text-white/30 text-[12px] max-w-[180px] truncate">{inq.message || ''}</p>
             )}
@@ -290,7 +328,6 @@ const InquiriesSection = () => {
           <div className="flex items-center gap-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
             {inTrash ? (
               <>
-                {/* Restore */}
                 <button
                   onClick={(e) => restoreFromTrash(inq.$id, e)}
                   disabled={isActioning}
@@ -301,12 +338,36 @@ const InquiriesSection = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
                   </svg>
                 </button>
-                {/* Delete permanently */}
                 <button
                   onClick={(e) => deletePermanently(inq.$id, e)}
                   disabled={isActioning}
                   title="Delete permanently"
                   className="w-7 h-7 flex items-center justify-center rounded-md text-white/30 hover:text-red-400 hover:bg-red-400/[0.08] transition-colors"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              </>
+            ) : inResolved ? (
+              <>
+                {/* Unresolve */}
+                <button
+                  onClick={(e) => unresolve(inq.$id, e)}
+                  disabled={isActioning}
+                  title="Move back to Priority"
+                  className="w-7 h-7 flex items-center justify-center rounded-md text-white/30 hover:text-white hover:bg-white/[0.08] transition-colors"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                  </svg>
+                </button>
+                {/* Trash */}
+                <button
+                  onClick={(e) => moveToTrash(inq.$id, e)}
+                  disabled={isActioning}
+                  title="Move to trash"
+                  className="w-7 h-7 flex items-center justify-center rounded-md text-white/20 hover:text-white/60 hover:bg-white/[0.06] transition-colors"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -350,6 +411,17 @@ const InquiriesSection = () => {
                     year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true,
                   })}
                 </p>
+                {inResolved && inq.resolvedAt && (
+                  <p>
+                    <span className="text-green-400/60">Resolved:</span>{' '}
+                    <span className="text-green-400/50">
+                      {new Date(inq.resolvedAt).toLocaleString('en-US', {
+                        timeZone: 'America/New_York', month: 'short', day: 'numeric',
+                        year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true,
+                      })}
+                    </span>
+                  </p>
+                )}
                 {inTrash && inq.trashedAt && (
                   <p>
                     <span className="text-white/30">Trashed:</span>{' '}
@@ -412,6 +484,17 @@ const InquiriesSection = () => {
           )}
         </button>
         <button
+          onClick={() => { setTab('resolved'); setExpandedId(null); setSearchQuery(''); setFilterUnread(false); }}
+          className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-[12px] font-medium transition-colors ${tab === 'resolved' ? 'bg-white/[0.10] text-white' : 'text-white/40 hover:text-white'}`}
+        >
+          Resolved
+          {resolvedCount > 0 && (
+            <span className="bg-green-400/20 text-green-400 text-[10px] font-medium px-1.5 py-0.5 rounded-full leading-none">
+              {resolvedCount}
+            </span>
+          )}
+        </button>
+        <button
           onClick={() => { setTab('trash'); setExpandedId(null); setSearchQuery(''); setFilterUnread(false); }}
           className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-[12px] font-medium transition-colors ${tab === 'trash' ? 'bg-white/[0.10] text-white' : 'text-white/40 hover:text-white'}`}
         >
@@ -432,7 +515,7 @@ const InquiriesSection = () => {
           </svg>
           <input
             type="text"
-            placeholder={tab === 'trash' ? 'Search trash…' : 'Search inquiries…'}
+            placeholder={tab === 'trash' ? 'Search trash…' : tab === 'resolved' ? 'Search resolved…' : 'Search inquiries…'}
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             className="w-full bg-white/[0.05] border border-white/[0.08] rounded-lg pl-9 pr-4 py-2 text-white text-[13px] placeholder-white/25 focus:outline-none focus:border-white/20"
@@ -470,7 +553,17 @@ const InquiriesSection = () => {
           </div>
         ) : (
           <div className="space-y-px">
-            {filteredActive.map(inq => renderRow(inq, false))}
+            {filteredActive.map(inq => renderRow(inq, 'priority'))}
+          </div>
+        )
+      ) : tab === 'resolved' ? (
+        filteredResolved.length === 0 ? (
+          <div className="text-white/30 text-sm text-center py-10">
+            {searchQuery ? 'No matching resolved inquiries.' : 'No resolved inquiries yet.'}
+          </div>
+        ) : (
+          <div className="space-y-px">
+            {filteredResolved.map(inq => renderRow(inq, 'resolved'))}
           </div>
         )
       ) : (
@@ -484,7 +577,7 @@ const InquiriesSection = () => {
               Items are permanently deleted after {TRASH_TTL_DAYS} days.
             </p>
             <div className="space-y-px">
-              {filteredTrashed.map(inq => renderRow(inq, true))}
+              {filteredTrashed.map(inq => renderRow(inq, 'trash'))}
             </div>
           </>
         )
@@ -531,13 +624,12 @@ const InquiriesSection = () => {
                   className="w-full bg-white/[0.05] border border-white/[0.08] rounded-lg px-4 py-3 text-white text-[13px] placeholder-white/25 focus:outline-none focus:border-white/20 resize-none disabled:opacity-50"
                 />
 
-                {/* Send result feedback */}
                 {sendResult === 'success' && (
                   <div className="flex items-center gap-2 text-green-400 text-[12px]">
                     <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    Reply sent successfully!
+                    Reply sent — marked as resolved.
                   </div>
                 )}
                 {sendResult === 'error' && (
@@ -561,10 +653,9 @@ const InquiriesSection = () => {
                   <button
                     onClick={() => openInGmail(inq)}
                     disabled={!inq.email}
-                    title="Open compose in Gmail"
+                    title="Open Gmail inbox and mark resolved"
                     className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-white/[0.10] bg-white/[0.05] text-white text-[12px] hover:bg-white/[0.10] transition-colors disabled:opacity-30"
                   >
-                    {/* Gmail "G" icon */}
                     <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
                       <path d="M22 6C22 4.9 21.1 4 20 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V6ZM20 6L12 11L4 6H20ZM20 18H4V8L12 13L20 8V18Z" fill="currentColor"/>
                     </svg>
