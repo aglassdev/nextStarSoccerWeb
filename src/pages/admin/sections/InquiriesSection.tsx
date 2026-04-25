@@ -591,7 +591,7 @@ const InquiriesSection = () => {
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
             onClick={closeReplyModal}>
-            <div className="bg-[#1a1820] border border-white/[0.10] rounded-xl shadow-2xl w-full max-w-lg mx-4"
+            <div className="bg-[#1a1820] border border-white/[0.10] rounded-xl shadow-2xl w-full max-w-2xl mx-4"
               onClick={e => e.stopPropagation()}>
 
               {/* Header */}
@@ -613,7 +613,7 @@ const InquiriesSection = () => {
               <div className="px-5 py-4 space-y-3">
                 <div className="bg-white/[0.04] border border-white/[0.07] rounded-lg px-3 py-3">
                   <p className="text-white/30 text-[11px] uppercase tracking-widest mb-1.5">Original</p>
-                  <p className="text-white/50 text-[12px] leading-relaxed line-clamp-3">{inq.message}</p>
+                  <p className="text-white/50 text-[12px] leading-relaxed overflow-y-auto max-h-40 whitespace-pre-wrap">{inq.message}</p>
                 </div>
                 <textarea
                   value={replyBody}
