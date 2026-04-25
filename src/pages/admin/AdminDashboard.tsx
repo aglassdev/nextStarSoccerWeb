@@ -348,7 +348,7 @@ const AdminDashboard = () => {
 
         if (collections.websiteInquiries) {
           const msgs = await databases.listDocuments(databaseId, collections.websiteInquiries, [Query.orderDesc('$createdAt'), Query.limit(50)]).catch(() => ({ documents: [] }));
-          setRecentMessages((msgs as any).documents.filter((m: any) => !m.trashed).slice(0, 3));
+          setRecentMessages((msgs as any).documents.filter((m: any) => !m.trashed && !m.resolved).slice(0, 3));
         }
 
         const counts: Record<string, number> = {};
