@@ -117,7 +117,7 @@ export const coaches: Coach[] = [
     handle: 'coach3',
     slug: 'ryan-machado',
     status: 'Available',
-    avatarUrl: images.coach3,
+    avatarUrl: images.coach4,
   },
   {
     id: 4,
@@ -126,7 +126,7 @@ export const coaches: Coach[] = [
     handle: 'coach4',
     slug: 'gonzalo-carrasco',
     status: 'Available',
-    avatarUrl: images.coach4,
+    avatarUrl: images.coach3,
   },
   {
     id: 5,
