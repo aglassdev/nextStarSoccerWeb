@@ -19,11 +19,11 @@ const CoachesPage = () => {
           </p>
 
           {/* Profile Cards Grid - 2 rows of 5 on desktop, 5 rows of 2 on mobile */}
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-6 lg:gap-8">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-5">
             {coaches.map((coach) => (
               <div
                 key={coach.id}
-                className="flex justify-center cursor-pointer"
+                className="flex justify-center cursor-pointer [&_.pc-card]:max-h-[320px] [&_.pc-card]:h-[55svh]"
                 onClick={() => navigate(`/coaches/${coach.slug}`)}
               >
                 <ProfileCard
