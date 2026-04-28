@@ -250,11 +250,15 @@ const InquiriesSection = () => {
   const openInGmail = (inq: Inquiry) => {
     if (!inq.email) return;
     const name = `${inq.firstName || ''} ${inq.lastName || ''}`.trim() || 'there';
-    const subject = encodeURIComponent(`Re: ${inq.subject || 'Your Inquiry'}`);
+    const to = encodeURIComponent(inq.email);
+    const su = encodeURIComponent(`Re: ${inq.subject || 'Your Inquiry'}`);
     const body = encodeURIComponent(
       `Hi ${name},\n\n${replyBody || ''}\n\nBest regards,\nNext Star Soccer\n\n────────────────────\nYour original message:\n\n${inq.message || ''}`
     );
-    window.location.href = `mailto:${inq.email}?subject=${subject}&body=${body}`;
+    window.open(
+      `https://mail.google.com/mail/?view=cm&to=${to}&su=${su}&body=${body}`,
+      '_blank'
+    );
   };
 
   // ── Helpers ───────────────────────────────────────────────────────────────
