@@ -62,6 +62,7 @@ export const coaches: Coach[] = [
           { icon: `${ICONS}losAngelesSalsa.png`, name: 'Los Angeles Salsa' },
           { icon: `${ICONS}montreal.png`, name: 'Montreal Impact' },
           { icon: `${ICONS}baltimoreBlast.png`, name: 'Baltimore Blast' },
+          { icon: `${ICONS}krcgenk.png`, name: 'KRC Genk' },
           { icon: `${ICONS}washingtonWarthogs.png`, name: 'Washington Warthogs' },
         ],
       },
