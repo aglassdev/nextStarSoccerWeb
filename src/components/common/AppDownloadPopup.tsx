@@ -1,18 +1,21 @@
 import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 
 const STORAGE_KEY = 'nss_app_popup_shown';
 
 const AppDownloadPopup = () => {
     const [visible, setVisible] = useState(false);
+    const { pathname } = useLocation();
 
     useEffect(() => {
+        if (pathname.startsWith('/admin')) return;
         if (sessionStorage.getItem(STORAGE_KEY)) return;
         const timer = setTimeout(() => {
             setVisible(true);
             sessionStorage.setItem(STORAGE_KEY, '1');
         }, 1500);
         return () => clearTimeout(timer);
-    }, []);
+    }, [pathname]);
 
     if (!visible) return null;
 
