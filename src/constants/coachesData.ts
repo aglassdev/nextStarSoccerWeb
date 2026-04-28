@@ -27,6 +27,48 @@ const ICONS = '/assets/icons/';
 export const coaches: Coach[] = [
   {
     id: 1,
+    name: 'Phillip Gyau',
+    title: 'Director & Head Coach',
+    handle: 'coach2',
+    slug: 'phillip-gyau',
+    status: 'Available',
+    avatarUrl: images.coach2,
+    bio: [
+      "Phillip Gyau was born on February 7, 1966, in Silver Spring, Maryland, the son of Joseph \"Nana\" Gyau, who represented Ghana's national team. He attended Gwynn Park High School in Brandywine, Maryland, before going on to Howard University from 1982 to 1985, where he established himself as one of the top collegiate players of his era. His success at Howard helped pave the way for a lengthy professional career spanning both indoor and outdoor soccer.",
+      "As a forward, Gyau won the National Amateur Cup with Club España in 1985 before embarking on a professional career that included stints with the Washington Diplomats, Maryland Bays, Tampa Bay Rowdies, Colorado Foxes, Los Angeles Salsa, Montreal Impact, Baltimore Blast, and Washington Warthogs. His most decorated stint came with the Maryland Bays in the American Professional Soccer League, where he was named the 1990 APSL MVP and First Team All-Star after scoring 12 goals. He earned six caps for the U.S. Men's National Team between 1989 and 1991.",
+      "Following his outdoor career, Gyau became a central figure in U.S. beach soccer, spending nine years with the U.S. National Beach Soccer Team and serving as captain from 1997 onward. He then transitioned into coaching, serving as head coach of the U.S. National Beach Soccer Team from 1998 to 2002. He subsequently coached at Bullis School, St. John's College High School, and the Olney Pumas before becoming head coach of the Howard University men's soccer program in 2014.",
+      "At Next Star Soccer, Gyau brings decades of experience at every level of the game—collegiate, professional, national team, and coaching—to help develop the next generation of elite players. His philosophy centers on technical excellence, positional intelligence, and the competitive mindset required to succeed at the highest levels. His son, Joe Gyau, followed in his footsteps by playing professionally and representing the U.S. Men's National Team.",
+    ],
+    career: [
+      {
+        label: 'College',
+        entries: [
+          { icon: `${ICONS}howard.png`, name: 'Howard University' },
+        ],
+      },
+      {
+        label: 'National Team',
+        entries: [
+          { icon: `${ICONS}usa.png`, name: 'US Men\'s National Team' },
+        ],
+      },
+      {
+        label: 'Professional',
+        entries: [
+          { icon: `${ICONS}washingtonDiplomats.png`, name: 'Washington Diplomats' },
+          { icon: `${ICONS}marylandBays.png`, name: 'Maryland Bays' },
+          { icon: `${ICONS}tampaBayRowdies.png`, name: 'Tampa Bay Rowdies' },
+          { icon: `${ICONS}coloradoFoxes.png`, name: 'Colorado Foxes' },
+          { icon: `${ICONS}losAngelesSalsa.png`, name: 'Los Angeles Salsa' },
+          { icon: `${ICONS}montreal.png`, name: 'Montreal Impact' },
+          { icon: `${ICONS}baltimoreBlast.png`, name: 'Baltimore Blast' },
+          { icon: `${ICONS}washingtonWarthogs.png`, name: 'Washington Warthogs' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 2,
     name: 'Paul Torres',
     title: 'Director & Head Coach',
     handle: 'coach1',
@@ -63,49 +105,6 @@ export const coaches: Coach[] = [
           { icon: `${ICONS}sandnesUlf.png`, name: 'Sandnes Ulf' },
           { icon: `${ICONS}landskronaBolS.png`, name: 'Landskrona BoIS' },
           { icon: `${ICONS}nykopingsBIS.png`, name: "Nyköping's BIS" },
-        ],
-      },
-    ],
-  },
-  {
-    id: 2,
-    name: 'Phillip Gyau',
-    title: 'Head Coach',
-    handle: 'coach2',
-    slug: 'phillip-gyau',
-    status: 'Available',
-    avatarUrl: images.coach2,
-    bio: [
-      "Phillip Gyau's soccer journey began at Howard University, where he was a standout performer, helping the team reach the NCAA tournament and establishing himself as one of the top collegiate players of his era. His success at Howard led to a professional career that included stints in both the United States and abroad. Domestically, Gyau played for the Maryland Bays in the American Professional Soccer League (APSL), earning recognition for his attacking flair and goal-scoring prowess.",
-      "Internationally, he represented the United States Men's National Team (USMNT), earning caps in the late 1980s and early 1990s. He participated in key qualifiers and friendly matches. Gyau also played professionally in Germany, where he refined his understanding of the international game and enhanced his technical and tactical abilities. After retiring as a player, Phillip Gyau transitioned into coaching, where he has profoundly impacted soccer development in the United States.",
-      "His coaching philosophy emphasizes technical skill development, creativity, and tactical understanding. As the head coach of Howard University's men's soccer team, Gyau has revitalized the program, leading it to new successes and inspiring a new generation of athletes. He has also worked extensively in youth soccer, particularly with U.S. Soccer Development Academy programs, mentoring young players aspiring to reach collegiate, professional, and international levels.",
-      "Gyau's contributions extend to futsal, where he has served as head coach of the U.S. Futsal National Team. His efforts have highlighted futsal's role in enhancing ball control, quick decision-making, and tactical awareness—key components of modern soccer player development. Beyond his coaching achievements, Gyau's influence is evident through the success of players he has mentored, including his son, Joe Gyau, who followed in his footsteps by playing professionally and representing the U.S. national team.",
-    ],
-    career: [
-      {
-        label: 'College',
-        entries: [
-          { icon: `${ICONS}howard.png`, name: 'Howard University' },
-        ],
-      },
-      {
-        label: 'National Team',
-        entries: [
-          { icon: `${ICONS}usa.png`, name: 'US Men\'s National Team' },
-        ],
-      },
-      {
-        label: 'Professional',
-        entries: [
-          { icon: `${ICONS}washingtonWarthogs.png`, name: 'Washington Warthogs' },
-          { icon: `${ICONS}baltimoreBlast.png`, name: 'Baltimore Blast' },
-          { icon: `${ICONS}montreal.png`, name: 'CF Montreal' },
-          { icon: `${ICONS}losAngelesSalsa.png`, name: 'Los Angeles Salsa' },
-          { icon: `${ICONS}coloradoFoxes.png`, name: 'Colorado Foxes' },
-          { icon: `${ICONS}tampaBayRowdies.png`, name: 'Tampa Bay Rowdies' },
-          { icon: `${ICONS}krcgenk.png`, name: 'KRC Genk' },
-          { icon: `${ICONS}marylandBays.png`, name: 'Maryland Bays' },
-          { icon: `${ICONS}washingtonDiplomats.png`, name: 'Washington Diplomats' },
         ],
       },
     ],
