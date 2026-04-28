@@ -23,7 +23,7 @@ const CoachesPage = () => {
             {coaches.map((coach) => (
               <div
                 key={coach.id}
-                className="flex justify-center cursor-pointer [&_.pc-card]:max-h-[320px] [&_.pc-card]:h-[55svh]"
+                className="flex justify-center cursor-pointer [&_.pc-card]:max-h-[460px] [&_.pc-card]:h-[72svh]"
                 onClick={() => navigate(`/coaches/${coach.slug}`)}
               >
                 <ProfileCard
