@@ -16,6 +16,7 @@ import AppFeedbackSection from './sections/AppFeedbackSection';
 import CalendarSection from './sections/CalendarSection';
 import EventAssistantSection from './sections/EventAssistantSection';
 import CoachManagementSection from './sections/CoachManagementSection';
+import SessionReviewsSection from './sections/SessionReviewsSection';
 
 const ALLOWED_EMAILS = [
   'amartyaglasses@gmail.com',
@@ -34,7 +35,7 @@ const REQUEST_TYPES = [
   'Player Report',
 ];
 
-type Section = 'players' | 'coaches' | 'parents' | 'bills' | 'payments' | 'messages' | 'requests' | 'calendar' | 'eventAssistant' | 'coachManagement' | 'devOverview' | 'appFeedback';
+type Section = 'players' | 'coaches' | 'parents' | 'bills' | 'payments' | 'messages' | 'requests' | 'calendar' | 'eventAssistant' | 'coachManagement' | 'devOverview' | 'appFeedback' | 'sessionReviews';
 
 type NavGroup = 'Directory' | 'Messages' | 'Payments' | 'Events' | 'Development';
 
@@ -42,7 +43,7 @@ const SECTION_TO_GROUP: Partial<Record<Section, NavGroup>> = {
   players: 'Directory', coaches: 'Directory', parents: 'Directory', coachManagement: 'Directory',
   messages: 'Messages', requests: 'Messages',
   bills: 'Payments', payments: 'Payments',
-  calendar: 'Events', eventAssistant: 'Events',
+  calendar: 'Events', eventAssistant: 'Events', sessionReviews: 'Events',
   devOverview: 'Development', appFeedback: 'Development',
 };
 
@@ -53,6 +54,7 @@ const SECTION_LABELS: Partial<Record<Section, string>> = {
   coachManagement: 'Coach Management',
   devOverview: 'Overview',
   appFeedback: 'App Feedback',
+  sessionReviews: 'Session Reviews',
 };
 
 interface CalEvent {
@@ -193,6 +195,7 @@ const SECTION_FROM_PATH: Record<string, Section> = {
   '/admin/coach-management': 'coachManagement',
   '/admin/dev': 'devOverview',
   '/admin/dev/feedback': 'appFeedback',
+  '/admin/session-reviews': 'sessionReviews',
 };
 
 const AdminDashboard = () => {
@@ -214,6 +217,7 @@ const AdminDashboard = () => {
     coachManagement: '/admin/coach-management',
     devOverview: '/admin/dev',
     appFeedback: '/admin/dev/feedback',
+    sessionReviews: '/admin/session-reviews',
   };
   const setActiveSection = (s: Section | null) => navigate(s ? SECTION_TO_PATH[s] : '/admin/dashboard');
 
@@ -398,6 +402,7 @@ const AdminDashboard = () => {
     appFeedback: <AppFeedbackSection />,
     eventAssistant: <EventAssistantSection />,
     coachManagement: <CoachManagementSection />,
+    sessionReviews: <SessionReviewsSection />,
   };
 
   return (
@@ -487,6 +492,8 @@ const AdminDashboard = () => {
               icon={<svg className="w-[13px] h-[13px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>} />
             <NavChild section="eventAssistant" label="Event Assistant" active={activeSection === 'eventAssistant'} onSelect={setActiveSection}
               icon={<svg className="w-[13px] h-[13px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>} />
+            <NavChild section="sessionReviews" label="Session Reviews" active={activeSection === 'sessionReviews'} onSelect={setActiveSection}
+              icon={<svg className="w-[13px] h-[13px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>} />
           </NavGroupItem>
 
         </nav>
