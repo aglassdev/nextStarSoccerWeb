@@ -12,43 +12,90 @@ interface PlayerRecord {
   firstName: string;
   lastName: string;
   dateOfBirth?: string;
+  gender?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  stripeCustomerId?: string;
+  stripeId?: string;
+  stripe_id?: string;
+  stripeID?: string;
+  billingApproved?: boolean;
+  scholarshipTier?: string;
+  loyaltyTier?: string;
+  // Athletic fields
   position?: string;
+  level?: string;
+  nationalTeam?: string;
   // Youth
   grade?: string;
+  gradYear?: string;
+  graduationYear?: string;
   school?: string;
+  clubTeam?: string;
+  club?: string;
+  league?: string;
   parentId?: string;
   emergencyContact?: string;
   medicalInfo?: string;
   // Collegiate
   college?: string;
   major?: string;
-  graduationYear?: string;
-  // Professional / misc
-  club?: string;
-  league?: string;
+  // All others
   [key: string]: any;
 }
 
 interface FamilyMember { $id: string; name: string; }
 
 const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const SCHOLARSHIP_TIERS = ['None', '25%', '50%', '75%', 'Full'];
+const LOYALTY_TIERS = ['Bronze', 'Silver', 'Gold', 'Platinum'];
 
-// ── Multi-line SVG Graph ──────────────────────────────────────────────────────
-const LineGraph = ({ series }: {
+// Fields shown in Personal Info (or system meta — excluded from dynamic display)
+const PERSONAL_FIELDS = new Set([
+  '$id','$createdAt','$updatedAt','$permissions','$collectionId','$databaseId',
+  'userId','firstName','lastName','dateOfBirth','gender','email','phone',
+  'address','city','state','zip','stripeCustomerId','stripeId','stripe_id','stripeID',
+  'billingApproved','scholarshipTier','loyaltyTier','type',
+]);
+
+// Known sport-specific fields (shown in Player Profile)
+const SPORT_FIELDS = new Set([
+  'position','level','nationalTeam',
+  'grade','gradYear','graduationYear','school','clubTeam','club','league',
+  'parentId','emergencyContact','medicalInfo',
+  'college','major',
+]);
+
+// ── SVG Graph with Y-axis ────────────────────────────────────────────────────
+const LineGraph = ({ series, months }: {
   series: { label: string; color: string; counts: number[] }[];
   months: string[];
 }) => {
-  const W = 500; const H = 90; const padL = 8; const padR = 8; const padT = 10; const padB = 22;
+  const W = 500; const H = 100; const padL = 30; const padR = 8; const padT = 8; const padB = 22;
   const innerW = W - padL - padR; const innerH = H - padT - padB;
-  const n = series[0]?.counts.length || 6;
+  const n = months.length || 6;
   const allCounts = series.flatMap(s => s.counts);
   const max = Math.max(...allCounts, 1);
 
   const getX = (i: number) => padL + (i / (n - 1 || 1)) * innerW;
   const getY = (v: number) => padT + (1 - v / max) * innerH;
 
+  const yTicks = Array.from(new Set([0, Math.round(max / 2), max]));
+
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full" preserveAspectRatio="none">
+      {yTicks.map(tick => (
+        <g key={tick}>
+          <line x1={padL} y1={getY(tick)} x2={W - padR} y2={getY(tick)}
+            stroke="rgba(255,255,255,0.05)" strokeWidth={1} />
+          <text x={padL - 4} y={getY(tick) + 3} textAnchor="end"
+            fill="rgba(255,255,255,0.3)" fontSize={8} fontFamily="system-ui">
+            {tick}
+          </text>
+        </g>
+      ))}
       {series.map((s, si) => {
         const pts = s.counts.map((v, i) => ({ x: getX(i), y: getY(v) }));
         const pathD = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
@@ -59,17 +106,15 @@ const LineGraph = ({ series }: {
           </g>
         );
       })}
-      {Array.from({ length: n }, (_, i) => (
+      {months.map((m, i) => (
         <text key={i} x={getX(i)} y={H - 4} textAnchor="middle"
-          fill="rgba(255,255,255,0.3)" fontSize={8} fontFamily="system-ui">
-          {MONTHS_SHORT[new Date(new Date().getFullYear(), new Date().getMonth() - (n - 1 - i), 1).getMonth()]}
-        </text>
+          fill="rgba(255,255,255,0.3)" fontSize={8} fontFamily="system-ui">{m}</text>
       ))}
     </svg>
   );
 };
 
-// ── Card shell ────────────────────────────────────────────────────────────────
+// ── Card / InfoRow ────────────────────────────────────────────────────────────
 const Card = ({ title, children, className = '' }: { title: string; children: React.ReactNode; className?: string }) => (
   <div className={`bg-[#1d1c21] border border-white/[0.08] rounded-xl p-5 ${className}`}>
     <p className="text-white/50 text-[11px] font-medium tracking-widest uppercase mb-4">{title}</p>
@@ -95,6 +140,11 @@ const PlayerProfile = () => {
   const [bills, setBills] = useState<any[]>([]);
   const [family, setFamily] = useState<FamilyMember[]>([]);
   const [monthCounts, setMonthCounts] = useState<number[]>(Array(6).fill(0));
+  const [months, setMonths] = useState<string[]>([]);
+  const [billingApproved, setBillingApproved] = useState(false);
+  const [scholarshipTier, setScholarshipTier] = useState('');
+  const [loyaltyTier, setLoyaltyTier] = useState('');
+  const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -112,8 +162,17 @@ const PlayerProfile = () => {
         const doc = await databases.getDocument(databaseId, collId, id);
         const p: PlayerRecord = { ...(doc as any), type: (type.charAt(0).toUpperCase() + type.slice(1)) as PlayerType };
         setPlayer(p);
+        setBillingApproved(p.billingApproved ?? false);
+        setScholarshipTier(p.scholarshipTier || '');
+        setLoyaltyTier(p.loyaltyTier || '');
 
-        // userId is the link to signups/checkins/bills
+        const now = new Date();
+        const mo: string[] = [];
+        for (let i = 5; i >= 0; i--) {
+          mo.push(MONTHS_SHORT[new Date(now.getFullYear(), now.getMonth() - i, 1).getMonth()]);
+        }
+        setMonths(mo);
+
         const uid = p.userId || p.$id;
 
         const [signupsRes, checkinsRes, billsRes, relRes] = await Promise.all([
@@ -123,7 +182,6 @@ const PlayerProfile = () => {
           collections.checkins
             ? databases.listDocuments(databaseId, collections.checkins, [Query.equal('userId', uid), Query.limit(5000)]).catch(() => ({ documents: [] }))
             : { documents: [] },
-          // Bills are on parent for youth; try userId fallback
           collections.bills
             ? databases.listDocuments(databaseId, collections.bills, [Query.equal('userId', uid), Query.limit(5000)]).catch(() => ({ documents: [] }))
             : { documents: [] },
@@ -137,32 +195,24 @@ const PlayerProfile = () => {
         setCheckins(allCheckins);
         setBills((billsRes as any).documents);
 
-        // Filter signups: exclude those that also have a checkin for same event
         const checkedEventIds = new Set(allCheckins.map((c: any) => c.eventId || c.eventID || c.eventid));
         setSignups(allSignups.filter((s: any) => {
           const eid = s.eventId || s.eventID || s.eventid;
           return !checkedEventIds.has(eid);
         }));
 
-        // Monthly checkin counts (last 6 months)
-        const now = new Date();
         const counts = Array(6).fill(0);
         allCheckins.forEach((c: any) => {
           const d = new Date(c.$createdAt || c.checkinTime);
           for (let i = 0; i < 6; i++) {
             const target = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
-            if (d.getFullYear() === target.getFullYear() && d.getMonth() === target.getMonth()) {
-              counts[i]++;
-            }
+            if (d.getFullYear() === target.getFullYear() && d.getMonth() === target.getMonth()) counts[i]++;
           }
         });
         setMonthCounts(counts);
 
-        // Family: find parents of this player
         const rels = (relRes as any).documents as any[];
-        const playerRels = rels.filter((r: any) =>
-          r.childId === id || r.childId === uid || r.youthPlayerId === id
-        );
+        const playerRels = rels.filter((r: any) => r.childId === id || r.childId === uid || r.youthPlayerId === id);
         const parents: FamilyMember[] = [];
         await Promise.all(playerRels.map(async (rel: any) => {
           const parentId = rel.parentId || rel.parentUserId;
@@ -180,6 +230,26 @@ const PlayerProfile = () => {
     })();
   }, [id, type]);
 
+  const updateField = async (field: string, value: any) => {
+    if (!id || !type || !player) return;
+    setSaving(true);
+    const collMap: Record<string, string | undefined> = {
+      youth: collections.youthPlayers,
+      collegiate: collections.collegiatePlayers,
+      professional: collections.professionalPlayers,
+    };
+    const collId = collMap[type.toLowerCase()];
+    if (!collId) { setSaving(false); return; }
+    try {
+      await databases.updateDocument(databaseId, collId, id, { [field]: value });
+      setPlayer(prev => prev ? { ...prev, [field]: value } : null);
+      if (field === 'billingApproved') setBillingApproved(value as boolean);
+      if (field === 'scholarshipTier') setScholarshipTier(value as string);
+      if (field === 'loyaltyTier') setLoyaltyTier(value as string);
+    } catch (e) { console.error(e); }
+    finally { setSaving(false); }
+  };
+
   if (loading) return (
     <div className="flex items-center justify-center h-64">
       <div className="w-6 h-6 border border-white/10 border-t-white/40 rounded-full animate-spin" />
@@ -190,13 +260,16 @@ const PlayerProfile = () => {
   const fullName = `${player.firstName} ${player.lastName}`;
   const unpaidBills = bills.filter(b => b.status !== 'paid' && b.status !== 'cancelled');
   const overdueCount = unpaidBills.filter(b => b.dueDate && Date.parse(b.dueDate) < Date.now()).length;
-
-  // Upcoming signups: status confirmed/pending and not yet past
-  const upcomingSignups = signups.filter(s =>
-    s.status !== 'cancelled' && (s.status === 'confirmed' || s.status === 'pending' || !s.status)
-  );
-
+  const upcomingSignups = signups.filter(s => s.status !== 'cancelled' && (s.status === 'confirmed' || s.status === 'pending' || !s.status));
   const fmtDate = (str?: string) => str ? new Date(str).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+
+  const address = [player.address, player.city, player.state, player.zip].filter(Boolean).join(', ') || null;
+  const stripeId = player.stripeCustomerId || player.stripeId || player.stripe_id || player.stripeID || null;
+
+  // Dynamic extra fields from Appwrite not already categorized
+  const extraSportFields = Object.entries(player).filter(([k, v]) =>
+    !PERSONAL_FIELDS.has(k) && !SPORT_FIELDS.has(k) && typeof v === 'string' && v.length > 0
+  );
 
   return (
     <div className="p-6 space-y-4 max-w-6xl mx-auto">
@@ -212,14 +285,15 @@ const PlayerProfile = () => {
         <span className="text-[11px] text-white/40 border border-white/15 rounded px-2 py-0.5 uppercase tracking-wider font-semibold">
           {player.type}
         </span>
+        {saving && <span className="text-white/30 text-xs">saving…</span>}
       </div>
 
-      {/* Row 1: Graph + Billing */}
+      {/* Row 1: Graph + Billing Status */}
       <div className="grid grid-cols-3 gap-4">
         <Card title="Sessions Over Time" className="col-span-2">
           <LineGraph
             series={[{ label: fullName, color: 'white', counts: monthCounts }]}
-            months={Array.from({ length: 6 }, (_, i) => MONTHS_SHORT[new Date(new Date().getFullYear(), new Date().getMonth() - (5 - i), 1).getMonth()])}
+            months={months}
           />
           <p className="text-white/25 text-[11px] mt-1 text-center">Check-ins per month · last 6 months</p>
         </Card>
@@ -254,10 +328,9 @@ const PlayerProfile = () => {
         </Card>
       </div>
 
-      {/* Row 2: Sessions 2-col */}
+      {/* Row 2: Sessions */}
       <Card title="Sessions">
         <div className="grid grid-cols-2 gap-6">
-          {/* Left: upcoming / ongoing signups */}
           <div>
             <p className="text-white/40 text-[11px] uppercase tracking-wider mb-3">
               Signed Up · Upcoming ({upcomingSignups.length})
@@ -281,7 +354,6 @@ const PlayerProfile = () => {
             )}
           </div>
 
-          {/* Right: checked in */}
           <div>
             <p className="text-white/40 text-[11px] uppercase tracking-wider mb-3">
               Attended · Checked In ({checkins.length})
@@ -307,77 +379,147 @@ const PlayerProfile = () => {
         </div>
       </Card>
 
-      {/* Row 3: Profile card + Personal info + Family */}
-      <div className="grid grid-cols-3 gap-4">
+      {/* Row 3: Player Profile | Personal Info | [Admin Controls + Family] */}
+      <div className="grid grid-cols-3 gap-4 items-start">
 
-        {/* Profile details (type-specific) */}
+        {/* Player Profile: sport-specific fields */}
         <Card title="Player Profile">
           <div className="space-y-3">
-            <InfoRow label="Date of Birth" value={player.dateOfBirth ? fmtDate(player.dateOfBirth) : null} />
             <InfoRow label="Position" value={player.position} />
+            <InfoRow label="Level" value={player.level} />
+            <InfoRow label="National Team" value={player.nationalTeam} />
             {player.type === 'Youth' && <>
               <InfoRow label="Grade" value={player.grade} />
+              <InfoRow label="Grad Year" value={player.gradYear || player.graduationYear} />
               <InfoRow label="School" value={player.school} />
+              <InfoRow label="Club" value={player.club || player.clubTeam} />
+              <InfoRow label="League" value={player.league} />
               <InfoRow label="Emergency Contact" value={player.emergencyContact} />
               <InfoRow label="Medical Info" value={player.medicalInfo} />
             </>}
             {player.type === 'Collegiate' && <>
               <InfoRow label="College" value={player.college} />
               <InfoRow label="Major" value={player.major} />
-              <InfoRow label="Graduation Year" value={player.graduationYear} />
-            </>}
-            {player.type === 'Professional' && <>
-              <InfoRow label="Club" value={player.club} />
+              <InfoRow label="Graduation Year" value={player.graduationYear || player.gradYear} />
+              <InfoRow label="Club" value={player.club || player.clubTeam} />
               <InfoRow label="League" value={player.league} />
             </>}
+            {player.type === 'Professional' && <>
+              <InfoRow label="Club" value={player.club || player.clubTeam} />
+              <InfoRow label="League" value={player.league} />
+            </>}
+            {extraSportFields.slice(0, 4).map(([k, v]) => (
+              <InfoRow key={k} label={k.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())} value={v} />
+            ))}
           </div>
         </Card>
 
-        {/* Personal info */}
+        {/* Personal Info */}
         <Card title="Personal Info">
           <div className="space-y-3">
             <InfoRow label="Email" value={player.email} />
             <InfoRow label="Phone" value={player.phone} />
+            <InfoRow label="Address" value={address} />
+            <InfoRow label="Gender" value={player.gender} />
+            <InfoRow label="Date of Birth" value={player.dateOfBirth ? fmtDate(player.dateOfBirth) : null} />
             <InfoRow label="Member Since" value={fmtDate(player.$createdAt)} />
-            {/* Show any extra top-level string fields from Appwrite doc */}
-            {Object.entries(player)
-              .filter(([k, v]) =>
-                !['$id','$createdAt','$updatedAt','$permissions','$collectionId','$databaseId',
-                  'userId','firstName','lastName','dateOfBirth','position','grade','school',
-                  'parentId','emergencyContact','medicalInfo','college','major','graduationYear',
-                  'club','league','email','phone','type'].includes(k)
-                && typeof v === 'string' && v.length > 0
-              )
-              .slice(0, 6)
-              .map(([k, v]) => (
-                <InfoRow key={k} label={k.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())} value={v} />
-              ))
-            }
+            <InfoRow label="Account ID" value={player.userId || player.$id} />
+            <InfoRow label="Stripe ID" value={stripeId} />
           </div>
         </Card>
 
-        {/* Family */}
-        <Card title="Family">
-          {family.length === 0 ? (
-            <p className="text-white/20 text-sm">No connections found</p>
-          ) : (
-            <div className="space-y-3">
-              {family.map(m => (
-                <div key={m.$id}
-                  onClick={() => navigate(`/admin/parents/${m.$id}`)}
-                  className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.03] hover:bg-white/[0.06] cursor-pointer transition-colors border border-white/[0.06]">
-                  <div className="w-8 h-8 rounded-full bg-white/[0.08] flex items-center justify-center flex-shrink-0">
-                    <span className="text-white text-xs font-medium">{m.name[0]?.toUpperCase()}</span>
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-white text-sm truncate">{m.name}</p>
-                    <p className="text-white/40 text-[11px]">Parent · tap to view</p>
-                  </div>
+        {/* Right column: Admin Controls + Family stacked */}
+        <div className="flex flex-col gap-4">
+
+          {/* Admin Controls */}
+          <div className="bg-[#1d1c21] border border-white/[0.08] rounded-xl p-5">
+            <p className="text-white/50 text-[11px] font-medium tracking-widest uppercase mb-4">Admin Controls</p>
+            <div className="space-y-4">
+
+              <div>
+                <p className="text-white/40 text-[10px] uppercase tracking-wider mb-2">Billing Approval</p>
+                <button
+                  onClick={() => updateField('billingApproved', !billingApproved)}
+                  disabled={saving}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all disabled:opacity-50 ${
+                    billingApproved
+                      ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25'
+                      : 'bg-red-500/10 border-red-500/20 text-red-400 hover:bg-red-500/20'
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${billingApproved ? 'bg-emerald-400' : 'bg-red-400'}`} />
+                  {billingApproved ? 'Approved' : 'Unapproved'}
+                </button>
+              </div>
+
+              <div>
+                <p className="text-white/40 text-[10px] uppercase tracking-wider mb-2">Scholarship Tier</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {SCHOLARSHIP_TIERS.map(tier => (
+                    <button
+                      key={tier}
+                      onClick={() => updateField('scholarshipTier', tier)}
+                      disabled={saving}
+                      className={`px-2.5 py-1 rounded text-[11px] font-medium border transition-all disabled:opacity-50 ${
+                        scholarshipTier === tier
+                          ? 'bg-blue-500/20 border-blue-500/40 text-blue-300'
+                          : 'bg-white/[0.04] border-white/10 text-white/40 hover:text-white/70 hover:border-white/20'
+                      }`}
+                    >
+                      {tier}
+                    </button>
+                  ))}
                 </div>
-              ))}
+              </div>
+
+              <div>
+                <p className="text-white/40 text-[10px] uppercase tracking-wider mb-2">Loyalty Tier</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {LOYALTY_TIERS.map(tier => (
+                    <button
+                      key={tier}
+                      onClick={() => updateField('loyaltyTier', tier)}
+                      disabled={saving}
+                      className={`px-2.5 py-1 rounded text-[11px] font-medium border transition-all disabled:opacity-50 ${
+                        loyaltyTier === tier
+                          ? 'bg-purple-500/20 border-purple-500/40 text-purple-300'
+                          : 'bg-white/[0.04] border-white/10 text-white/40 hover:text-white/70 hover:border-white/20'
+                      }`}
+                    >
+                      {tier}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
             </div>
-          )}
-        </Card>
+          </div>
+
+          {/* Family */}
+          <div className="bg-[#1d1c21] border border-white/[0.08] rounded-xl p-5">
+            <p className="text-white/50 text-[11px] font-medium tracking-widest uppercase mb-4">Family</p>
+            {family.length === 0 ? (
+              <p className="text-white/20 text-sm">No connections found</p>
+            ) : (
+              <div className="space-y-2">
+                {family.map(m => (
+                  <div key={m.$id}
+                    onClick={() => navigate(`/admin/parents/${m.$id}`)}
+                    className="flex items-center gap-3 p-2.5 rounded-lg bg-white/[0.03] hover:bg-white/[0.06] cursor-pointer transition-colors border border-white/[0.06]">
+                    <div className="w-7 h-7 rounded-full bg-white/[0.08] flex items-center justify-center flex-shrink-0">
+                      <span className="text-white text-xs font-medium">{m.name[0]?.toUpperCase()}</span>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-white text-xs truncate">{m.name}</p>
+                      <p className="text-white/40 text-[10px]">Parent · tap to view</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+        </div>
       </div>
     </div>
   );

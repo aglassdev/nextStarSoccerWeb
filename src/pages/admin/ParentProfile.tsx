@@ -11,6 +11,7 @@ interface ParentRecord {
   $id: string; $createdAt: string;
   firstName?: string; lastName?: string; name?: string;
   email?: string; phone?: string; userId?: string;
+  billingApproved?: boolean;
   [key: string]: any;
 }
 
@@ -30,7 +31,7 @@ const LineGraph = ({ series, months }: {
   series: { label: string; color: string; counts: number[] }[];
   months: string[];
 }) => {
-  const W = 500; const H = 90; const padL = 8; const padR = 8; const padT = 10; const padB = 22;
+  const W = 500; const H = 100; const padL = 30; const padR = 8; const padT = 8; const padB = 22;
   const innerW = W - padL - padR; const innerH = H - padT - padB;
   const n = months.length || 6;
   const allCounts = series.flatMap(s => s.counts);
@@ -39,8 +40,20 @@ const LineGraph = ({ series, months }: {
   const getX = (i: number) => padL + (i / (n - 1 || 1)) * innerW;
   const getY = (v: number) => padT + (1 - v / max) * innerH;
 
+  const yTicks = Array.from(new Set([0, Math.round(max / 2), max]));
+
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full" preserveAspectRatio="none">
+      {yTicks.map(tick => (
+        <g key={tick}>
+          <line x1={padL} y1={getY(tick)} x2={W - padR} y2={getY(tick)}
+            stroke="rgba(255,255,255,0.05)" strokeWidth={1} />
+          <text x={padL - 4} y={getY(tick) + 3} textAnchor="end"
+            fill="rgba(255,255,255,0.3)" fontSize={8} fontFamily="system-ui">
+            {tick}
+          </text>
+        </g>
+      ))}
       {series.map((s, si) => {
         const pts = s.counts.map((v, i) => ({ x: getX(i), y: getY(v) }));
         const pathD = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
@@ -83,6 +96,8 @@ const ParentProfile = () => {
   const [childrenData, setChildrenData] = useState<ChildData[]>([]);
   const [bills, setBills]         = useState<any[]>([]);
   const [months, setMonths]       = useState<string[]>([]);
+  const [billingApproved, setBillingApproved] = useState(false);
+  const [saving, setSaving]       = useState(false);
   const [loading, setLoading]     = useState(true);
 
   useEffect(() => {
@@ -93,6 +108,7 @@ const ParentProfile = () => {
         const doc = await databases.getDocument(databaseId, collections.parentUsers, id);
         const parentData = doc as any as ParentRecord;
         setParent(parentData);
+        setBillingApproved(parentData.billingApproved ?? false);
 
         // Build last-6-months labels
         const now = new Date();
@@ -214,6 +230,17 @@ const ParentProfile = () => {
     })();
   }, [id]);
 
+  const updateField = async (field: string, value: any) => {
+    if (!id || !parent || !collections.parentUsers) return;
+    setSaving(true);
+    try {
+      await databases.updateDocument(databaseId, collections.parentUsers, id, { [field]: value });
+      setParent(prev => prev ? { ...prev, [field]: value } : null);
+      if (field === 'billingApproved') setBillingApproved(value as boolean);
+    } catch (e) { console.error(e); }
+    finally { setSaving(false); }
+  };
+
   if (loading) return (
     <div className="flex items-center justify-center h-64">
       <div className="w-6 h-6 border border-white/10 border-t-white/40 rounded-full animate-spin" />
@@ -283,6 +310,7 @@ const ParentProfile = () => {
         <span className="text-[11px] text-white/40 border border-white/15 rounded px-2 py-0.5 uppercase tracking-wider font-semibold">
           Parent
         </span>
+        {saving && <span className="text-white/30 text-xs">saving…</span>}
       </div>
 
       {/* Row 1: Graph (col-span-2) + Billing */}
@@ -417,6 +445,21 @@ const ParentProfile = () => {
             <InfoRow label="Phone"        value={parent.phone} />
             <InfoRow label="Children"     value={String(childrenData.length)} />
             <InfoRow label="Member Since" value={fmtDate(parent.$createdAt)} />
+            <div>
+              <p className="text-white/40 text-[10px] uppercase tracking-wider mb-2">Billing Approval</p>
+              <button
+                onClick={() => updateField('billingApproved', !billingApproved)}
+                disabled={saving}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all disabled:opacity-50 ${
+                  billingApproved
+                    ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25'
+                    : 'bg-red-500/10 border-red-500/20 text-red-400 hover:bg-red-500/20'
+                }`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${billingApproved ? 'bg-emerald-400' : 'bg-red-400'}`} />
+                {billingApproved ? 'Approved' : 'Unapproved'}
+              </button>
+            </div>
           </div>
         </Card>
 
