@@ -11,61 +11,26 @@ interface PlayerRecord {
   userId?: string;
   firstName: string;
   lastName: string;
-  dateOfBirth?: string;
-  gender?: string;
-  address?: string;
-  city?: string;
-  state?: string;
-  zip?: string;
-  stripeCustomerId?: string;
-  stripeId?: string;
-  stripe_id?: string;
-  stripeID?: string;
   billingApproved?: boolean;
   scholarshipTier?: string;
   loyaltyTier?: string;
-  // Athletic fields
-  position?: string;
-  level?: string;
-  nationalTeam?: string;
-  // Youth
-  grade?: string;
-  gradYear?: string;
-  graduationYear?: string;
-  school?: string;
-  clubTeam?: string;
-  club?: string;
-  league?: string;
-  parentId?: string;
-  emergencyContact?: string;
-  medicalInfo?: string;
-  // Collegiate
-  college?: string;
-  major?: string;
-  // All others
   [key: string]: any;
 }
 
 interface FamilyMember { $id: string; name: string; }
 
 const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-const SCHOLARSHIP_TIERS = ['None', '25%', '50%', '75%', 'Full'];
-const LOYALTY_TIERS = ['Bronze', 'Silver', 'Gold', 'Platinum'];
 
-// Fields shown in Personal Info (or system meta — excluded from dynamic display)
-const PERSONAL_FIELDS = new Set([
+// System / personal fields — never shown in Player Profile
+const SKIP_FIELDS = new Set([
   '$id','$createdAt','$updatedAt','$permissions','$collectionId','$databaseId',
-  'userId','firstName','lastName','dateOfBirth','gender','email','phone',
-  'address','city','state','zip','stripeCustomerId','stripeId','stripe_id','stripeID',
-  'billingApproved','scholarshipTier','loyaltyTier','type',
-]);
-
-// Known sport-specific fields (shown in Player Profile)
-const SPORT_FIELDS = new Set([
-  'position','level','nationalTeam',
-  'grade','gradYear','graduationYear','school','clubTeam','club','league',
-  'parentId','emergencyContact','medicalInfo',
-  'college','major',
+  'userId','firstName','lastName','type',
+  'email','phone',
+  'address','streetAddress','city','state','zip','zipCode',
+  'gender','dateOfBirth','birthDate','dob','birthdate',
+  'stripeCustomerId','stripeId','stripe_id','stripeID',
+  'billingApproved','scholarshipTier','loyaltyTier',
+  'parentId','parentUserId',
 ]);
 
 // ── SVG Graph with Y-axis ────────────────────────────────────────────────────
@@ -114,7 +79,7 @@ const LineGraph = ({ series, months }: {
   );
 };
 
-// ── Card / InfoRow ────────────────────────────────────────────────────────────
+// ── Card ─────────────────────────────────────────────────────────────────────
 const Card = ({ title, children, className = '' }: { title: string; children: React.ReactNode; className?: string }) => (
   <div className={`bg-[#1d1c21] border border-white/[0.08] rounded-xl p-5 ${className}`}>
     <p className="text-white/50 text-[11px] font-medium tracking-widest uppercase mb-4">{title}</p>
@@ -122,12 +87,51 @@ const Card = ({ title, children, className = '' }: { title: string; children: Re
   </div>
 );
 
-const InfoRow = ({ label, value }: { label: string; value?: string | null }) => (
-  <div>
-    <p className="text-white/40 text-[10px] uppercase tracking-wider mb-0.5">{label}</p>
-    <p className="text-white text-sm">{value || '—'}</p>
-  </div>
-);
+// Only renders if value is non-empty
+const InfoRow = ({ label, value }: { label: string; value?: string | null }) => {
+  if (!value || value.trim() === '') return null;
+  return (
+    <div>
+      <p className="text-white/40 text-[10px] uppercase tracking-wider mb-0.5">{label}</p>
+      <p className="text-white text-sm">{value}</p>
+    </div>
+  );
+};
+
+// Editable tier field — shows current value, save button appears on change
+const TierInput = ({
+  label, value, fieldName, onSave, disabled,
+}: { label: string; value: string; fieldName: string; onSave: (field: string, v: string) => void; disabled: boolean; }) => {
+  const [val, setVal] = useState(value);
+  const dirty = val !== value;
+
+  useEffect(() => { setVal(value); }, [value]);
+
+  return (
+    <div>
+      <p className="text-white/40 text-[10px] uppercase tracking-wider mb-1.5">{label}</p>
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={val}
+          onChange={e => setVal(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && dirty) onSave(fieldName, val); }}
+          placeholder="—"
+          className="flex-1 min-w-0 bg-white/[0.04] border border-white/10 rounded px-2.5 py-1.5 text-white text-xs placeholder-white/20 focus:outline-none focus:border-white/25 transition-colors"
+        />
+        {dirty && (
+          <button
+            onClick={() => onSave(fieldName, val)}
+            disabled={disabled}
+            className="px-2.5 py-1.5 bg-blue-600/20 border border-blue-500/30 text-blue-300 rounded text-[11px] hover:bg-blue-600/30 transition-colors disabled:opacity-50 flex-shrink-0"
+          >
+            Save
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 const PlayerProfile = () => {
@@ -261,15 +265,27 @@ const PlayerProfile = () => {
   const unpaidBills = bills.filter(b => b.status !== 'paid' && b.status !== 'cancelled');
   const overdueCount = unpaidBills.filter(b => b.dueDate && Date.parse(b.dueDate) < Date.now()).length;
   const upcomingSignups = signups.filter(s => s.status !== 'cancelled' && (s.status === 'confirmed' || s.status === 'pending' || !s.status));
-  const fmtDate = (str?: string) => str ? new Date(str).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+  const fmtDate = (str?: string) => str ? new Date(str).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null;
 
-  const address = [player.address, player.city, player.state, player.zip].filter(Boolean).join(', ') || null;
+  // Resolve personal fields — try multiple attribute name variants
+  const birthDateRaw = player.dateOfBirth || player.birthDate || player.dob || player.birthdate || null;
+  const address = [
+    player.address || player.streetAddress,
+    player.city, player.state,
+    player.zip || player.zipCode,
+  ].filter(Boolean).join(', ') || null;
   const stripeId = player.stripeCustomerId || player.stripeId || player.stripe_id || player.stripeID || null;
 
-  // Dynamic extra fields from Appwrite not already categorized
-  const extraSportFields = Object.entries(player).filter(([k, v]) =>
-    !PERSONAL_FIELDS.has(k) && !SPORT_FIELDS.has(k) && typeof v === 'string' && v.length > 0
-  );
+  // Player Profile: all non-null, non-skip, non-boolean fields from the Appwrite doc
+  const profileFields = Object.entries(player).filter(([k, v]) => {
+    if (SKIP_FIELDS.has(k)) return false;
+    if (v === null || v === undefined || v === '') return false;
+    if (typeof v === 'boolean') return false;
+    if (typeof v === 'object') return false;
+    return true;
+  });
+
+  const labelFor = (k: string) => k.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()).trim();
 
   return (
     <div className="p-6 space-y-4 max-w-6xl mx-auto">
@@ -343,7 +359,7 @@ const PlayerProfile = () => {
                   <div key={s.$id} className="flex items-start justify-between gap-2 py-2 border-b border-white/[0.05]">
                     <div className="min-w-0">
                       <p className="text-white text-xs truncate">{s.eventTitle || s.eventId || s.eventID || '—'}</p>
-                      <p className="text-white/40 text-[10px] mt-0.5">{fmtDate(s.signupDate || s.$createdAt)}</p>
+                      <p className="text-white/40 text-[10px] mt-0.5">{fmtDate(s.signupDate || s.$createdAt) || '—'}</p>
                     </div>
                     {s.status && (
                       <span className="text-[10px] text-white/40 border border-white/10 rounded px-1.5 py-0.5 flex-shrink-0">{s.status}</span>
@@ -366,7 +382,7 @@ const PlayerProfile = () => {
                   <div key={c.$id} className="flex items-start justify-between gap-2 py-2 border-b border-white/[0.05]">
                     <div className="min-w-0">
                       <p className="text-white text-xs truncate">{c.eventTitle || c.eventId || c.eventID || '—'}</p>
-                      <p className="text-white/40 text-[10px] mt-0.5">{fmtDate(c.checkinTime || c.$createdAt)}</p>
+                      <p className="text-white/40 text-[10px] mt-0.5">{fmtDate(c.checkinTime || c.$createdAt) || '—'}</p>
                     </div>
                     {c.checkoutTime && (
                       <span className="text-[10px] text-white/30 flex-shrink-0">out {fmtDate(c.checkoutTime)}</span>
@@ -382,36 +398,20 @@ const PlayerProfile = () => {
       {/* Row 3: Player Profile | Personal Info | [Admin Controls + Family] */}
       <div className="grid grid-cols-3 gap-4 items-start">
 
-        {/* Player Profile: sport-specific fields */}
+        {/* Player Profile: all non-null sport fields from Appwrite doc */}
         <Card title="Player Profile">
-          <div className="space-y-3">
-            <InfoRow label="Position" value={player.position} />
-            <InfoRow label="Level" value={player.level} />
-            <InfoRow label="National Team" value={player.nationalTeam} />
-            {player.type === 'Youth' && <>
-              <InfoRow label="Grade" value={player.grade} />
-              <InfoRow label="Grad Year" value={player.gradYear || player.graduationYear} />
-              <InfoRow label="School" value={player.school} />
-              <InfoRow label="Club" value={player.club || player.clubTeam} />
-              <InfoRow label="League" value={player.league} />
-              <InfoRow label="Emergency Contact" value={player.emergencyContact} />
-              <InfoRow label="Medical Info" value={player.medicalInfo} />
-            </>}
-            {player.type === 'Collegiate' && <>
-              <InfoRow label="College" value={player.college} />
-              <InfoRow label="Major" value={player.major} />
-              <InfoRow label="Graduation Year" value={player.graduationYear || player.gradYear} />
-              <InfoRow label="Club" value={player.club || player.clubTeam} />
-              <InfoRow label="League" value={player.league} />
-            </>}
-            {player.type === 'Professional' && <>
-              <InfoRow label="Club" value={player.club || player.clubTeam} />
-              <InfoRow label="League" value={player.league} />
-            </>}
-            {extraSportFields.slice(0, 4).map(([k, v]) => (
-              <InfoRow key={k} label={k.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())} value={v} />
-            ))}
-          </div>
+          {profileFields.length === 0 ? (
+            <p className="text-white/20 text-sm">No profile data</p>
+          ) : (
+            <div className="space-y-3">
+              {profileFields.map(([k, v]) => (
+                <div key={k}>
+                  <p className="text-white/40 text-[10px] uppercase tracking-wider mb-0.5">{labelFor(k)}</p>
+                  <p className="text-white text-sm">{String(v)}</p>
+                </div>
+              ))}
+            </div>
+          )}
         </Card>
 
         {/* Personal Info */}
@@ -421,7 +421,7 @@ const PlayerProfile = () => {
             <InfoRow label="Phone" value={player.phone} />
             <InfoRow label="Address" value={address} />
             <InfoRow label="Gender" value={player.gender} />
-            <InfoRow label="Date of Birth" value={player.dateOfBirth ? fmtDate(player.dateOfBirth) : null} />
+            <InfoRow label="Date of Birth" value={birthDateRaw ? fmtDate(birthDateRaw) : null} />
             <InfoRow label="Member Since" value={fmtDate(player.$createdAt)} />
             <InfoRow label="Account ID" value={player.userId || player.$id} />
             <InfoRow label="Stripe ID" value={stripeId} />
@@ -452,45 +452,21 @@ const PlayerProfile = () => {
                 </button>
               </div>
 
-              <div>
-                <p className="text-white/40 text-[10px] uppercase tracking-wider mb-2">Scholarship Tier</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {SCHOLARSHIP_TIERS.map(tier => (
-                    <button
-                      key={tier}
-                      onClick={() => updateField('scholarshipTier', tier)}
-                      disabled={saving}
-                      className={`px-2.5 py-1 rounded text-[11px] font-medium border transition-all disabled:opacity-50 ${
-                        scholarshipTier === tier
-                          ? 'bg-blue-500/20 border-blue-500/40 text-blue-300'
-                          : 'bg-white/[0.04] border-white/10 text-white/40 hover:text-white/70 hover:border-white/20'
-                      }`}
-                    >
-                      {tier}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <TierInput
+                label="Scholarship Tier"
+                value={scholarshipTier}
+                fieldName="scholarshipTier"
+                onSave={updateField}
+                disabled={saving}
+              />
 
-              <div>
-                <p className="text-white/40 text-[10px] uppercase tracking-wider mb-2">Loyalty Tier</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {LOYALTY_TIERS.map(tier => (
-                    <button
-                      key={tier}
-                      onClick={() => updateField('loyaltyTier', tier)}
-                      disabled={saving}
-                      className={`px-2.5 py-1 rounded text-[11px] font-medium border transition-all disabled:opacity-50 ${
-                        loyaltyTier === tier
-                          ? 'bg-purple-500/20 border-purple-500/40 text-purple-300'
-                          : 'bg-white/[0.04] border-white/10 text-white/40 hover:text-white/70 hover:border-white/20'
-                      }`}
-                    >
-                      {tier}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <TierInput
+                label="Loyalty Tier"
+                value={loyaltyTier}
+                fieldName="loyaltyTier"
+                onSave={updateField}
+                disabled={saving}
+              />
 
             </div>
           </div>
