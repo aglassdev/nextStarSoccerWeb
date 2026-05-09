@@ -11,9 +11,12 @@ interface ParentRecord {
   $id: string; $createdAt: string;
   firstName?: string; lastName?: string; name?: string;
   email?: string; phone?: string; userId?: string;
-  billingApproved?: boolean;
+  billing?: string;
   [key: string]: any;
 }
+
+const BILLING_OPTIONS = ['unapproved', 'approved'] as const;
+const billingColor = (b: string) => b === 'approved' ? '#22c55e' : '#ef4444';
 
 interface ChildData {
   $id: string;
@@ -96,7 +99,7 @@ const ParentProfile = () => {
   const [childrenData, setChildrenData] = useState<ChildData[]>([]);
   const [bills, setBills]         = useState<any[]>([]);
   const [months, setMonths]       = useState<string[]>([]);
-  const [billingApproved, setBillingApproved] = useState(false);
+  const [billing, setBilling]     = useState<string>('unapproved');
   const [saving, setSaving]       = useState(false);
   const [loading, setLoading]     = useState(true);
 
@@ -108,7 +111,7 @@ const ParentProfile = () => {
         const doc = await databases.getDocument(databaseId, collections.parentUsers, id);
         const parentData = doc as any as ParentRecord;
         setParent(parentData);
-        setBillingApproved(parentData.billingApproved ?? false);
+        setBilling(parentData.billing || 'unapproved');
 
         // Build last-6-months labels
         const now = new Date();
@@ -236,7 +239,7 @@ const ParentProfile = () => {
     try {
       await databases.updateDocument(databaseId, collections.parentUsers, id, { [field]: value });
       setParent(prev => prev ? { ...prev, [field]: value } : null);
-      if (field === 'billingApproved') setBillingApproved(value as boolean);
+      if (field === 'billing') setBilling(value as string);
     } catch (e) { console.error(e); }
     finally { setSaving(false); }
   };
@@ -446,19 +449,30 @@ const ParentProfile = () => {
             <InfoRow label="Children"     value={String(childrenData.length)} />
             <InfoRow label="Member Since" value={fmtDate(parent.$createdAt)} />
             <div>
-              <p className="text-white/40 text-[10px] uppercase tracking-wider mb-2">Billing Approval</p>
-              <button
-                onClick={() => updateField('billingApproved', !billingApproved)}
-                disabled={saving}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all disabled:opacity-50 ${
-                  billingApproved
-                    ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25'
-                    : 'bg-red-500/10 border-red-500/20 text-red-400 hover:bg-red-500/20'
-                }`}
-              >
-                <span className={`w-1.5 h-1.5 rounded-full ${billingApproved ? 'bg-emerald-400' : 'bg-red-400'}`} />
-                {billingApproved ? 'Approved' : 'Unapproved'}
-              </button>
+              <p className="text-white/40 text-[10px] uppercase tracking-wider mb-2">Billing</p>
+              <div className="flex gap-1.5">
+                {BILLING_OPTIONS.map(opt => {
+                  const selected = billing === opt;
+                  const color = billingColor(opt);
+                  return (
+                    <button
+                      key={opt}
+                      onClick={() => updateField('billing', opt)}
+                      disabled={saving || selected}
+                      className="flex-1 px-2.5 py-1.5 rounded text-[11px] font-medium border transition-all"
+                      style={{
+                        borderColor: selected ? color : 'rgba(255,255,255,0.1)',
+                        backgroundColor: selected ? `${color}20` : 'rgba(255,255,255,0.04)',
+                        color: selected ? color : 'rgba(255,255,255,0.5)',
+                        cursor: saving ? 'not-allowed' : 'pointer',
+                        textTransform: 'capitalize',
+                      }}
+                    >
+                      {opt}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </Card>

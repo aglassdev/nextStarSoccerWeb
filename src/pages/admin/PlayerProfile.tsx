@@ -11,9 +11,9 @@ interface PlayerRecord {
   userId?: string;
   firstName: string;
   lastName: string;
-  billingApproved?: boolean;
-  scholarshipTier?: string;
-  loyaltyTier?: string;
+  tier?: string;
+  billing?: string;
+  scholarship?: string;
   [key: string]: any;
 }
 
@@ -21,16 +21,25 @@ interface FamilyMember { $id: string; name: string; }
 
 const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-// System / personal fields — never shown in Player Profile
+// ── Mobile-app-matched options ─────────────────────────────────────────────
+const TIER_OPTIONS = ['Basic', 'Plus', 'Loyalty'] as const;
+const BILLING_OPTIONS = ['unapproved', 'approved'] as const;
+const SCHOLARSHIP_OPTIONS = ['none', 'tier1', 'tier2'] as const;
+const SCHOLARSHIP_DISPLAY: Record<string, string> = { none: 'None', tier1: 'Tier 1', tier2: 'Tier 2' };
+
+const tierColor = (t: string) => t === 'Loyalty' ? '#FFD700' : t === 'Plus' ? '#C0C0C0' : '#ffffff';
+const billingColor = (b: string) => b === 'approved' ? '#22c55e' : '#ef4444';
+const scholarshipColor = (s: string) => s === 'tier2' ? '#a855f7' : s === 'tier1' ? '#3b82f6' : '#ffffff';
+
+// Personal-info / system / admin-control / relationship fields — never shown in Player Profile
 const SKIP_FIELDS = new Set([
-  '$id','$createdAt','$updatedAt','$permissions','$collectionId','$databaseId',
   'userId','firstName','lastName','type',
   'email','phone',
   'address','streetAddress','city','state','zip','zipCode',
   'gender','dateOfBirth','birthDate','dob','birthdate',
   'stripeCustomerId','stripeId','stripe_id','stripeID',
-  'billingApproved','scholarshipTier','loyaltyTier',
-  'parentId','parentUserId',
+  'tier','billing','scholarship',
+  'parentId','parentUserId','linkedParentId',
 ]);
 
 // ── SVG Graph with Y-axis ────────────────────────────────────────────────────
@@ -98,40 +107,44 @@ const InfoRow = ({ label, value }: { label: string; value?: string | null }) => 
   );
 };
 
-// Editable tier field — shows current value, save button appears on change
-const TierInput = ({
-  label, value, fieldName, onSave, disabled,
-}: { label: string; value: string; fieldName: string; onSave: (field: string, v: string) => void; disabled: boolean; }) => {
-  const [val, setVal] = useState(value);
-  const dirty = val !== value;
-
-  useEffect(() => { setVal(value); }, [value]);
-
-  return (
-    <div>
-      <p className="text-white/40 text-[10px] uppercase tracking-wider mb-1.5">{label}</p>
-      <div className="flex gap-2">
-        <input
-          type="text"
-          value={val}
-          onChange={e => setVal(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter' && dirty) onSave(fieldName, val); }}
-          placeholder="—"
-          className="flex-1 min-w-0 bg-white/[0.04] border border-white/10 rounded px-2.5 py-1.5 text-white text-xs placeholder-white/20 focus:outline-none focus:border-white/25 transition-colors"
-        />
-        {dirty && (
+// ── Option-row picker ────────────────────────────────────────────────────────
+const OptionRow = <T extends string>({
+  label, options, value, getColor, displayMap, onChange, disabled,
+}: {
+  label: string;
+  options: readonly T[];
+  value: T;
+  getColor: (v: string) => string;
+  displayMap?: Record<string, string>;
+  onChange: (v: T) => void;
+  disabled: boolean;
+}) => (
+  <div>
+    <p className="text-white/40 text-[10px] uppercase tracking-wider mb-2">{label}</p>
+    <div className="flex gap-1.5">
+      {options.map(opt => {
+        const selected = value === opt;
+        const color = getColor(opt);
+        return (
           <button
-            onClick={() => onSave(fieldName, val)}
-            disabled={disabled}
-            className="px-2.5 py-1.5 bg-blue-600/20 border border-blue-500/30 text-blue-300 rounded text-[11px] hover:bg-blue-600/30 transition-colors disabled:opacity-50 flex-shrink-0"
+            key={opt}
+            onClick={() => onChange(opt)}
+            disabled={disabled || selected}
+            className="flex-1 px-2.5 py-1.5 rounded text-[11px] font-medium border transition-all disabled:opacity-100"
+            style={{
+              borderColor: selected ? color : 'rgba(255,255,255,0.1)',
+              backgroundColor: selected ? `${color}20` : 'rgba(255,255,255,0.04)',
+              color: selected ? color : 'rgba(255,255,255,0.5)',
+              cursor: disabled ? 'not-allowed' : 'pointer',
+            }}
           >
-            Save
+            {displayMap?.[opt] ?? opt}
           </button>
-        )}
-      </div>
+        );
+      })}
     </div>
-  );
-};
+  </div>
+);
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 const PlayerProfile = () => {
@@ -145,9 +158,9 @@ const PlayerProfile = () => {
   const [family, setFamily] = useState<FamilyMember[]>([]);
   const [monthCounts, setMonthCounts] = useState<number[]>(Array(6).fill(0));
   const [months, setMonths] = useState<string[]>([]);
-  const [billingApproved, setBillingApproved] = useState(false);
-  const [scholarshipTier, setScholarshipTier] = useState('');
-  const [loyaltyTier, setLoyaltyTier] = useState('');
+  const [tier, setTier] = useState<string>('Basic');
+  const [billing, setBilling] = useState<string>('unapproved');
+  const [scholarship, setScholarship] = useState<string>('none');
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -166,9 +179,9 @@ const PlayerProfile = () => {
         const doc = await databases.getDocument(databaseId, collId, id);
         const p: PlayerRecord = { ...(doc as any), type: (type.charAt(0).toUpperCase() + type.slice(1)) as PlayerType };
         setPlayer(p);
-        setBillingApproved(p.billingApproved ?? false);
-        setScholarshipTier(p.scholarshipTier || '');
-        setLoyaltyTier(p.loyaltyTier || '');
+        setTier(p.tier || 'Basic');
+        setBilling(p.billing || 'unapproved');
+        setScholarship(p.scholarship || 'none');
 
         const now = new Date();
         const mo: string[] = [];
@@ -247,9 +260,9 @@ const PlayerProfile = () => {
     try {
       await databases.updateDocument(databaseId, collId, id, { [field]: value });
       setPlayer(prev => prev ? { ...prev, [field]: value } : null);
-      if (field === 'billingApproved') setBillingApproved(value as boolean);
-      if (field === 'scholarshipTier') setScholarshipTier(value as string);
-      if (field === 'loyaltyTier') setLoyaltyTier(value as string);
+      if (field === 'tier') setTier(value);
+      if (field === 'billing') setBilling(value);
+      if (field === 'scholarship') setScholarship(value);
     } catch (e) { console.error(e); }
     finally { setSaving(false); }
   };
@@ -267,8 +280,8 @@ const PlayerProfile = () => {
   const upcomingSignups = signups.filter(s => s.status !== 'cancelled' && (s.status === 'confirmed' || s.status === 'pending' || !s.status));
   const fmtDate = (str?: string) => str ? new Date(str).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null;
 
-  // Resolve personal fields — try multiple attribute name variants
-  const birthDateRaw = player.dateOfBirth || player.birthDate || player.dob || player.birthdate || null;
+  // Personal-info attribute resolution — try multiple variants
+  const birthDateRaw = player.birthDate || player.dateOfBirth || player.dob || player.birthdate || null;
   const address = [
     player.address || player.streetAddress,
     player.city, player.state,
@@ -276,8 +289,9 @@ const PlayerProfile = () => {
   ].filter(Boolean).join(', ') || null;
   const stripeId = player.stripeCustomerId || player.stripeId || player.stripe_id || player.stripeID || null;
 
-  // Player Profile: all non-null, non-skip, non-boolean fields from the Appwrite doc
+  // Player Profile: dynamic — show all real (non-system, non-personal, non-admin) string/number fields
   const profileFields = Object.entries(player).filter(([k, v]) => {
+    if (k.startsWith('$')) return false;
     if (SKIP_FIELDS.has(k)) return false;
     if (v === null || v === undefined || v === '') return false;
     if (typeof v === 'boolean') return false;
@@ -398,7 +412,7 @@ const PlayerProfile = () => {
       {/* Row 3: Player Profile | Personal Info | [Admin Controls + Family] */}
       <div className="grid grid-cols-3 gap-4 items-start">
 
-        {/* Player Profile: all non-null sport fields from Appwrite doc */}
+        {/* Player Profile: dynamic from Appwrite doc */}
         <Card title="Player Profile">
           {profileFields.length === 0 ? (
             <p className="text-white/20 text-sm">No profile data</p>
@@ -414,7 +428,7 @@ const PlayerProfile = () => {
           )}
         </Card>
 
-        {/* Personal Info */}
+        {/* Personal Info — includes scholarship selector */}
         <Card title="Personal Info">
           <div className="space-y-3">
             <InfoRow label="Email" value={player.email} />
@@ -423,8 +437,17 @@ const PlayerProfile = () => {
             <InfoRow label="Gender" value={player.gender} />
             <InfoRow label="Date of Birth" value={birthDateRaw ? fmtDate(birthDateRaw) : null} />
             <InfoRow label="Member Since" value={fmtDate(player.$createdAt)} />
-            <InfoRow label="Account ID" value={player.userId || player.$id} />
             <InfoRow label="Stripe ID" value={stripeId} />
+
+            <OptionRow
+              label="Scholarship"
+              options={SCHOLARSHIP_OPTIONS}
+              value={scholarship as any}
+              getColor={scholarshipColor}
+              displayMap={SCHOLARSHIP_DISPLAY}
+              onChange={v => updateField('scholarship', v)}
+              disabled={saving}
+            />
           </div>
         </Card>
 
@@ -435,39 +458,22 @@ const PlayerProfile = () => {
           <div className="bg-[#1d1c21] border border-white/[0.08] rounded-xl p-5">
             <p className="text-white/50 text-[11px] font-medium tracking-widest uppercase mb-4">Admin Controls</p>
             <div className="space-y-4">
-
-              <div>
-                <p className="text-white/40 text-[10px] uppercase tracking-wider mb-2">Billing Approval</p>
-                <button
-                  onClick={() => updateField('billingApproved', !billingApproved)}
-                  disabled={saving}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all disabled:opacity-50 ${
-                    billingApproved
-                      ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25'
-                      : 'bg-red-500/10 border-red-500/20 text-red-400 hover:bg-red-500/20'
-                  }`}
-                >
-                  <span className={`w-1.5 h-1.5 rounded-full ${billingApproved ? 'bg-emerald-400' : 'bg-red-400'}`} />
-                  {billingApproved ? 'Approved' : 'Unapproved'}
-                </button>
-              </div>
-
-              <TierInput
-                label="Scholarship Tier"
-                value={scholarshipTier}
-                fieldName="scholarshipTier"
-                onSave={updateField}
+              <OptionRow
+                label="Billing"
+                options={BILLING_OPTIONS}
+                value={billing as any}
+                getColor={billingColor}
+                onChange={v => updateField('billing', v)}
                 disabled={saving}
               />
-
-              <TierInput
-                label="Loyalty Tier"
-                value={loyaltyTier}
-                fieldName="loyaltyTier"
-                onSave={updateField}
+              <OptionRow
+                label="Tier"
+                options={TIER_OPTIONS}
+                value={tier as any}
+                getColor={tierColor}
+                onChange={v => updateField('tier', v)}
                 disabled={saving}
               />
-
             </div>
           </div>
 
@@ -485,10 +491,7 @@ const PlayerProfile = () => {
                     <div className="w-7 h-7 rounded-full bg-white/[0.08] flex items-center justify-center flex-shrink-0">
                       <span className="text-white text-xs font-medium">{m.name[0]?.toUpperCase()}</span>
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-white text-xs truncate">{m.name}</p>
-                      <p className="text-white/40 text-[10px]">Parent · tap to view</p>
-                    </div>
+                    <p className="text-white text-xs truncate">{m.name}</p>
                   </div>
                 ))}
               </div>
