@@ -66,7 +66,11 @@ const PRESET_VENUES: { label: string; address: string }[] = [
   { label: 'Somerset ES', address: 'Somerset Elementary School, 5811 Warwick Pl, Chevy Chase, MD 20815' },
   { label: 'Washington Episcopal', address: 'Washington Episcopal School, 5600 Little Falls Pkwy, Bethesda, MD 20816' },
   { label: 'Palisades Rec', address: 'Palisades Recreation Center, 5200 Sherier Pl NW, Washington, DC 20016' },
+  { label: 'Bethesda Soccer Club', address: '8717 Grovemont Cir, Gaithersburg, MD 20877' },
 ];
+
+// Red asterisk for required field labels
+const Req = () => <span className="text-red-400 ml-0.5">*</span>;
 
 // 15-min interval slots between two 24-hour bounds (inclusive)
 function generateTimeRange(startHour24: number, endHour24: number): string[] {
@@ -130,11 +134,186 @@ function formatDate(dt: string) {
   });
 }
 
+// ── Location picker modal — themed, rounded, with map preview ───────────────
+function LocationPickerModal({
+  open, currentValue, onClose, onSelect,
+}: {
+  open: boolean;
+  currentValue: string;
+  onClose: () => void;
+  onSelect: (loc: string) => void;
+}) {
+  const [query, setQuery] = useState('');
+  const [suggestions, setSuggestions] = useState<GooglePlacesPrediction[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [preview, setPreview] = useState(currentValue);
+  const tRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (open) { setQuery(''); setSuggestions([]); setPreview(currentValue); }
+  }, [open, currentValue]);
+
+  const fetchSuggestions = useCallback(async (input: string) => {
+    if (input.trim().length < 2) { setSuggestions([]); return; }
+    setLoading(true);
+    try {
+      const out = await GooglePlacesService.getAutocompleteSuggestions(input, 'establishment', {
+        componentRestrictions: { country: 'us' },
+      });
+      setSuggestions(out);
+    } finally { setLoading(false); }
+  }, []);
+
+  const handleQuery = (v: string) => {
+    setQuery(v);
+    if (tRef.current) clearTimeout(tRef.current);
+    tRef.current = setTimeout(() => fetchSuggestions(v), 250);
+  };
+
+  const pickSuggestion = async (s: GooglePlacesPrediction) => {
+    let location = s.description;
+    try {
+      const details = await GooglePlacesService.getPlaceDetails(s.place_id);
+      if (details?.name && details?.formatted_address) {
+        location = `${details.name}, ${details.formatted_address}`;
+      } else if (details?.formatted_address) {
+        location = details.formatted_address;
+      }
+    } catch { /* fall back */ }
+    setPreview(location);
+  };
+
+  if (!open) return null;
+
+  const mapsKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
+  const mapSrc = preview && mapsKey
+    ? `https://www.google.com/maps/embed/v1/place?key=${mapsKey}&q=${encodeURIComponent(preview)}`
+    : '';
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={onClose}>
+      <div
+        className="bg-[#141214] border border-white/[0.08] rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06]">
+          <div>
+            <h3 className="text-white text-base font-semibold">Pick Location</h3>
+            <p className="text-white/40 text-xs mt-0.5">Choose a preset, search, or type an address.</p>
+          </div>
+          <button onClick={onClose} className="text-white/40 hover:text-white p-1.5 rounded-lg hover:bg-white/[0.04] transition-colors">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-6 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
+          {/* Preset venues */}
+          <div>
+            <p className="text-white/40 text-[10px] uppercase tracking-wider mb-2">Frequent Locations</p>
+            <div className="flex flex-wrap gap-1.5">
+              {PRESET_VENUES.map(v => (
+                <button
+                  key={v.label}
+                  onClick={() => setPreview(v.address)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                    preview === v.address
+                      ? 'bg-white/[0.10] border-white/40 text-white'
+                      : 'bg-white/[0.03] border-white/[0.10] text-white/55 hover:text-white hover:border-white/25'
+                  }`}
+                >
+                  {v.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Search */}
+          <div className="relative">
+            <p className="text-white/40 text-[10px] uppercase tracking-wider mb-2">Search</p>
+            <input
+              type="text"
+              value={query}
+              onChange={e => handleQuery(e.target.value)}
+              placeholder="Type a venue, school, or address…"
+              autoFocus
+              className="w-full px-3 py-2.5 bg-white/[0.04] border border-white/[0.10] rounded-xl text-white text-sm placeholder-white/25 focus:outline-none focus:border-white/30 transition-colors"
+            />
+            {loading && (
+              <div className="absolute right-3 top-9 w-4 h-4 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+            )}
+            {suggestions.length > 0 && (
+              <div className="mt-2 bg-white/[0.03] border border-white/[0.08] rounded-xl overflow-hidden divide-y divide-white/[0.05]">
+                {suggestions.map(s => (
+                  <button
+                    key={s.place_id}
+                    onClick={() => pickSuggestion(s)}
+                    className="w-full text-left px-3 py-2.5 text-sm text-white/80 hover:bg-white/[0.04] transition-colors"
+                  >
+                    {s.description}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Map preview */}
+          {preview && (
+            <div>
+              <p className="text-white/40 text-[10px] uppercase tracking-wider mb-2">Preview</p>
+              <div className="rounded-xl overflow-hidden border border-white/[0.08] bg-white/[0.02]">
+                {mapSrc ? (
+                  <iframe
+                    src={mapSrc}
+                    className="w-full h-56"
+                    style={{ border: 0 }}
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    title="Location preview"
+                  />
+                ) : (
+                  <div className="px-4 py-6 text-white/30 text-xs text-center">
+                    Map preview unavailable (set VITE_GOOGLE_MAPS_API_KEY).
+                  </div>
+                )}
+                <div className="px-4 py-2.5 border-t border-white/[0.06]">
+                  <p className="text-white text-xs">{preview}</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex justify-end gap-2 px-6 py-4 border-t border-white/[0.06] bg-white/[0.02]">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm text-white/60 hover:text-white border border-white/[0.10] hover:border-white/30 rounded-lg transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => preview && onSelect(preview)}
+            disabled={!preview}
+            className="px-4 py-2 text-sm font-medium bg-white/[0.10] hover:bg-white/[0.15] text-white border border-white/20 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Use This Location
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Reusable dropdown ────────────────────────────────────────────────────────
 function Dropdown({
-  label, value, options, onChange, placeholder = 'Select…', error,
+  label, required, value, options, onChange, placeholder = 'Select…', error,
 }: {
   label: string;
+  required?: boolean;
   value: string;
   options: string[];
   onChange: (v: string) => void;
@@ -144,7 +323,9 @@ function Dropdown({
   const [open, setOpen] = useState(false);
   return (
     <div className="relative">
-      <label className="block text-gray-400 text-xs mb-1">{label}</label>
+      <label className="block text-gray-400 text-xs mb-1">
+        {label}{required && <Req />}
+      </label>
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
@@ -194,6 +375,32 @@ const EventAssistantSection = () => {
   const [calType, setCalType] = useState<'public' | 'private'>('public');
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
+
+  // Convert a CalendarEvent into an EventFormData snapshot for the edit form
+  const eventToForm = (ev: CalendarEvent): EventFormData => {
+    const start = new Date(ev.startDateTime);
+    const end = new Date(ev.endDateTime);
+    const dateStr = start.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+    const fmt = (d: Date) => d.toLocaleTimeString('en-US', {
+      hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/New_York',
+    }).replace(/^0/, '');
+    const matchedType = ALL_EVENT_TYPES.find(t =>
+      ev.title?.toLowerCase().includes(t.toLowerCase())
+    );
+    return {
+      title: ev.title || '',
+      date: dateStr,
+      startTime: ev.dateOnly ? '' : fmt(start),
+      endTime: ev.dateOnly ? '' : fmt(end),
+      location: ev.location || '',
+      eventType: matchedType || ev.title || '',
+      selectedPlayers: [],
+      selectedCoaches: [],
+      isRecurring: false,
+      recurringWeeks: '',
+    };
+  };
 
   // Feedback
   const [successMsg, setSuccessMsg] = useState('');
@@ -280,7 +487,7 @@ const EventAssistantSection = () => {
 
   return (
     <div className="p-6">
-      <h2 className="text-2xl font-bold text-white mb-6">Event Maker</h2>
+      <h2 className="text-2xl font-bold text-white mb-6">Event Assistant</h2>
 
       {successMsg && (
         <div className="mb-4 px-4 py-3 bg-green-500/10 border border-green-500/20 rounded-lg text-green-400 text-sm">{successMsg}</div>
@@ -323,50 +530,98 @@ const EventAssistantSection = () => {
 
       {tab === 'manage' && (
         <div>
-          <div className="flex gap-1 mb-4 bg-gray-900 rounded-lg p-1 w-fit border border-gray-800">
-            {(['public', 'private'] as const).map(t => (
+          {editingEvent ? (
+            <div className="max-w-2xl">
               <button
-                key={t}
-                onClick={() => setCalType(t)}
-                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors capitalize ${
-                  calType === t ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-white'
-                }`}
+                onClick={() => setEditingEvent(null)}
+                className="flex items-center gap-2 text-gray-400 hover:text-white text-sm mb-4 transition-colors"
               >
-                {t}
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" />
+                </svg>
+                Back to events
               </button>
-            ))}
-          </div>
-
-          {loadingEvents ? (
-            <div className="flex items-center justify-center h-40">
-              <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+              <div className="mb-5">
+                <p className="text-white/40 text-[10px] uppercase tracking-widest mb-1">Editing</p>
+                <h3 className="text-white text-lg font-semibold">{editingEvent.title}</h3>
+              </div>
+              <CreateEventForm
+                key={editingEvent.id}
+                coaches={coaches}
+                allPlayers={allPlayers}
+                callCalendarFunction={callCalendarFunction}
+                onSuccess={(msg) => { showFeedback(msg); setEditingEvent(null); }}
+                onError={(msg) => showFeedback(msg, true)}
+                mode="edit"
+                editingEvent={editingEvent}
+                initialForm={eventToForm(editingEvent)}
+                onDoneEditing={async () => {
+                  setEditingEvent(null);
+                  // Reload events
+                  setLoadingEvents(true);
+                  try {
+                    const now = new Date();
+                    const evs = await googleCalendarService.getEventsForMonth(now.getFullYear(), now.getMonth(), calType);
+                    setEvents(evs.filter(e => !isEventCancelled(e)));
+                  } finally { setLoadingEvents(false); }
+                }}
+              />
             </div>
-          ) : events.length === 0 ? (
-            <p className="text-gray-600 text-sm text-center py-12">No events found for this month</p>
           ) : (
-            <div className="space-y-2 max-w-2xl">
-              {events.map(ev => (
-                <div key={ev.id} className="bg-[#0e0e0e] border border-[#1c1c1c] rounded-xl px-4 py-3 flex items-center gap-3">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white text-sm font-medium truncate">{ev.title}</p>
-                    <p className="text-gray-500 text-xs mt-0.5">
-                      {formatDate(ev.startDateTime)} · {formatTime(ev.startDateTime, ev.dateOnly)}
-                    </p>
-                    {ev.location && <p className="text-gray-600 text-xs truncate mt-0.5">{ev.location}</p>}
-                  </div>
+            <>
+              <div className="flex gap-1 mb-4 bg-gray-900 rounded-lg p-1 w-fit border border-gray-800">
+                {(['public', 'private'] as const).map(t => (
                   <button
-                    onClick={() => handleDeleteEvent(ev)}
-                    className="p-1.5 text-gray-600 hover:text-red-400 transition-colors"
-                    title="Delete"
+                    key={t}
+                    onClick={() => setCalType(t)}
+                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors capitalize ${
+                      calType === t ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-white'
+                    }`}
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
+                    {t}
                   </button>
+                ))}
+              </div>
+
+              {loadingEvents ? (
+                <div className="flex items-center justify-center h-40">
+                  <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
                 </div>
-              ))}
-            </div>
+              ) : events.length === 0 ? (
+                <p className="text-gray-600 text-sm text-center py-12">No events found for this month</p>
+              ) : (
+                <div className="space-y-2 max-w-2xl">
+                  {events.map(ev => (
+                    <button
+                      key={ev.id}
+                      onClick={() => setEditingEvent(ev)}
+                      className="w-full text-left bg-[#0e0e0e] border border-[#1c1c1c] hover:border-white/20 rounded-xl px-4 py-3 flex items-center gap-3 transition-colors"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white text-sm font-medium truncate">{ev.title}</p>
+                        <p className="text-gray-500 text-xs mt-0.5">
+                          {formatDate(ev.startDateTime)} · {formatTime(ev.startDateTime, ev.dateOnly)}
+                        </p>
+                        {ev.location && <p className="text-gray-600 text-xs truncate mt-0.5">{ev.location}</p>}
+                      </div>
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => { e.stopPropagation(); handleDeleteEvent(ev); }}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); handleDeleteEvent(ev); } }}
+                        className="p-1.5 text-gray-600 hover:text-red-400 transition-colors cursor-pointer"
+                        title="Delete"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
@@ -381,14 +636,22 @@ function CreateEventForm({
   callCalendarFunction,
   onSuccess,
   onError,
+  mode = 'create',
+  initialForm,
+  editingEvent,
+  onDoneEditing,
 }: {
   coaches: CoachRecord[];
   allPlayers: PlayerRecord[];
   callCalendarFunction: (action: string, payload: object) => Promise<any>;
   onSuccess: (msg: string) => void;
   onError: (msg: string) => void;
+  mode?: 'create' | 'edit';
+  initialForm?: EventFormData;
+  editingEvent?: CalendarEvent;
+  onDoneEditing?: () => void;
 }) {
-  const [form, setForm] = useState<EventFormData>(EMPTY_FORM);
+  const [form, setForm] = useState<EventFormData>(initialForm || EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
 
@@ -405,51 +668,15 @@ function CreateEventForm({
     setForm(f => ({ ...f, eventType: v, title: f.title || v }));
   };
 
-  // ─── Address autocomplete ───
-  const [addrInput, setAddrInput] = useState('');
-  const [addrSuggestions, setAddrSuggestions] = useState<GooglePlacesPrediction[]>([]);
-  const [addrOpen, setAddrOpen] = useState(false);
-  const [addrSelected, setAddrSelected] = useState(false);
-  const addrTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // ─── Location modal ───
+  const [locationModalOpen, setLocationModalOpen] = useState(false);
+  // For edit mode the initial location is already valid; otherwise it must be confirmed via modal
+  const [addrSelected, setAddrSelected] = useState(mode === 'edit');
 
-  const fetchAddressSuggestions = useCallback(async (input: string) => {
-    if (input.length < 2) { setAddrSuggestions([]); setAddrOpen(false); return; }
-    const out = await GooglePlacesService.getAutocompleteSuggestions(input, 'establishment', {
-      componentRestrictions: { country: 'us' },
-    });
-    setAddrSuggestions(out);
-    setAddrOpen(out.length > 0);
-  }, []);
-
-  const handleAddressInput = (text: string) => {
-    setAddrInput(text);
-    set('location', text);
-    setAddrSelected(false);
-    if (addrTimeout.current) clearTimeout(addrTimeout.current);
-    addrTimeout.current = setTimeout(() => fetchAddressSuggestions(text), 250);
-  };
-
-  const handleSelectSuggestion = async (s: GooglePlacesPrediction) => {
-    let location = s.description;
-    try {
-      const details = await GooglePlacesService.getPlaceDetails(s.place_id);
-      if (details?.name && details?.formatted_address) {
-        location = `${details.name}, ${details.formatted_address}`;
-      } else if (details?.formatted_address) {
-        location = details.formatted_address;
-      }
-    } catch { /* fall back to description */ }
-    setAddrInput(location);
+  const handlePickLocation = (location: string) => {
     set('location', location);
     setAddrSelected(true);
-    setAddrOpen(false);
-  };
-
-  const handlePresetVenue = (preset: { label: string; address: string }) => {
-    setAddrInput(preset.address);
-    set('location', preset.address);
-    setAddrSelected(true);
-    setAddrOpen(false);
+    setLocationModalOpen(false);
   };
 
   // ─── Player search ───
@@ -530,6 +757,23 @@ function CreateEventForm({
       const startTime24 = to24h(form.startTime);
       const endTime24 = to24h(form.endTime);
 
+      // ─── EDIT MODE ───
+      if (mode === 'edit' && editingEvent) {
+        await callCalendarFunction('updateEvent', {
+          calendarType,
+          eventId: editingEvent.id,
+          title: eventTitle,
+          date: form.date,
+          startTime: startTime24,
+          endTime: endTime24,
+          location: form.location,
+          description: '',
+        });
+        onSuccess('Event updated successfully.');
+        if (onDoneEditing) onDoneEditing();
+        return;
+      }
+
       const weeksToCreate = form.isRecurring ? parseInt(form.recurringWeeks) : 1;
       let createdCount = 0;
 
@@ -592,7 +836,6 @@ function CreateEventForm({
           : `${createdCount} recurring events created successfully.`
       );
       setForm(EMPTY_FORM);
-      setAddrInput('');
       setAddrSelected(false);
       setErrors({});
     } catch (err: any) {
@@ -609,7 +852,8 @@ function CreateEventForm({
 
       {/* Event Type */}
       <Dropdown
-        label="Event Type *"
+        label="Event Type"
+        required
         value={form.eventType}
         options={ALL_EVENT_TYPES}
         onChange={handleEventType}
@@ -619,7 +863,9 @@ function CreateEventForm({
 
       {/* Title */}
       <div>
-        <label className="block text-gray-400 text-xs mb-1">Title {form.eventType ? '(optional)' : '*'}</label>
+        <label className="block text-gray-400 text-xs mb-1">
+          Title {form.eventType ? <span className="text-gray-600">(optional)</span> : <Req />}
+        </label>
         <input
           type="text"
           value={form.title}
@@ -634,7 +880,7 @@ function CreateEventForm({
       {/* Date + times */}
       <div className="grid grid-cols-3 gap-3">
         <div>
-          <label className="block text-gray-400 text-xs mb-1">Date *</label>
+          <label className="block text-gray-400 text-xs mb-1">Date<Req /></label>
           <input
             type="date"
             value={form.date}
@@ -645,7 +891,8 @@ function CreateEventForm({
           />
         </div>
         <Dropdown
-          label="Start Time *"
+          label="Start Time"
+          required
           value={form.startTime}
           options={START_TIME_OPTIONS}
           onChange={handleStartTime}
@@ -653,7 +900,8 @@ function CreateEventForm({
           error={errors.startTime}
         />
         <Dropdown
-          label="End Time *"
+          label="End Time"
+          required
           value={form.endTime}
           options={END_TIME_OPTIONS}
           onChange={v => set('endTime', v)}
@@ -667,54 +915,25 @@ function CreateEventForm({
 
       {/* Location */}
       {!isAnalysis && (
-        <div className="relative">
-          <label className="block text-gray-400 text-xs mb-1">Location *</label>
-
-          {/* Preset venue pills */}
-          <div className="flex flex-wrap gap-1.5 mb-2">
-            {PRESET_VENUES.map(v => (
-              <button
-                key={v.label}
-                type="button"
-                onClick={() => handlePresetVenue(v)}
-                className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors ${
-                  form.location === v.address
-                    ? 'bg-blue-600/20 border-blue-500/40 text-blue-300'
-                    : 'bg-white/[0.04] border-white/10 text-white/50 hover:text-white hover:border-white/25'
-                }`}
-              >
-                {v.label}
-              </button>
-            ))}
-          </div>
-
-          <input
-            type="text"
-            value={addrInput || form.location}
-            onChange={e => handleAddressInput(e.target.value)}
-            onFocus={() => { if (addrSuggestions.length > 0) setAddrOpen(true); }}
-            placeholder="Search a venue, school, or address…"
-            className={`w-full px-3 py-2 bg-[#1a1a1a] border rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder-gray-600 ${
-              errors.location ? 'border-red-500/50' : 'border-[#2a2a2a]'
+        <div>
+          <label className="block text-gray-400 text-xs mb-1">Location<Req /></label>
+          <button
+            type="button"
+            onClick={() => setLocationModalOpen(true)}
+            className={`w-full px-3 py-2 bg-[#1a1a1a] border rounded-lg text-left text-sm transition-colors flex items-center justify-between focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+              errors.location ? 'border-red-500/50' : 'border-[#2a2a2a] hover:border-gray-600'
             }`}
-          />
-          {addrOpen && addrSuggestions.length > 0 && (
-            <>
-              <div className="fixed inset-0 z-10" onClick={() => setAddrOpen(false)} />
-              <div className="absolute z-20 mt-1 left-0 right-0 bg-[#111] border border-[#2a2a2a] rounded-lg shadow-xl max-h-56 overflow-y-auto">
-                {addrSuggestions.map(s => (
-                  <button
-                    key={s.place_id}
-                    type="button"
-                    onClick={() => handleSelectSuggestion(s)}
-                    className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-white/[0.04] transition-colors"
-                  >
-                    {s.description}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
+          >
+            <span className={form.location ? 'text-white truncate' : 'text-gray-600'}>
+              {form.location || 'Pick a venue or address…'}
+            </span>
+            <svg className="w-4 h-4 text-gray-500 flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </button>
           {errors.location && <p className="text-red-400 text-xs mt-1">Please select a location from suggestions.</p>}
         </div>
       )}
@@ -858,9 +1077,16 @@ function CreateEventForm({
           className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
         >
           {saving && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-          {saving ? 'Creating…' : 'Create Event'}
+          {saving ? (mode === 'edit' ? 'Saving…' : 'Creating…') : (mode === 'edit' ? 'Save Changes' : 'Create Event')}
         </button>
       </div>
+
+      <LocationPickerModal
+        open={locationModalOpen}
+        currentValue={form.location}
+        onClose={() => setLocationModalOpen(false)}
+        onSelect={handlePickLocation}
+      />
     </form>
   );
 }

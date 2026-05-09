@@ -1,5 +1,13 @@
 import { useState, useEffect } from 'react';
+import { Query } from 'appwrite';
+import { databases, databaseId, collections } from '../../../services/appwrite';
 import { googleCalendarService, CalendarEvent, isEventCancelled } from '../../../services/googleCalendar';
+
+interface SignupSummary {
+  playerNames: string[];
+  coachNames: string[];
+  count: number;
+}
 
 const MONTH_NAMES = [
   'January','February','March','April','May','June',
@@ -132,13 +140,72 @@ function CalendarGrid({
 }
 
 // ── Event list for selected day ───────────────────────────────────────────────
-function DayEvents({ events, day, month, year }: { events: CalendarEvent[]; day: number; month: number; year: number }) {
+function DayEvents({ events, day, month, year, type }: {
+  events: CalendarEvent[]; day: number; month: number; year: number;
+  type: 'public' | 'private';
+}) {
   const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
   const dayEvents = events.filter(ev => {
     if (isEventCancelled(ev)) return false;
     const d = new Date(ev.startDateTime).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
     return d === dateStr;
   });
+
+  const [summaries, setSummaries] = useState<Record<string, SignupSummary>>({});
+
+  // Fetch signups + coach signups for visible day events
+  useEffect(() => {
+    if (dayEvents.length === 0) { setSummaries({}); return; }
+    let cancelled = false;
+    (async () => {
+      const out: Record<string, SignupSummary> = {};
+      await Promise.all(dayEvents.map(async (ev) => {
+        const playerNames: string[] = [];
+        const coachNames: string[] = [];
+        try {
+          if (collections.signups) {
+            const sRes = await databases.listDocuments(databaseId, collections.signups, [
+              Query.equal('eventID', ev.id), Query.limit(200),
+            ]).catch(() => ({ documents: [] as any[] }));
+            for (const s of (sRes as any).documents || []) {
+              const name = `${s.firstName ?? ''} ${s.lastName ?? ''}`.trim();
+              if (name) playerNames.push(name);
+            }
+          }
+        } catch { /* ignore */ }
+        try {
+          if (collections.coachSignups) {
+            const cRes = await databases.listDocuments(databaseId, collections.coachSignups, [
+              Query.equal('eventID', ev.id), Query.limit(50),
+            ]).catch(() => ({ documents: [] as any[] }));
+            // coach docs only have userId, need to look up names from coaches collection
+            const coachUserIds: string[] = [];
+            for (const c of (cRes as any).documents || []) {
+              if (c.coachUserId) coachUserIds.push(c.coachUserId);
+            }
+            if (coachUserIds.length > 0 && collections.coaches) {
+              for (const cuid of coachUserIds) {
+                try {
+                  const r = await databases.listDocuments(databaseId, collections.coaches, [
+                    Query.equal('userId', cuid), Query.limit(1),
+                  ]);
+                  if ((r as any).documents.length > 0) {
+                    const cd = (r as any).documents[0];
+                    const cn = `${cd.firstName ?? ''} ${cd.lastName ?? ''}`.trim();
+                    if (cn) coachNames.push(cn);
+                  }
+                } catch { /* ignore */ }
+              }
+            }
+          }
+        } catch { /* ignore */ }
+        out[ev.id] = { playerNames, coachNames, count: playerNames.length };
+      }));
+      if (!cancelled) setSummaries(out);
+    })();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateStr, dayEvents.map(e => e.id).join(',')]);
 
   if (dayEvents.length === 0) {
     return <p className="text-gray-600 text-xs text-center py-3">No events</p>;
@@ -152,6 +219,7 @@ function DayEvents({ events, day, month, year }: { events: CalendarEvent[]; day:
           ? 'All Day'
           : start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/New_York' });
         const color = getEventColor(ev.title);
+        const summary = summaries[ev.id];
         return (
           <div
             key={ev.id}
@@ -161,6 +229,37 @@ function DayEvents({ events, day, month, year }: { events: CalendarEvent[]; day:
             <p className="text-white text-xs font-medium leading-snug">{ev.title}</p>
             <p className="text-gray-500 text-[11px] mt-0.5">{time}</p>
             {ev.location && <p className="text-gray-600 text-[11px] mt-0.5 truncate">{ev.location}</p>}
+
+            {/* Signup summary */}
+            {summary && (
+              <div className="mt-1.5 pt-1.5 border-t border-white/[0.05] space-y-0.5">
+                {type === 'public' ? (
+                  <>
+                    <p className="text-[10px] text-white/55">
+                      <span className="text-white/35">Signed up:</span> {summary.count}
+                    </p>
+                    {summary.coachNames.length > 0 && (
+                      <p className="text-[10px] text-white/55">
+                        <span className="text-white/35">Coach{summary.coachNames.length > 1 ? 'es' : ''}:</span> {summary.coachNames.join(', ')}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    {summary.playerNames.length > 0 && (
+                      <p className="text-[10px] text-white/55">
+                        <span className="text-white/35">Player{summary.playerNames.length > 1 ? 's' : ''}:</span> {summary.playerNames.join(', ')}
+                      </p>
+                    )}
+                    {summary.coachNames.length > 0 && (
+                      <p className="text-[10px] text-white/55">
+                        <span className="text-white/35">Coach{summary.coachNames.length > 1 ? 'es' : ''}:</span> {summary.coachNames.join(', ')}
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
           </div>
         );
       })}
@@ -251,7 +350,7 @@ function CalendarPanel({ type }: { type: 'public' | 'private' }) {
                 <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">
                   {MONTH_NAMES[month]} {selectedDay}
                 </p>
-                <DayEvents events={events} day={selectedDay} month={month} year={year} />
+                <DayEvents events={events} day={selectedDay} month={month} year={year} type={type} />
               </div>
             )}
           </>

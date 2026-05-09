@@ -21,26 +21,11 @@ interface FamilyMember { $id: string; name: string; }
 
 const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-// ── Mobile-app-matched options ─────────────────────────────────────────────
+// Mobile-app field values (services/billingService.ts + admin screens)
 const TIER_OPTIONS = ['Basic', 'Plus', 'Loyalty'] as const;
 const BILLING_OPTIONS = ['unapproved', 'approved'] as const;
 const SCHOLARSHIP_OPTIONS = ['none', 'tier1', 'tier2'] as const;
 const SCHOLARSHIP_DISPLAY: Record<string, string> = { none: 'None', tier1: 'Tier 1', tier2: 'Tier 2' };
-
-const tierColor = (t: string) => t === 'Loyalty' ? '#FFD700' : t === 'Plus' ? '#C0C0C0' : '#ffffff';
-const billingColor = (b: string) => b === 'approved' ? '#22c55e' : '#ef4444';
-const scholarshipColor = (s: string) => s === 'tier2' ? '#a855f7' : s === 'tier1' ? '#3b82f6' : '#ffffff';
-
-// Personal-info / system / admin-control / relationship fields — never shown in Player Profile
-const SKIP_FIELDS = new Set([
-  'userId','firstName','lastName','type',
-  'email','phone',
-  'address','streetAddress','city','state','zip','zipCode',
-  'gender','dateOfBirth','birthDate','dob','birthdate',
-  'stripeCustomerId','stripeId','stripe_id','stripeID',
-  'tier','billing','scholarship',
-  'parentId','parentUserId','linkedParentId',
-]);
 
 // ── SVG Graph with Y-axis ────────────────────────────────────────────────────
 const LineGraph = ({ series, months }: {
@@ -96,25 +81,49 @@ const Card = ({ title, children, className = '' }: { title: string; children: Re
   </div>
 );
 
+// ── Profile sub-section (groups inside Player Profile card) ─────────────────
+const SubSection = ({ title, fields }: { title: string; fields: { label: string; value: any }[] }) => {
+  const visible = fields.filter(f => {
+    if (f.value === null || f.value === undefined) return false;
+    if (Array.isArray(f.value)) return f.value.length > 0;
+    if (typeof f.value === 'string') return f.value.trim() !== '';
+    return true;
+  });
+  if (visible.length === 0) return null;
+  const fmt = (v: any) => Array.isArray(v) ? v.join(', ') : String(v);
+  return (
+    <div>
+      <p className="text-white/30 text-[10px] uppercase tracking-widest font-mono mb-2">{title}</p>
+      <div className="space-y-2.5">
+        {visible.map(f => (
+          <div key={f.label}>
+            <p className="text-white/40 text-[10px] uppercase tracking-wider mb-0.5">{f.label}</p>
+            <p className="text-white text-sm">{fmt(f.value)}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 // Only renders if value is non-empty
 const InfoRow = ({ label, value }: { label: string; value?: string | null }) => {
   if (!value || value.trim() === '') return null;
   return (
     <div>
       <p className="text-white/40 text-[10px] uppercase tracking-wider mb-0.5">{label}</p>
-      <p className="text-white text-sm">{value}</p>
+      <p className="text-white text-sm break-words">{value}</p>
     </div>
   );
 };
 
-// ── Option-row picker ────────────────────────────────────────────────────────
+// ── Option-row picker (white-only active state, no colors) ──────────────────
 const OptionRow = <T extends string>({
-  label, options, value, getColor, displayMap, onChange, disabled,
+  label, options, value, displayMap, onChange, disabled,
 }: {
   label: string;
   options: readonly T[];
   value: T;
-  getColor: (v: string) => string;
   displayMap?: Record<string, string>;
   onChange: (v: T) => void;
   disabled: boolean;
@@ -124,19 +133,17 @@ const OptionRow = <T extends string>({
     <div className="flex gap-1.5">
       {options.map(opt => {
         const selected = value === opt;
-        const color = getColor(opt);
         return (
           <button
             key={opt}
             onClick={() => onChange(opt)}
             disabled={disabled || selected}
-            className="flex-1 px-2.5 py-1.5 rounded text-[11px] font-medium border transition-all disabled:opacity-100"
-            style={{
-              borderColor: selected ? color : 'rgba(255,255,255,0.1)',
-              backgroundColor: selected ? `${color}20` : 'rgba(255,255,255,0.04)',
-              color: selected ? color : 'rgba(255,255,255,0.5)',
-              cursor: disabled ? 'not-allowed' : 'pointer',
-            }}
+            className={`flex-1 px-2.5 py-1.5 rounded text-[11px] font-medium border transition-all capitalize ${
+              selected
+                ? 'bg-white/10 border-white/40 text-white'
+                : 'bg-white/[0.04] border-white/10 text-white/45 hover:text-white hover:border-white/25'
+            }`}
+            style={{ cursor: disabled ? 'not-allowed' : 'pointer' }}
           >
             {displayMap?.[opt] ?? opt}
           </button>
@@ -280,7 +287,7 @@ const PlayerProfile = () => {
   const upcomingSignups = signups.filter(s => s.status !== 'cancelled' && (s.status === 'confirmed' || s.status === 'pending' || !s.status));
   const fmtDate = (str?: string) => str ? new Date(str).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null;
 
-  // Personal-info attribute resolution — try multiple variants
+  // Personal info attribute resolution
   const birthDateRaw = player.birthDate || player.dateOfBirth || player.dob || player.birthdate || null;
   const address = [
     player.address || player.streetAddress,
@@ -289,17 +296,67 @@ const PlayerProfile = () => {
   ].filter(Boolean).join(', ') || null;
   const stripeId = player.stripeCustomerId || player.stripeId || player.stripe_id || player.stripeID || null;
 
-  // Player Profile: dynamic — show all real (non-system, non-personal, non-admin) string/number fields
-  const profileFields = Object.entries(player).filter(([k, v]) => {
-    if (k.startsWith('$')) return false;
-    if (SKIP_FIELDS.has(k)) return false;
-    if (v === null || v === undefined || v === '') return false;
-    if (typeof v === 'boolean') return false;
-    if (typeof v === 'object') return false;
-    return true;
-  });
+  // ── Player profile sub-sections — match mobile Profile screen groupings ──
+  const hasNationalTeam = !!player.nation || !!player.level;
+  const profileType = player.type;
 
-  const labelFor = (k: string) => k.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()).trim();
+  const youthSections = [
+    { title: 'Position', fields: [{ label: 'Position(s)', value: player.positions || player.position }] },
+    { title: 'Club', fields: [
+      { label: 'Current Club', value: player.currentClub || player.club || player.clubTeam },
+      { label: 'Age Group', value: player.ageGroup },
+      { label: 'League', value: player.league },
+    ] },
+    { title: 'School', fields: [
+      { label: 'School', value: player.school },
+      { label: 'Graduation Year', value: player.gradYear || player.graduationYear },
+    ] },
+    { title: 'Professional Club', fields: [
+      { label: 'Club', value: player.club !== player.currentClub ? player.club : null },
+    ] },
+    ...(hasNationalTeam ? [{ title: 'National Team', fields: [
+      { label: 'Nation', value: player.nation },
+      { label: 'Level', value: player.level },
+    ] }] : []),
+  ];
+
+  const collegiateSections = [
+    { title: 'Position', fields: [{ label: 'Position(s)', value: player.positions || player.position }] },
+    { title: 'School', fields: [
+      { label: 'College', value: player.college },
+      { label: 'Year', value: player.year || player.graduationYear || player.gradYear },
+    ] },
+    { title: 'Clubs', fields: [
+      { label: 'Youth Club', value: player.youthClub },
+      { label: 'Professional Club', value: player.professionalClub || player.club },
+    ] },
+    ...(hasNationalTeam ? [{ title: 'National Team', fields: [
+      { label: 'Nation', value: player.nation },
+      { label: 'Level', value: player.level },
+    ] }] : []),
+  ];
+
+  const professionalSections = [
+    { title: 'Player', fields: [
+      { label: 'Current Club', value: player.currentClub || player.club || player.clubTeam },
+      { label: 'Position(s)', value: player.positions || player.position },
+      { label: 'Youth Club', value: player.youthClub },
+    ] },
+    ...(hasNationalTeam ? [{ title: 'National Team', fields: [
+      { label: 'Nation', value: player.nation },
+      { label: 'Level', value: player.level },
+    ] }] : []),
+    { title: 'College', fields: [
+      { label: 'College', value: player.college },
+      { label: 'Graduation Year', value: player.graduationYear || player.gradYear },
+    ] },
+  ];
+
+  const sections =
+    profileType === 'Youth' ? youthSections :
+    profileType === 'Collegiate' ? collegiateSections :
+    profileType === 'Professional' ? professionalSections :
+    [];
 
   return (
     <div className="p-6 space-y-4 max-w-6xl mx-auto">
@@ -412,23 +469,20 @@ const PlayerProfile = () => {
       {/* Row 3: Player Profile | Personal Info | [Admin Controls + Family] */}
       <div className="grid grid-cols-3 gap-4 items-start">
 
-        {/* Player Profile: dynamic from Appwrite doc */}
+        {/* Player Profile — mobile-app sub-sections */}
         <Card title="Player Profile">
-          {profileFields.length === 0 ? (
+          {sections.length === 0 ? (
             <p className="text-white/20 text-sm">No profile data</p>
           ) : (
-            <div className="space-y-3">
-              {profileFields.map(([k, v]) => (
-                <div key={k}>
-                  <p className="text-white/40 text-[10px] uppercase tracking-wider mb-0.5">{labelFor(k)}</p>
-                  <p className="text-white text-sm">{String(v)}</p>
-                </div>
+            <div className="space-y-5">
+              {sections.map(s => (
+                <SubSection key={s.title} title={s.title} fields={s.fields} />
               ))}
             </div>
           )}
         </Card>
 
-        {/* Personal Info — includes scholarship selector */}
+        {/* Personal Info */}
         <Card title="Personal Info">
           <div className="space-y-3">
             <InfoRow label="Email" value={player.email} />
@@ -437,17 +491,8 @@ const PlayerProfile = () => {
             <InfoRow label="Gender" value={player.gender} />
             <InfoRow label="Date of Birth" value={birthDateRaw ? fmtDate(birthDateRaw) : null} />
             <InfoRow label="Member Since" value={fmtDate(player.$createdAt)} />
+            <InfoRow label="Appwrite ID" value={player.$id} />
             <InfoRow label="Stripe ID" value={stripeId} />
-
-            <OptionRow
-              label="Scholarship"
-              options={SCHOLARSHIP_OPTIONS}
-              value={scholarship as any}
-              getColor={scholarshipColor}
-              displayMap={SCHOLARSHIP_DISPLAY}
-              onChange={v => updateField('scholarship', v)}
-              disabled={saving}
-            />
           </div>
         </Card>
 
@@ -462,7 +507,6 @@ const PlayerProfile = () => {
                 label="Billing"
                 options={BILLING_OPTIONS}
                 value={billing as any}
-                getColor={billingColor}
                 onChange={v => updateField('billing', v)}
                 disabled={saving}
               />
@@ -470,8 +514,15 @@ const PlayerProfile = () => {
                 label="Tier"
                 options={TIER_OPTIONS}
                 value={tier as any}
-                getColor={tierColor}
                 onChange={v => updateField('tier', v)}
+                disabled={saving}
+              />
+              <OptionRow
+                label="Scholarship"
+                options={SCHOLARSHIP_OPTIONS}
+                value={scholarship as any}
+                displayMap={SCHOLARSHIP_DISPLAY}
+                onChange={v => updateField('scholarship', v)}
                 disabled={saving}
               />
             </div>
