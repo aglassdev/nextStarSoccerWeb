@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Query, ID } from 'appwrite';
 import { databases, databaseId, collections } from '../../../services/appwrite';
 import { googleCalendarService, CalendarEvent, isEventCancelled } from '../../../services/googleCalendar';
@@ -38,22 +38,6 @@ function formatFullDate(dt: string) {
   return new Date(dt).toLocaleDateString('en-US', {
     weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/New_York',
   });
-}
-
-// ── Event card grid ──────────────────────────────────────────────────────────
-function EventCard({ event, onClick }: { event: CalendarEvent & { calendarType: CalType }; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className="text-left bg-[#0e0e0e] border border-[#1c1c1c] hover:border-white/25 rounded-xl px-4 py-3 transition-colors w-full"
-    >
-      <p className="text-white text-sm font-medium truncate">{event.title}</p>
-      <p className="text-gray-500 text-xs mt-0.5">
-        {formatDate(event.startDateTime)} · {formatTime(event.startDateTime, event.dateOnly)}
-      </p>
-      {event.location && <p className="text-gray-600 text-xs truncate mt-0.5">{event.location}</p>}
-    </button>
-  );
 }
 
 // ── Event detail view (with attending list + add player search) ─────────────
@@ -357,30 +341,29 @@ const AttendanceManagerSection = () => {
     setTimeout(() => { setSuccessMsg(''); setErrorMsg(''); }, 4000);
   };
 
-  // Load events from current month + previous month + next month for both calendars
+  // Load events across a wide window (±12 months from today) for both calendars,
+  // ascending so past sessions sit above today and future sessions below.
   useEffect(() => {
     (async () => {
       setLoading(true);
       try {
         const now = new Date();
-        const yr = now.getFullYear();
-        const mo = now.getMonth();
-        const ranges = [
-          { y: mo === 0 ? yr - 1 : yr, m: mo === 0 ? 11 : mo - 1 },
-          { y: yr, m: mo },
-          { y: mo === 11 ? yr + 1 : yr, m: mo === 11 ? 0 : mo + 1 },
-        ];
+        const ranges: { y: number; m: number }[] = [];
+        for (let offset = -12; offset <= 12; offset++) {
+          const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+          ranges.push({ y: d.getFullYear(), m: d.getMonth() });
+        }
         const fetchAll = (type: CalType) =>
           Promise.all(ranges.map(r => googleCalendarService.getEventsForMonth(r.y, r.m, type).catch(() => [])))
             .then(arrs => arrs.flat());
         const [pub, priv] = await Promise.all([fetchAll('public'), fetchAll('private')]);
 
-        // Dedupe by id, filter cancelled, sort by date desc (most recent first)
+        // Dedupe by id, filter cancelled, sort ascending (oldest first)
         const dedup = (arr: CalendarEvent[]) => {
           const map = new Map<string, CalendarEvent>();
           for (const e of arr) if (!isEventCancelled(e)) map.set(e.id, e);
           return Array.from(map.values()).sort(
-            (a, b) => Date.parse(b.startDateTime) - Date.parse(a.startDateTime)
+            (a, b) => Date.parse(a.startDateTime) - Date.parse(b.startDateTime)
           );
         };
         setPublicEvents(dedup(pub));
@@ -388,6 +371,43 @@ const AttendanceManagerSection = () => {
       } finally { setLoading(false); }
     })();
   }, []);
+
+  // Auto-scroll each column to the first event on or after today
+  const publicListRef = useRef<HTMLDivElement | null>(null);
+  const privateListRef = useRef<HTMLDivElement | null>(null);
+  const publicTodayRef = useRef<HTMLButtonElement | null>(null);
+  const privateTodayRef = useRef<HTMLButtonElement | null>(null);
+
+  const todayStartMs = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+  }, []);
+  const firstUpcomingPublicId = useMemo(
+    () => publicEvents.find(e => Date.parse(e.startDateTime) >= todayStartMs)?.id ?? null,
+    [publicEvents, todayStartMs],
+  );
+  const firstUpcomingPrivateId = useMemo(
+    () => privateEvents.find(e => Date.parse(e.startDateTime) >= todayStartMs)?.id ?? null,
+    [privateEvents, todayStartMs],
+  );
+
+  useEffect(() => {
+    if (loading || selected) return;
+    // Scroll each column so the first event >= today sits at the top of its container
+    const scrollColumn = (
+      list: HTMLDivElement | null,
+      target: HTMLButtonElement | null,
+    ) => {
+      if (!list || !target) return;
+      list.scrollTop = target.offsetTop - list.offsetTop;
+    };
+    // RAF lets the layout settle before reading offsetTop
+    requestAnimationFrame(() => {
+      scrollColumn(publicListRef.current, publicTodayRef.current);
+      scrollColumn(privateListRef.current, privateTodayRef.current);
+    });
+  }, [loading, selected, firstUpcomingPublicId, firstUpcomingPrivateId]);
 
   return (
     <div className="p-6">
@@ -412,48 +432,74 @@ const AttendanceManagerSection = () => {
           <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" />
         </div>
       ) : (
-        <div className="space-y-6">
-          {/* Public row */}
-          <section>
-            <div className="flex items-baseline gap-3 mb-3">
-              <h3 className="text-white text-base font-semibold">Public Sessions</h3>
-              <span className="text-white/30 text-xs">{publicEvents.length} session{publicEvents.length !== 1 ? 's' : ''}</span>
+        <div className="grid grid-cols-2 gap-4 h-[calc(100vh-180px)] min-h-0">
+
+          {/* Public column */}
+          <section className="flex flex-col min-h-0 bg-[#0e0e0e] border border-[#1c1c1c] rounded-xl overflow-hidden">
+            <div className="px-5 py-3 border-b border-[#1a1a1a] flex items-baseline gap-3 flex-shrink-0">
+              <h3 className="text-white text-sm font-semibold">Public Sessions</h3>
+              <span className="text-white/30 text-xs">{publicEvents.length}</span>
             </div>
-            {publicEvents.length === 0 ? (
-              <p className="text-white/25 text-sm">No public sessions found.</p>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {publicEvents.map(ev => (
-                  <EventCard
+            <div ref={publicListRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-2">
+              {publicEvents.length === 0 ? (
+                <p className="text-white/25 text-sm text-center py-6">No public sessions found.</p>
+              ) : publicEvents.map(ev => {
+                const isFirstUpcoming = ev.id === firstUpcomingPublicId;
+                return (
+                  <button
                     key={ev.id}
-                    event={{ ...ev, calendarType: 'public' }}
+                    ref={isFirstUpcoming ? publicTodayRef : undefined}
                     onClick={() => setSelected({ event: ev, calType: 'public' })}
-                  />
-                ))}
-              </div>
-            )}
+                    className={`w-full text-left bg-[#0e0e0e] border rounded-xl px-4 py-3 transition-colors ${
+                      isFirstUpcoming
+                        ? 'border-white/30'
+                        : 'border-[#1c1c1c] hover:border-white/20'
+                    }`}
+                  >
+                    <p className="text-white text-sm font-medium truncate">{ev.title}</p>
+                    <p className="text-gray-500 text-xs mt-0.5">
+                      {formatDate(ev.startDateTime)} · {formatTime(ev.startDateTime, ev.dateOnly)}
+                    </p>
+                    {ev.location && <p className="text-gray-600 text-xs truncate mt-0.5">{ev.location}</p>}
+                  </button>
+                );
+              })}
+            </div>
           </section>
 
-          {/* Private row */}
-          <section>
-            <div className="flex items-baseline gap-3 mb-3">
-              <h3 className="text-white text-base font-semibold">Private Sessions</h3>
-              <span className="text-white/30 text-xs">{privateEvents.length} session{privateEvents.length !== 1 ? 's' : ''}</span>
+          {/* Private column */}
+          <section className="flex flex-col min-h-0 bg-[#0e0e0e] border border-[#1c1c1c] rounded-xl overflow-hidden">
+            <div className="px-5 py-3 border-b border-[#1a1a1a] flex items-baseline gap-3 flex-shrink-0">
+              <h3 className="text-white text-sm font-semibold">Private Sessions</h3>
+              <span className="text-white/30 text-xs">{privateEvents.length}</span>
             </div>
-            {privateEvents.length === 0 ? (
-              <p className="text-white/25 text-sm">No private sessions found.</p>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {privateEvents.map(ev => (
-                  <EventCard
+            <div ref={privateListRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-2">
+              {privateEvents.length === 0 ? (
+                <p className="text-white/25 text-sm text-center py-6">No private sessions found.</p>
+              ) : privateEvents.map(ev => {
+                const isFirstUpcoming = ev.id === firstUpcomingPrivateId;
+                return (
+                  <button
                     key={ev.id}
-                    event={{ ...ev, calendarType: 'private' }}
+                    ref={isFirstUpcoming ? privateTodayRef : undefined}
                     onClick={() => setSelected({ event: ev, calType: 'private' })}
-                  />
-                ))}
-              </div>
-            )}
+                    className={`w-full text-left bg-[#0e0e0e] border rounded-xl px-4 py-3 transition-colors ${
+                      isFirstUpcoming
+                        ? 'border-white/30'
+                        : 'border-[#1c1c1c] hover:border-white/20'
+                    }`}
+                  >
+                    <p className="text-white text-sm font-medium truncate">{ev.title}</p>
+                    <p className="text-gray-500 text-xs mt-0.5">
+                      {formatDate(ev.startDateTime)} · {formatTime(ev.startDateTime, ev.dateOnly)}
+                    </p>
+                    {ev.location && <p className="text-gray-600 text-xs truncate mt-0.5">{ev.location}</p>}
+                  </button>
+                );
+              })}
+            </div>
           </section>
+
         </div>
       )}
     </div>
