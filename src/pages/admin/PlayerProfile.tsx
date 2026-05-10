@@ -284,7 +284,17 @@ const PlayerProfile = () => {
   const fullName = `${player.firstName} ${player.lastName}`;
   const unpaidBills = bills.filter(b => b.status !== 'paid' && b.status !== 'cancelled');
   const overdueCount = unpaidBills.filter(b => b.dueDate && Date.parse(b.dueDate) < Date.now()).length;
-  const upcomingSignups = signups.filter(s => s.status !== 'cancelled' && (s.status === 'confirmed' || s.status === 'pending' || !s.status));
+  // Only signups for events whose start time is in the future (not all signups)
+  const nowMs = Date.now();
+  const upcomingSignups = signups
+    .filter(s => s.status !== 'cancelled')
+    .filter(s => {
+      const raw = s.eventDate || s.eventStartDate || s.signupDate;
+      if (!raw) return false;
+      const t = Date.parse(raw);
+      return !isNaN(t) && t >= nowMs;
+    })
+    .sort((a, b) => Date.parse(a.eventDate || a.signupDate || '') - Date.parse(b.eventDate || b.signupDate || ''));
   const fmtDate = (str?: string) => str ? new Date(str).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null;
 
   // Personal info attribute resolution
