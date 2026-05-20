@@ -10,15 +10,15 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 gsap.registerPlugin(ScrollTrigger);
 
-const STATS_ROW1 = [
-    { end: 2500, label: 'Youth\nPlayers',                           suffix: '+' },
-    { end: 100,  label: 'Professional\nPlayers',                    suffix: '+' },
-    { end: 50,   label: 'National &\nYouth National\nTeam Players', suffix: '+' },
-];
-const STATS_ROW2 = [
-    { end: 200, label: 'NCAA\nDivision I',   suffix: '+' },
-    { end: 50,  label: 'NCAA\nDivision II',  suffix: '+' },
-    { end: 100, label: 'NCAA\nDivision III', suffix: '+' },
+/* ─── Data ─────────────────────────────────────────────────────────────────── */
+
+const STATS: { end: number; suffix: string; label: string; detail: string }[] = [
+    { end: 2500, suffix: '+', label: 'Youth Players',                      detail: 'Trained across all age groups since founding.' },
+    { end: 100,  suffix: '+', label: 'Professional Players',               detail: 'Alumni competing at the highest levels worldwide.' },
+    { end: 50,   suffix: '+', label: 'National Team Players',              detail: 'Representing the U.S. at youth & senior level.' },
+    { end: 200,  suffix: '+', label: 'NCAA Division I',                    detail: 'Alumni earning Division I scholarships.' },
+    { end: 50,   suffix: '+', label: 'NCAA Division II',                   detail: 'Alumni competing at the Division II level.' },
+    { end: 100,  suffix: '+', label: 'NCAA Division III',                  detail: 'Alumni playing at the collegiate Division III level.' },
 ];
 
 const ABOUT_PARAGRAPHS = [
@@ -28,180 +28,109 @@ const ABOUT_PARAGRAPHS = [
     'Specializing in comprehensive soccer training, Next Star also delivers tailored programs designed to enhance technical skills and physical prowess for individuals and groups alike. Our services encompass mentorship, counseling, and consulting for academies, colleges, and aspiring professionals.',
 ];
 
+const COLLAGE_IMAGES = [
+    { src: images.collage1,  caption: 'Private Training'   },
+    { src: images.collage2,  caption: 'Game Day'           },
+    { src: images.collage3,  caption: 'Academy Clinic'     },
+    { src: images.collage4,  caption: 'Player Development' },
+    { src: images.collage5,  caption: 'Speed & Agility'    },
+    { src: images.collage6,  caption: 'Technical Work'     },
+    { src: images.collage7,  caption: 'Small Group'        },
+    { src: images.collage8,  caption: 'College Prep'       },
+    { src: images.collage9,  caption: 'Team Training'      },
+    { src: images.collage10, caption: 'Next Star Showcase' },
+];
+
+const INSTAGRAM_IMAGES = [
+    images.instagram1,
+    images.instagram2,
+    images.instagram3,
+    images.instagram4,
+    images.instagram5,
+];
+
+const INSTAGRAM_POSTS = [
+    'https://www.instagram.com/p/C9N0qy5PKh0/?img_index=1',
+    'https://www.instagram.com/p/DAtr1Y2PaBx/?img_index=1',
+    'https://www.instagram.com/p/DRf1fmdjthJ/?img_index=1',
+    'https://www.instagram.com/p/DMnvmAbxq0Q/?img_index=1',
+    'https://www.instagram.com/p/C_Q_ZEwvaEn/?img_index=1',
+];
+
+/* ─── Component ─────────────────────────────────────────────────────────────── */
+
 const HomePageNew = () => {
     const [visibleCounters, setVisibleCounters] = useState({ row1: false, row2: false });
     const [paragraphsVisible, setParagraphsVisible] = useState([false, false, false, false]);
     const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
 
-    const statsRef          = useRef<HTMLDivElement>(null);
-    const aboutRef          = useRef<HTMLDivElement>(null);
-    const collageSectionRef = useRef<HTMLDivElement>(null);
-    const collageTrackRef   = useRef<HTMLDivElement>(null);
-    const heroRef           = useRef<HTMLDivElement>(null);
-    const heroImageRef      = useRef<HTMLImageElement>(null);
-    const backgroundRef     = useRef<HTMLDivElement>(null);
-    const socialSectionRef  = useRef<HTMLDivElement>(null);
+    const aboutRef         = useRef<HTMLDivElement>(null);
+    const socialSectionRef = useRef<HTMLDivElement>(null);
 
-    const collageImages = [
-        { src: images.collage1,  caption: 'Private Training'      },
-        { src: images.collage2,  caption: 'Game Day'              },
-        { src: images.collage3,  caption: 'Academy Clinic'        },
-        { src: images.collage4,  caption: 'Player Development'    },
-        { src: images.collage5,  caption: 'Speed & Agility'       },
-        { src: images.collage6,  caption: 'Technical Work'        },
-        { src: images.collage7,  caption: 'Small Group'           },
-        { src: images.collage8,  caption: 'College Prep'          },
-        { src: images.collage9,  caption: 'Team Training'         },
-        { src: images.collage10, caption: 'Next Star Showcase'    },
-    ];
-
-    const instagramImages = [
-        images.instagram1,
-        images.instagram2,
-        images.instagram3,
-        images.instagram4,
-        images.instagram5,
-    ];
-
-    const instagramPosts = [
-        'https://www.instagram.com/p/C9N0qy5PKh0/?img_index=1',
-        'https://www.instagram.com/p/DAtr1Y2PaBx/?img_index=1',
-        'https://www.instagram.com/p/DRf1fmdjthJ/?img_index=1',
-        'https://www.instagram.com/p/DMnvmAbxq0Q/?img_index=1',
-        'https://www.instagram.com/p/C_Q_ZEwvaEn/?img_index=1',
-    ];
-
-    /* ── RESPONSIVE LISTENER ── */
+    /* ── Responsive ── */
     useEffect(() => {
-        const handleResize = () => setIsMobile(window.innerWidth < 768);
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
+        const fn = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', fn);
+        return () => window.removeEventListener('resize', fn);
     }, []);
 
-    /* ── HERO IMAGE OPACITY + BACKGROUND COLOR (MOBILE) ── */
+    /* ── Paragraph reveal ── */
     useEffect(() => {
-        if (!isMobile) return;
-        const heroImg = heroImageRef.current;
-        const bg      = backgroundRef.current;
-        if (!heroImg || !bg) return;
-
-        const handleScroll = () => {
-            heroImg.style.opacity = String(Math.max(0, 1 - window.scrollY / (window.innerHeight * 1.5)));
-            const collageEl = collageSectionRef.current;
-            if (collageEl) {
-                bg.style.backgroundColor =
-                    collageEl.getBoundingClientRect().top < window.innerHeight * 0.9
-                        ? 'rgb(240,234,214)'
-                        : 'black';
-            }
+        const fn = () => {
+            if (!aboutRef.current) return;
+            const top = aboutRef.current.getBoundingClientRect().top;
+            const h   = window.innerHeight;
+            setParagraphsVisible([top < h * 0.78, top < h * 0.6, top < h * 0.42, top < h * 0.24]);
         };
+        window.addEventListener('scroll', fn);
+        fn();
+        return () => window.removeEventListener('scroll', fn);
+    }, []);
 
-        window.addEventListener('scroll', handleScroll, { passive: true });
-        handleScroll();
-        return () => window.removeEventListener('scroll', handleScroll);
-    }, [isMobile]);
-
-    /* ── DESKTOP: COLLAGE HORIZONTAL SCROLL WITH GSAP ── */
+    /* ── Section fade-in ── */
     useEffect(() => {
-        if (isMobile) return;
-        if (!collageSectionRef.current || !collageTrackRef.current) return;
+        const obs = new IntersectionObserver(
+            (entries) => entries.forEach((e) => { if (e.isIntersecting) e.target.classList.add('in-view'); }),
+            { threshold: 0.08, rootMargin: '-40px' }
+        );
+        document.querySelectorAll('.fade-section').forEach((s) => obs.observe(s));
+        return () => obs.disconnect();
+    }, []);
 
-        const track        = collageTrackRef.current;
-        const imgs         = gsap.utils.toArray<HTMLElement>('.collage-img');
-        const scrollDistance = track.scrollWidth - window.innerWidth;
+    /* ── Counter reveal ── */
+    useEffect(() => {
+        const obs = new IntersectionObserver(
+            (entries) => entries.forEach((e) => {
+                if (e.isIntersecting) {
+                    const row = (e.target as HTMLElement).dataset.row;
+                    if (row) setVisibleCounters((p) => ({ ...p, [row]: true }));
+                }
+            }),
+            { threshold: 0.2 }
+        );
+        document.querySelectorAll('[data-row]').forEach((r) => obs.observe(r));
+        return () => obs.disconnect();
+    }, []);
 
-        gsap.to(track, {
-            x: -scrollDistance,
-            ease: 'none',
-            scrollTrigger: {
-                trigger: collageSectionRef.current,
-                start:   'top top',
-                end:     () => `+=${scrollDistance * 2}`,
-                scrub:   1.3,
-                pin:     true,
-                anticipatePin: 1,
-                snap: {
-                    snapTo:   1 / (imgs.length - 1),
-                    duration: 0.6,
-                    ease:     'expo.out',
-                },
-            },
-        });
-
-        ScrollTrigger.create({
-            trigger: collageSectionRef.current,
-            start:   'top top',
-            end:     '+=1',
-            onEnter:     () => gsap.to(backgroundRef.current, { backgroundColor: 'rgb(240,234,214)', duration: 0.25, ease: 'power1.out' }),
-            onLeaveBack: () => gsap.to(backgroundRef.current, { backgroundColor: 'black',           duration: 0.25, ease: 'power1.out' }),
-        });
-
-        imgs.forEach((img, i) => {
-            const depth   = i % 3 === 0 ? 1 : i % 3 === 1 ? 0.7 : 0.45;
-            const yOffset = (i % 2 === 0 ? -1 : 1) * (50 + i * 6);
-            gsap.fromTo(img, { y: yOffset }, {
-                y: -yOffset,
-                ease: 'none',
-                scrollTrigger: {
-                    trigger: collageSectionRef.current,
-                    start:   'top bottom',
-                    end:     'bottom top',
-                    scrub:   depth,
-                },
-            });
-        });
-
-        const heroImg = heroImageRef.current;
-        if (heroImg) {
-            const handleScroll = () => {
-                heroImg.style.opacity = String(Math.max(0, 1 - window.scrollY / (window.innerHeight * 1.5)));
-            };
-            window.addEventListener('scroll', handleScroll, { passive: true });
-            handleScroll();
-            (collageSectionRef.current as any)._desktopScrollCleanup = () =>
-                window.removeEventListener('scroll', handleScroll);
-        }
-
-        return () => {
-            const cleanup = (collageSectionRef.current as any)?._desktopScrollCleanup;
-            if (cleanup) cleanup();
-            ScrollTrigger.killAll();
-        };
-    }, [isMobile]);
-
-    /* ── SOCIAL CARD FAN-OUT WITH GSAP ── */
+    /* ── Social fan-out (GSAP) — unchanged ── */
     useEffect(() => {
         if (!socialSectionRef.current) return;
         const cards = gsap.utils.toArray<HTMLElement>('.social-card');
-        if (cards.length === 0) return;
+        if (!cards.length) return;
 
         const fanData = isMobile
-            ? [
-                { x: -220, rotation: -24, z: 1 },
-                { x: -110, rotation: -12, z: 2 },
-                { x:    0, rotation:   0, z: 5 },
-                { x:  110, rotation:  12, z: 2 },
-                { x:  208, rotation:  22, z: 1 },
-              ]
-            : [
-                { x: -330, rotation: -24, z: 1 },
-                { x: -162, rotation: -12, z: 2 },
-                { x:    0, rotation:   0, z: 5 },
-                { x:  162, rotation:  12, z: 2 },
-                { x:  312, rotation:  22, z: 1 },
-              ];
+            ? [{ x: -220, rotation: -24, z: 1 }, { x: -110, rotation: -12, z: 2 }, { x: 0, rotation: 0, z: 5 }, { x: 110, rotation: 12, z: 2 }, { x: 208, rotation: 22, z: 1 }]
+            : [{ x: -330, rotation: -24, z: 1 }, { x: -162, rotation: -12, z: 2 }, { x: 0, rotation: 0, z: 5 }, { x: 162, rotation: 12, z: 2 }, { x: 312, rotation: 22, z: 1 }];
 
         gsap.set(cards, { x: 0, rotation: 0, transformOrigin: 'center 85%' });
 
         ScrollTrigger.create({
             trigger: socialSectionRef.current,
-            start:   'top 65%',
-            once:    true,
-            onEnter: () => {
-                cards.forEach((card, i) => {
-                    gsap.to(card, { x: fanData[i].x, rotation: fanData[i].rotation, duration: 0.9, ease: 'power3.out', delay: i * 0.04 });
-                });
-            },
+            start: 'top 65%',
+            once: true,
+            onEnter: () => cards.forEach((card, i) =>
+                gsap.to(card, { x: fanData[i].x, rotation: fanData[i].rotation, duration: 0.9, ease: 'power3.out', delay: i * 0.04 })
+            ),
         });
 
         const NUDGE = isMobile ? 28 : 38;
@@ -209,15 +138,13 @@ const HomePageNew = () => {
             card.addEventListener('mouseenter', () => {
                 gsap.to(card, { y: -22, scale: 1.05, zIndex: 20, duration: 0.28, ease: 'power2.out' });
                 cards.forEach((other, j) => {
-                    if (j === i) return;
-                    gsap.to(other, { x: fanData[j].x + (j < i ? -NUDGE : NUDGE), duration: 0.28, ease: 'power2.out' });
+                    if (j !== i) gsap.to(other, { x: fanData[j].x + (j < i ? -NUDGE : NUDGE), duration: 0.28, ease: 'power2.out' });
                 });
             });
             card.addEventListener('mouseleave', () => {
                 gsap.to(card, { y: 0, scale: 1, zIndex: fanData[i].z, duration: 0.35, ease: 'power2.out' });
                 cards.forEach((other, j) => {
-                    if (j === i) return;
-                    gsap.to(other, { x: fanData[j].x, duration: 0.35, ease: 'power2.out' });
+                    if (j !== i) gsap.to(other, { x: fanData[j].x, duration: 0.35, ease: 'power2.out' });
                 });
             });
         });
@@ -225,352 +152,206 @@ const HomePageNew = () => {
         return () => ScrollTrigger.killAll();
     }, [isMobile]);
 
-    /* ── PARAGRAPH SLIDE IN ── */
-    useEffect(() => {
-        const handleScroll = () => {
-            if (aboutRef.current) {
-                const top = aboutRef.current.getBoundingClientRect().top;
-                const h   = window.innerHeight;
-                setParagraphsVisible([
-                    top < h * 0.75,
-                    top < h * 0.55,
-                    top < h * 0.35,
-                    top < h * 0.15,
-                ]);
-            }
-        };
-        window.addEventListener('scroll', handleScroll);
-        handleScroll();
-        return () => window.removeEventListener('scroll', handleScroll);
-    }, []);
+    /* ── Shared stat-number style ── */
+    const numStyle = {
+        fontFamily: "'Fraunces', 'LT Wave', serif",
+        fontSize: 'clamp(2.8rem, 7vw, 5.5rem)',
+        lineHeight: 1,
+    } as const;
 
-    /* ── SECTION FADE IN ── */
-    useEffect(() => {
-        const observer = new IntersectionObserver(
-            (entries) => {
-                entries.forEach((e) => { if (e.isIntersecting) e.target.classList.add('in-view'); });
-            },
-            { threshold: 0.1, rootMargin: '-60px' }
-        );
-        document.querySelectorAll('.section-container').forEach((s) => observer.observe(s));
-        return () => observer.disconnect();
-    }, []);
-
-    /* ── COUNTERS ── */
-    useEffect(() => {
-        const observer = new IntersectionObserver(
-            (entries) => {
-                entries.forEach((e) => {
-                    if (e.isIntersecting) {
-                        const row = (e.target as HTMLElement).dataset.row;
-                        if (row) setVisibleCounters((prev) => ({ ...prev, [row]: true }));
-                    }
-                });
-            },
-            { threshold: 0.25, rootMargin: '0px 0px -10% 0px' }
-        );
-        document.querySelectorAll('[data-row]').forEach((r) => observer.observe(r));
-        return () => observer.disconnect();
-    }, []);
-
-    /* ── SHARED COUNTER CLASSES ── */
-    const numCls   = 'leading-none text-white';
-    const numStyle = { fontFamily: "'Bebas Neue', 'LT Wave', sans-serif", fontSize: 'clamp(3rem, 8.5vw, 7.5rem)' } as const;
-    const lblCls   = 'text-white/45 text-[9px] md:text-[11px] uppercase tracking-[0.22em] leading-relaxed whitespace-pre-line mt-3 md:mt-4';
-
+    /* ─── JSX ─── */
     return (
-        <div className="min-h-screen relative font-lt-wave overflow-x-hidden">
+        <div className="min-h-screen font-lt-wave overflow-x-hidden">
 
-            {/* GLOBAL BACKGROUND */}
-            <div
-                ref={backgroundRef}
-                className="fixed inset-0 z-0"
-                style={{ backgroundColor: 'black', transition: 'background-color 0.4s ease' }}
-            />
-
-            {/* HERO IMAGE */}
-            <div className="fixed inset-0 z-0">
+            {/* ═══════════════════════ HERO ═══════════════════════ */}
+            <section className="relative h-screen overflow-hidden bg-black">
                 <img
-                    ref={heroImageRef}
                     src={images.homeHero}
                     alt="Next Star Soccer"
-                    className="w-full h-full object-cover"
+                    className="absolute inset-0 w-full h-full object-cover"
                     fetchPriority="high"
                     decoding="async"
-                    style={{ opacity: 1 }}
-                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
                 />
-            </div>
+                {/* Subtle dark overlay so nav + text read clearly */}
+                <div className="absolute inset-0 bg-black/25" />
 
-            <div className="relative z-50">
-                <Navigation />
-            </div>
-
-            {/* ══════════════════════ HERO ══════════════════════ */}
-            <section
-                ref={heroRef}
-                className="relative z-10 h-screen w-full flex flex-col justify-end pb-16 md:pb-20 px-6 md:px-14 section-container in-view"
-                data-section="hero"
-            >
-                {/* Animated headline — bottom-left */}
-                <div className="hero-content">
-                    <AnimatedCycleText />
+                <div className="relative z-50">
+                    <Navigation />
                 </div>
 
-                {/* Thin bottom rule + location strip */}
-                <div className="mt-6 flex items-center gap-4 md:gap-6">
-                    <div className="h-px bg-white/25 flex-1 max-w-[48px]" />
-                    <span className="text-white/35 text-[9px] uppercase tracking-[0.35em]">
-                        Maryland · Virginia · Washington D.C.
-                    </span>
-                </div>
-
-                {/* Scroll indicator */}
-                <div className="absolute right-6 md:right-12 bottom-10 flex flex-col items-center gap-2">
-                    <div className="scroll-dot" />
-                    <span className="text-white/25 text-[8px] uppercase tracking-[0.35em] rotate-90 origin-center mt-6">
-                        Scroll
-                    </span>
+                {/* Centered headline */}
+                <div className="absolute inset-0 flex items-center justify-center z-10">
+                    <div className="hero-entrance">
+                        <AnimatedCycleText />
+                    </div>
                 </div>
             </section>
 
-            {/* ══════════════════════ STATS ══════════════════════ */}
-            <section
-                ref={statsRef}
-                className="relative z-10 py-20 md:py-32 px-6 md:px-14 lg:px-20 section-container"
-                data-section="stats"
-            >
-                {/* Section label */}
-                <div className="flex items-center gap-5 mb-14 md:mb-20">
-                    <div className="h-px w-8 bg-white/25 flex-shrink-0" />
-                    <p className="text-white/35 text-[9px] uppercase tracking-[0.4em]">
-                        Next Star in Numbers
-                    </p>
-                    <div className="h-px flex-1 bg-white/10" />
-                </div>
+            {/* ═══════════════════════ STATS ═══════════════════════ */}
+            <section className="bg-[#f0ead6] py-20 md:py-28 px-6 md:px-12 lg:px-20 fade-section">
+                <div className="max-w-6xl mx-auto">
 
-                <div className="max-w-6xl section-content">
+                    {/* Section label */}
+                    <div className="mb-8 md:mb-12">
+                        <span className="mono-label text-stone-500">01 · By The Numbers</span>
+                    </div>
+
+                    {/* Heading */}
+                    <div className="mb-12 md:mb-16 max-w-xl">
+                        <h2 className="display-heading text-stone-900 text-[clamp(2.2rem,5.5vw,4rem)]">
+                            Next Star
+                            <br />
+                            <em className="font-light text-stone-600 not-italic" style={{ fontStyle: 'italic' }}>
+                                in numbers.
+                            </em>
+                        </h2>
+                    </div>
 
                     {/* Row 1 */}
-                    <div
-                        data-row="row1"
-                        className="grid grid-cols-3 border-t border-white/12 pt-8 md:pt-10 pb-10 md:pb-14"
-                    >
-                        {STATS_ROW1.map((stat, i) => (
-                            <div
+                    <div data-row="row1" className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+                        {STATS.slice(0, 3).map((stat, i) => (
+                            <article
                                 key={i}
-                                className={[
-                                    'flex flex-col',
-                                    i === 0 ? 'pr-4 md:pr-10 lg:pr-16' : '',
-                                    i === 1 ? 'px-4 md:px-10 lg:px-16 border-x border-white/10' : '',
-                                    i === 2 ? 'pl-4 md:pl-10 lg:pl-16' : '',
-                                ].join(' ')}
+                                className="stat-card rounded-2xl bg-white border border-stone-200 p-6 md:p-8"
+                                style={{ animationDelay: `${i * 80}ms` }}
                             >
-                                <AnimatedCounter
-                                    isVisible={visibleCounters.row1}
-                                    endValue={stat.end}
-                                    label={stat.label}
-                                    suffix={stat.suffix}
-                                    containerClassName="flex flex-col"
-                                    numberClassName={numCls}
-                                    numberStyle={numStyle}
-                                    labelClassName={lblCls}
-                                />
-                                {/* We can't pass style to AnimatedCounter, so wrap the number in a styled span */}
-                            </div>
+                                <div className="text-stone-900" style={numStyle}>
+                                    <AnimatedCounter
+                                        isVisible={visibleCounters.row1}
+                                        endValue={stat.end}
+                                        label=""
+                                        suffix={stat.suffix}
+                                        containerClassName=""
+                                        numberClassName="leading-none text-stone-900"
+                                        numberStyle={numStyle}
+                                    />
+                                </div>
+                                <div className="h-px bg-stone-200 my-4" />
+                                <p className="mono-label text-stone-500 mb-1">{stat.label}</p>
+                                <p className="text-[13px] text-stone-500 leading-relaxed">{stat.detail}</p>
+                            </article>
                         ))}
                     </div>
 
                     {/* Row 2 */}
-                    <div
-                        data-row="row2"
-                        className="grid grid-cols-3 border-t border-white/12 pt-8 md:pt-10"
-                    >
-                        {STATS_ROW2.map((stat, i) => (
-                            <div
+                    <div data-row="row2" className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        {STATS.slice(3).map((stat, i) => (
+                            <article
                                 key={i}
-                                className={[
-                                    'flex flex-col',
-                                    i === 0 ? 'pr-4 md:pr-10 lg:pr-16' : '',
-                                    i === 1 ? 'px-4 md:px-10 lg:px-16 border-x border-white/10' : '',
-                                    i === 2 ? 'pl-4 md:pl-10 lg:pl-16' : '',
-                                ].join(' ')}
+                                className="stat-card rounded-2xl bg-white border border-stone-200 p-6 md:p-8"
+                                style={{ animationDelay: `${(i + 3) * 80}ms` }}
                             >
-                                <AnimatedCounter
-                                    isVisible={visibleCounters.row2}
-                                    endValue={stat.end}
-                                    label={stat.label}
-                                    suffix={stat.suffix}
-                                    containerClassName="flex flex-col"
-                                    numberClassName={numCls}
-                                    numberStyle={numStyle}
-                                    labelClassName={lblCls}
-                                />
-                            </div>
+                                <div style={numStyle}>
+                                    <AnimatedCounter
+                                        isVisible={visibleCounters.row2}
+                                        endValue={stat.end}
+                                        label=""
+                                        suffix={stat.suffix}
+                                        containerClassName=""
+                                        numberClassName="leading-none text-stone-900"
+                                        numberStyle={numStyle}
+                                    />
+                                </div>
+                                <div className="h-px bg-stone-200 my-4" />
+                                <p className="mono-label text-stone-500 mb-1">{stat.label}</p>
+                                <p className="text-[13px] text-stone-500 leading-relaxed">{stat.detail}</p>
+                            </article>
                         ))}
                     </div>
+
                 </div>
             </section>
 
-            {/* ══════════════════════ WHO WE ARE ══════════════════════ */}
+            {/* ═══════════════════════ WHO WE ARE ═══════════════════════ */}
             <section
                 ref={aboutRef}
-                className="relative z-10 py-20 md:py-32 px-6 md:px-14 lg:px-20 section-container"
-                data-section="about"
+                className="bg-black py-20 md:py-28 px-6 md:px-12 lg:px-20 fade-section"
             >
-                <div className="max-w-7xl mx-auto">
-                    <div className="md:grid md:grid-cols-12 md:gap-12 lg:gap-20 items-start">
+                <div className="max-w-6xl mx-auto">
+                    <div className="grid md:grid-cols-12 gap-10 md:gap-16 items-start">
 
-                        {/* ── Text column ── */}
-                        <div className="md:col-span-7 lg:col-span-7">
-                            {/* Eyebrow */}
-                            <div className="flex items-center gap-4 mb-6 md:mb-8">
-                                <div className="h-px w-8 bg-white/25 flex-shrink-0" />
-                                <span className="text-white/35 text-[9px] uppercase tracking-[0.4em]">About</span>
-                            </div>
-
-                            {/* Heading */}
-                            <h2
-                                className="text-white leading-none mb-10 md:mb-12"
-                                style={{ fontFamily: "'Bebas Neue', 'LT Wave', sans-serif", fontSize: 'clamp(3.5rem, 9vw, 8.5rem)' }}
-                            >
+                        {/* Left: heading */}
+                        <div className="md:col-span-4 lg:col-span-4 md:sticky md:top-24">
+                            <span className="mono-label text-white/35">02 · About</span>
+                            <h2 className="display-heading text-white mt-4 text-[clamp(2.2rem,5.5vw,4rem)]">
                                 Who We Are
                             </h2>
+                            <p className="mt-5 text-[14px] text-white/45 leading-relaxed max-w-[26ch]">
+                                A team of coaches, ex-pros, and mentors built around one goal: developing complete players.
+                            </p>
+                        </div>
 
-                            {/* Paragraphs */}
-                            <div className="space-y-5 md:space-y-6 max-w-[52ch]">
-                                {ABOUT_PARAGRAPHS.map((text, i) => (
-                                    <p
-                                        key={i}
-                                        className="text-white/65 text-sm md:text-base leading-relaxed md:leading-loose"
-                                        style={{
-                                            opacity:   paragraphsVisible[i] ? 1 : 0,
-                                            transform: paragraphsVisible[i] ? 'none' : 'translateY(22px)',
-                                            transition: `opacity 0.7s ease ${i * 0.14}s, transform 0.7s ease ${i * 0.14}s`,
-                                        }}
-                                    >
+                        {/* Right: paragraphs */}
+                        <div className="md:col-span-8 lg:col-span-8 space-y-5">
+                            {ABOUT_PARAGRAPHS.map((text, i) => (
+                                <div
+                                    key={i}
+                                    className="rounded-2xl border border-white/8 bg-white/[0.04] p-6 md:p-7"
+                                    style={{
+                                        opacity:    paragraphsVisible[i] ? 1 : 0,
+                                        transform:  paragraphsVisible[i] ? 'none' : 'translateY(18px)',
+                                        transition: `opacity 0.65s ease ${i * 0.12}s, transform 0.65s ease ${i * 0.12}s`,
+                                    }}
+                                >
+                                    <p className="text-[14px] md:text-[15px] text-white/70 leading-relaxed md:leading-loose">
                                         {text}
                                     </p>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* ── Images column ── */}
-                        <div className="hidden md:flex md:col-span-5 lg:col-span-5 flex-col gap-3 mt-16 md:mt-0 pt-2">
-                            <img
-                                src={images.collage3}
-                                alt="Next Star Training"
-                                className="w-full object-cover"
-                                style={{ height: 'clamp(200px, 30vh, 340px)' }}
-                                loading="lazy"
-                                decoding="async"
-                            />
-                            <div className="flex gap-3">
-                                <img
-                                    src={images.collage8}
-                                    alt="Next Star College Prep"
-                                    className="w-[58%] object-cover"
-                                    style={{ height: 'clamp(140px, 20vh, 240px)' }}
-                                    loading="lazy"
-                                    decoding="async"
-                                />
-                                <img
-                                    src={images.collage5}
-                                    alt="Speed and Agility"
-                                    className="flex-1 object-cover"
-                                    style={{ height: 'clamp(140px, 20vh, 240px)' }}
-                                    loading="lazy"
-                                    decoding="async"
-                                />
-                            </div>
-                        </div>
-
-                        {/* Mobile images — stacked below text */}
-                        <div className="md:hidden mt-10 grid grid-cols-2 gap-2">
-                            <img
-                                src={images.collage3}
-                                alt="Next Star Training"
-                                className="w-full h-[140px] object-cover col-span-2"
-                                loading="lazy"
-                                decoding="async"
-                            />
-                            <img
-                                src={images.collage8}
-                                alt="College Prep"
-                                className="w-full h-[100px] object-cover"
-                                loading="lazy"
-                                decoding="async"
-                            />
-                            <img
-                                src={images.collage5}
-                                alt="Speed and Agility"
-                                className="w-full h-[100px] object-cover"
-                                loading="lazy"
-                                decoding="async"
-                            />
+                                </div>
+                            ))}
                         </div>
 
                     </div>
                 </div>
             </section>
 
-            {/* ══════════════════════ COLLAGE ══════════════════════ */}
-            {isMobile ? (
-                <section ref={collageSectionRef} className="relative z-10 py-16 px-4 md:px-16">
-                    <div className="max-w-5xl mx-auto">
-                        <div className="grid grid-cols-2 gap-3 md:gap-6">
-                            {collageImages.map((item, i) => (
-                                <div
-                                    key={i}
-                                    className="flex flex-col gap-2"
-                                    style={{ marginTop: i % 2 !== 0 ? '48px' : '0' }}
-                                >
+            {/* ═══════════════════════ IMAGES ═══════════════════════ */}
+            <section className="bg-[#f0ead6] py-20 md:py-28 px-6 md:px-12 lg:px-20 fade-section">
+                <div className="max-w-6xl mx-auto">
+
+                    <div className="mb-8 md:mb-12">
+                        <span className="mono-label text-stone-500">03 · On The Pitch</span>
+                    </div>
+
+                    <h2 className="display-heading text-stone-900 text-[clamp(2.2rem,5.5vw,4rem)] mb-10 md:mb-14 max-w-xl">
+                        Training, clinics
+                        <br />
+                        <em className="font-light text-stone-600" style={{ fontStyle: 'italic' }}>
+                            & development.
+                        </em>
+                    </h2>
+
+                    {/* Masonry grid via CSS columns */}
+                    <div className="columns-2 md:columns-3 lg:columns-4 gap-3">
+                        {COLLAGE_IMAGES.map((item, i) => (
+                            <div
+                                key={i}
+                                className="break-inside-avoid mb-3"
+                                style={{ animationDelay: `${i * 40}ms` }}
+                            >
+                                <div className="overflow-hidden rounded-xl">
                                     <img
                                         src={item.src}
                                         alt={item.caption}
-                                        className="w-full h-[160px] sm:h-[240px] object-cover rounded-xl shadow-2xl"
+                                        className="w-full object-cover hover:scale-105 transition-transform duration-500"
                                         loading="lazy"
                                         decoding="async"
                                     />
-                                    <p className="text-[9px] sm:text-[11px] uppercase tracking-[0.18em] text-gray-600 font-medium pl-1">
-                                        {item.caption}
-                                    </p>
                                 </div>
-                            ))}
-                        </div>
+                                <p className="mono-label text-stone-500 mt-2 pl-1">{item.caption}</p>
+                            </div>
+                        ))}
                     </div>
-                </section>
-            ) : (
-                <section ref={collageSectionRef} className="relative h-screen z-10">
-                    <div className="sticky top-0 h-screen overflow-hidden">
-                        <div ref={collageTrackRef} className="flex items-center h-full gap-24 px-[15vw]">
-                            {collageImages.map((item, i) => (
-                                <div
-                                    key={i}
-                                    className="collage-img flex-shrink-0 flex flex-col gap-3"
-                                    style={{ marginTop: i % 2 === 0 ? '6vh' : '-4vh' }}
-                                >
-                                    <img
-                                        src={item.src}
-                                        alt={item.caption}
-                                        className="w-[320px] h-[48vh] object-cover rounded-xl shadow-2xl"
-                                    />
-                                    <p className="text-[11px] uppercase tracking-[0.18em] text-gray-500 font-medium pl-1">
-                                        {item.caption}
-                                    </p>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </section>
-            )}
 
-            {/* ══════════════════════ SOCIALS — unchanged ══════════════════════ */}
+                </div>
+            </section>
+
+            {/* ═══════════════════════ SOCIAL (unchanged) ═══════════════════════ */}
             <section
                 ref={socialSectionRef}
-                className={`relative z-10 flex flex-col justify-center overflow-hidden ${isMobile ? 'py-16' : 'h-screen'}`}
+                className={`bg-[#f0ead6] flex flex-col justify-center overflow-hidden ${isMobile ? 'py-16' : 'py-24 md:py-32'}`}
                 data-section="instagram"
             >
+                {/* Heading */}
                 <div className="text-center mb-10 md:mb-12 relative z-10 pointer-events-none select-none">
                     <h2 className={`font-black leading-none text-black uppercase ${isMobile ? 'text-[clamp(36px,5.5vw,88px)]' : 'text-[clamp(44px,6.5vw,88px)]'}`}>
                         WHAT'S UP
@@ -580,25 +361,24 @@ const HomePageNew = () => {
                     </p>
                 </div>
 
+                {/* Card deck */}
                 <div
                     className="relative flex items-center justify-center"
                     style={{ height: isMobile ? '320px' : '480px' }}
                 >
-                    {instagramPosts.map((postUrl, i) => (
+                    {INSTAGRAM_POSTS.map((postUrl, i) => (
                         <a
                             key={i}
                             href={postUrl}
                             target="_blank"
                             rel="noopener noreferrer"
                             className={`social-card absolute rounded-3xl overflow-hidden shadow-2xl cursor-pointer ${
-                                isMobile
-                                    ? 'w-[150px] h-[250px]'
-                                    : 'w-[240px] h-[400px] md:w-[270px] md:h-[440px]'
+                                isMobile ? 'w-[150px] h-[250px]' : 'w-[240px] h-[400px] md:w-[270px] md:h-[440px]'
                             }`}
                             style={{ zIndex: i === 2 ? 10 : 5 - Math.abs(i - 2) }}
                         >
                             <img
-                                src={instagramImages[i]}
+                                src={INSTAGRAM_IMAGES[i]}
                                 alt={`Instagram post ${i + 1}`}
                                 className="w-full h-full object-cover"
                                 loading="lazy"
@@ -608,68 +388,70 @@ const HomePageNew = () => {
                     ))}
                 </div>
 
+                {/* Platform links */}
                 <div className={`flex justify-center items-center gap-10 relative z-10 ${isMobile ? 'mt-8' : 'mt-10'}`}>
                     <span className="text-black/30 text-[10px] uppercase tracking-[0.25em]">Follow</span>
-                    <a
-                        href="https://www.instagram.com/nextstarsoccer/"
-                        target="_blank" rel="noopener noreferrer"
-                        className="text-black text-base md:text-lg font-light lowercase tracking-wide hover:opacity-40 transition-opacity duration-300"
-                    >
+                    <a href="https://www.instagram.com/nextstarsoccer/" target="_blank" rel="noopener noreferrer"
+                        className="text-black text-base md:text-lg font-light lowercase tracking-wide hover:opacity-40 transition-opacity duration-300">
                         instagram
                     </a>
-                    <a
-                        href="https://www.facebook.com/nextstarsoccer/"
-                        target="_blank" rel="noopener noreferrer"
-                        className="text-black text-base md:text-lg font-light lowercase tracking-wide hover:opacity-40 transition-opacity duration-300"
-                    >
+                    <a href="https://www.facebook.com/nextstarsoccer/" target="_blank" rel="noopener noreferrer"
+                        className="text-black text-base md:text-lg font-light lowercase tracking-wide hover:opacity-40 transition-opacity duration-300">
                         facebook
                     </a>
                 </div>
             </section>
 
-            <div className="relative z-10">
-                <Footer />
-            </div>
+            {/* ═══════════════════════ FOOTER ═══════════════════════ */}
+            <Footer />
 
+            {/* ─── Global styles ─── */}
             <style>{`
-                @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');
+                @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Geist+Mono:wght@300..500&display=swap');
 
-                .section-container {
-                    opacity: 0;
-                    transform: translateY(80px);
-                    transition: opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1),
-                                transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+                .display-heading {
+                    font-family: 'Fraunces', 'LT Wave', serif;
+                    font-optical-sizing: auto;
+                    line-height: 1.05;
+                    letter-spacing: -0.03em;
                 }
-                .section-container.in-view {
-                    opacity: 1;
-                    transform: translateY(0);
+
+                .mono-label {
+                    font-family: 'Geist Mono', 'SFMono-Regular', monospace;
+                    font-size: 10px;
+                    letter-spacing: 0.22em;
+                    text-transform: uppercase;
+                    display: block;
                 }
-                .section-content {
-                    transform: scale(0.97);
-                    transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.15s;
+
+                /* Stat card entrance */
+                .stat-card {
+                    animation: fadeUp 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
                 }
-                .section-container.in-view .section-content {
-                    transform: scale(1);
-                }
-                .hero-content {
-                    animation: heroFadeUp 1.4s cubic-bezier(0.22, 1, 0.36, 1) both;
-                }
-                @keyframes heroFadeUp {
-                    from { opacity: 0; transform: translateY(32px); }
+                @keyframes fadeUp {
+                    from { opacity: 0; transform: translateY(14px); }
                     to   { opacity: 1; transform: translateY(0); }
                 }
 
-                /* Scroll dot pulse */
-                .scroll-dot {
-                    width: 5px;
-                    height: 5px;
-                    border-radius: 50%;
-                    background: rgba(255,255,255,0.4);
-                    animation: dotPulse 2s ease-in-out infinite;
+                /* Section fade-in */
+                .fade-section {
+                    opacity: 0;
+                    transform: translateY(32px);
+                    transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+                                transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
                 }
-                @keyframes dotPulse {
-                    0%, 100% { opacity: 0.3; transform: scale(1); }
-                    50%       { opacity: 0.9; transform: scale(1.4); }
+                .fade-section.in-view {
+                    opacity: 1;
+                    transform: none;
+                }
+
+                /* Hero headline entrance */
+                .hero-entrance {
+                    animation: heroIn 1.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+                }
+                @keyframes heroIn {
+                    from { opacity: 0; transform: translateY(28px); }
+                    to   { opacity: 1; transform: translateY(0); }
                 }
 
                 html { scroll-behavior: smooth; }
