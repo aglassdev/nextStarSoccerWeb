@@ -242,7 +242,7 @@ export default function StorePage() {
 
       <div className="pt-32 pb-10 px-6 md:px-10 lg:px-14">
         <div className="max-w-[1560px] mx-auto">
-          <h1 className="text-white font-bold font-lt-wave leading-none" style={{ fontSize: '26px' }}>
+          <h1 className="text-white font-bold font-lt-wave leading-none" style={{ fontSize: '29px' }}>
             Store
           </h1>
           <div className="h-px bg-white/8 mt-8" />
