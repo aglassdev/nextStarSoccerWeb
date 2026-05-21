@@ -16,7 +16,7 @@ const CoachesPage = () => {
           <div className="flex items-end justify-between">
             <div>
               <h1 className="text-white font-bold leading-none"
-                style={{ fontSize: 'clamp(2.4rem, 5.5vw, 4.5rem)' }}>
+                style={{ fontSize: '26px' }}>
                 Our Coaches
               </h1>
             </div>
