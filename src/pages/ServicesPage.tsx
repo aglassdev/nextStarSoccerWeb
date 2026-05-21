@@ -256,15 +256,20 @@ const ServiceCard: React.FC<{ service: Service }> = ({ service }) => {
 
 const ServicesPage = () => {
     return (
-        <div className="min-h-screen bg-black flex flex-col">
+        <div className="min-h-screen bg-black flex flex-col font-lt-wave">
             <Navigation />
 
-            <div className="pt-20 pb-16 px-4">
+            <div className="pt-32 pb-10 px-6 md:px-10 lg:px-14">
+                <div className="max-w-[1560px] mx-auto">
+                    <h1 className="text-white font-bold leading-none" style={{ fontSize: 'clamp(2.4rem, 5.5vw, 4.5rem)' }}>
+                        Our Services
+                    </h1>
+                    <div className="h-px bg-white/8 mt-8" />
+                </div>
+            </div>
+
+            <div className="pb-16 px-4">
                 <div className="max-w-7xl mx-auto">
-                    {/* Header */}
-                    <div className="text-center mb-12 mt-8">
-                        <h1 className="text-white text-3xl font-bold">Our Services</h1>
-                    </div>
 
                     {/* MOBILE LAYOUT (< md) */}
                     <div className="md:hidden space-y-3">

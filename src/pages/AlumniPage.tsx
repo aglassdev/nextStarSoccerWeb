@@ -378,12 +378,14 @@ const AlumniPage = () => {
       <Navigation />
 
       <div className={filterOpen || sortOpen ? 'cursor-pointer' : ''} onClick={closeMenus}>
-        <div className="pt-20">
-
-          {/* Title */}
-          <div className="px-6 pt-8 pb-6 text-center">
-            <h1 className="text-white text-4xl font-bold font-lt-wave leading-tight">Players & Alumni</h1>
+        <div className="pt-32 pb-10 px-6 md:px-10 lg:px-14">
+          <div className="max-w-[1560px] mx-auto">
+            <h1 className="text-white font-bold font-lt-wave leading-none" style={{ fontSize: 'clamp(2.4rem, 5.5vw, 4.5rem)' }}>
+              Players & Alumni
+            </h1>
+            <div className="h-px bg-white/8 mt-8" />
           </div>
+        </div>
 
           {/* World map */}
           <div className="px-6 mb-8">
@@ -475,7 +477,6 @@ const AlumniPage = () => {
               </div>
             )}
           </div>
-        </div>
       </div>
 
       <Footer />

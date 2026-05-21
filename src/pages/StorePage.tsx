@@ -240,16 +240,20 @@ export default function StorePage() {
     <div className="min-h-screen bg-black flex flex-col">
       <Navigation />
 
-      <div className="pt-24 px-4 pb-16 flex-1">
-        <div className="max-w-7xl mx-auto">
+      <div className="pt-32 pb-10 px-6 md:px-10 lg:px-14">
+        <div className="max-w-[1560px] mx-auto">
+          <h1 className="text-white font-bold font-lt-wave leading-none" style={{ fontSize: 'clamp(2.4rem, 5.5vw, 4.5rem)' }}>
+            Store
+          </h1>
+          <div className="h-px bg-white/8 mt-8" />
+        </div>
+      </div>
 
-          {/* Header */}
-          <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-white font-lt-wave mb-2">Store</h1>
-            <p className="text-gray-500 text-xs">
-              Some items may display faulty logos, but do show properly on SquadLocker and in checkout.
-            </p>
-          </div>
+      <div className="px-4 pb-16 flex-1">
+        <div className="max-w-7xl mx-auto">
+          <p className="text-gray-500 text-xs mb-8 pt-2">
+            Some items may display faulty logos, but do show properly on SquadLocker and in checkout.
+          </p>
 
           {/* Category Filter */}
           <div className="flex gap-2 overflow-x-auto pb-3 mb-8 scrollbar-hide">

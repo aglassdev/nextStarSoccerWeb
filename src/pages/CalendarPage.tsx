@@ -304,12 +304,17 @@ const CalendarPage = () => {
     <div className="min-h-screen bg-black flex flex-col">
       <Navigation />
 
-      <div className="pt-20 pb-16 px-4">
+      <div className="pt-32 pb-10 px-6 md:px-10 lg:px-14">
+        <div className="max-w-[1560px] mx-auto">
+          <h1 className="text-white font-bold font-lt-wave leading-none" style={{ fontSize: 'clamp(2.4rem, 5.5vw, 4.5rem)' }}>
+            Calendar
+          </h1>
+          <div className="h-px bg-white/8 mt-8" />
+        </div>
+      </div>
+
+      <div className="pb-16 px-4">
         <div className="max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="text-center mb-12 mt-8">
-            <h1 className="text-white text-3xl font-bold">Calendar</h1>
-          </div>
 
           {/* Today's Events Card */}
           {todaysEvents.length > 0 && (

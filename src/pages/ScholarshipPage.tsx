@@ -10,9 +10,17 @@ const ScholarshipPage = () => {
     <div className="min-h-screen bg-black flex flex-col font-lt-wave">
       <Navigation />
 
-      <div className="pt-24 pb-16 px-4">
+      <div className="pt-32 pb-10 px-6 md:px-10 lg:px-14">
+        <div className="max-w-[1560px] mx-auto">
+          <h1 className="text-white font-bold leading-none" style={{ fontSize: 'clamp(2.4rem, 5.5vw, 4.5rem)' }}>
+            Scholarships
+          </h1>
+          <div className="h-px bg-white/8 mt-8" />
+        </div>
+      </div>
+
+      <div className="pb-16 px-4">
         <div className="max-w-7xl mx-auto">
-          <h1 className="text-4xl md:text-5xl font-bold text-white mb-10">Scholarships</h1>
 
           <div className="flex flex-col lg:flex-row gap-12 lg:gap-16">
             {/* Left column — story + images */}

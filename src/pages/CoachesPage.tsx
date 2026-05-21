@@ -15,13 +15,7 @@ const CoachesPage = () => {
         <div className="max-w-[1560px] mx-auto">
           <div className="flex items-end justify-between">
             <div>
-              <span
-                className="text-white/25 uppercase tracking-[0.3em]"
-                style={{ fontSize: '10px' }}
-              >
-                Next Star Soccer
-              </span>
-              <h1 className="text-white font-bold mt-2 leading-none"
+              <h1 className="text-white font-bold leading-none"
                 style={{ fontSize: 'clamp(2.4rem, 5.5vw, 4.5rem)' }}>
                 Our Coaches
               </h1>
