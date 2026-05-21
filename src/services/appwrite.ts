@@ -65,6 +65,7 @@ export const collections = {
   payments: import.meta.env.VITE_APPWRITE_PAYMENTS_COLLECTION_ID,
   familyRelationships: import.meta.env.VITE_APPWRITE_FAMILY_RELATIONSHIPS_COLLECTION_ID,
   familyInvitations: import.meta.env.VITE_APPWRITE_FAMILY_INVITATIONS_COLLECTION_ID,
+  proxyChildren: import.meta.env.VITE_APPWRITE_PROXY_CHILDREN_COLLECTION_ID || 'proxy_children_001',
   websiteInquiries: 'website_inquiries',
   scholarshipApplications: import.meta.env.VITE_APPWRITE_SCHOLARSHIP_COLLECTION_ID || 'scholarship_applications',
   devSupport: 'dev-support',

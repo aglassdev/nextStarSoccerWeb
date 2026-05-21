@@ -11,6 +11,7 @@ interface PlayerRecord {
   lastName: string;
   dateOfBirth?: string;
   type: PlayerType;
+  isProxy?: boolean;
   [key: string]: any;
 }
 
@@ -27,15 +28,25 @@ const PlayersSection = () => {
   const fetchPlayers = async () => {
     setLoading(true); setError('');
     try {
-      const [youthRes, collegiateRes, professionalRes] = await Promise.all([
+      const [youthRes, collegiateRes, professionalRes, proxyRes] = await Promise.all([
         databases.listDocuments(databaseId, collections.youthPlayers, [Query.limit(5000)]),
         databases.listDocuments(databaseId, collections.collegiatePlayers, [Query.limit(5000)]),
         databases.listDocuments(databaseId, collections.professionalPlayers, [Query.limit(5000)]),
+        collections.proxyChildren
+          ? databases.listDocuments(databaseId, collections.proxyChildren, [Query.limit(5000)])
+          : Promise.resolve({ documents: [] }),
       ]);
       const youth: PlayerRecord[] = youthRes.documents.map((d: any) => ({ ...d, type: 'Youth' as PlayerType }));
       const collegiate: PlayerRecord[] = collegiateRes.documents.map((d: any) => ({ ...d, type: 'Collegiate' as PlayerType }));
       const professional: PlayerRecord[] = professionalRes.documents.map((d: any) => ({ ...d, type: 'Professional' as PlayerType }));
-      setPlayers([...youth, ...collegiate, ...professional]);
+      const proxy: PlayerRecord[] = proxyRes.documents.map((d: any) => ({
+        ...d,
+        // proxy_children uses birthDate, normalize to dateOfBirth for display
+        dateOfBirth: d.birthDate ?? d.dateOfBirth,
+        type: 'Youth' as PlayerType,
+        isProxy: true,
+      }));
+      setPlayers([...youth, ...collegiate, ...professional, ...proxy]);
     } catch (err: any) {
       setError('Failed to load players: ' + (err.message || 'Unknown error'));
     } finally { setLoading(false); }
@@ -103,14 +114,19 @@ const PlayersSection = () => {
               ) : (
                 filtered.map(player => (
                   <tr key={player.$id}
-                    onClick={() => navigate(`/admin/players/${typeToPath[player.type]}/${player.$id}`)}
-                    className="hover:bg-white/[0.03] cursor-pointer transition-colors">
+                    onClick={() => !player.isProxy && navigate(`/admin/players/${typeToPath[player.type]}/${player.$id}`)}
+                    className={`transition-colors ${player.isProxy ? 'cursor-default' : 'hover:bg-white/[0.03] cursor-pointer'}`}>
                     <td className="px-4 py-3 text-white text-sm">{player.firstName} {player.lastName}</td>
                     <td className="px-4 py-3 text-white/50 text-sm">
                       {player.dateOfBirth ? new Date(player.dateOfBirth).toLocaleDateString() : '—'}
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${typeBadge(player.type)}`}>{player.type}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${typeBadge(player.type)}`}>{player.type}</span>
+                        {player.isProxy && (
+                          <span className="px-2 py-1 rounded-full text-xs font-medium bg-white/[0.06] text-white/40 border border-white/10">Proxy</span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
