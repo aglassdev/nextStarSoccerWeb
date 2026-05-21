@@ -40,7 +40,7 @@ const CoachesPage = () => {
       {/* ── Roster grid ── */}
       <div className="flex-1 px-6 md:px-10 lg:px-14 pb-20">
         <div className="max-w-[1560px] mx-auto">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-1">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
             {coaches.map((coach, idx) => (
               <div
                 key={coach.id}
