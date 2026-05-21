@@ -269,37 +269,31 @@ const CoachDetailPage = () => {
     );
   }
 
-  const sectionColors: Record<string, string> = {
-    Youth: 'text-emerald-400',
-    College: 'text-blue-400',
-    Professional: 'text-amber-400',
-    'National Team': 'text-red-400',
-  };
-
   return (
-    <div className="min-h-screen bg-black flex flex-col">
+    <div className="min-h-screen bg-[#0c0c0c] flex flex-col font-lt-wave">
       <Navigation />
 
-      <div className="pt-24 pb-20 px-6 md:px-10">
+      <div className="pt-28 pb-20 px-6 md:px-10 lg:px-14">
         <div className="max-w-6xl mx-auto">
 
           {/* Back link */}
           <button
             onClick={() => navigate('/coaches')}
-            className="flex items-center gap-2 text-gray-500 hover:text-white transition-colors mb-12 group"
+            className="flex items-center gap-2 text-white/30 hover:text-white/70 transition-colors mb-14 group"
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-              <path d="M10 3L5 8l5 5" />
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 2L4 7l5 5" />
             </svg>
-            <span className="text-xs uppercase tracking-widest font-medium">All Coaches</span>
+            <span style={{ fontSize: '10px' }} className="uppercase tracking-[0.28em]">All Coaches</span>
           </button>
 
-          {/* Main layout: image left, content right */}
-          <div className="flex flex-col lg:flex-row gap-16 items-start">
+          {/* Main layout */}
+          <div className="flex flex-col lg:flex-row gap-14 xl:gap-20 items-start">
 
-            {/* ── LEFT: portrait image ── */}
-            <div className="w-full lg:w-[380px] xl:w-[420px] flex-shrink-0">
-              <div className="rounded-2xl overflow-hidden bg-gray-900 aspect-[3/4]">
+            {/* ── LEFT: portrait + career ── */}
+            <div className="w-full lg:w-[340px] xl:w-[380px] flex-shrink-0">
+              {/* Portrait — no rounded corners, raw image */}
+              <div className="overflow-hidden aspect-[3/4] bg-[#111]">
                 <img
                   src={coach.avatarUrl}
                   alt={coach.name}
@@ -307,26 +301,33 @@ const CoachDetailPage = () => {
                 />
               </div>
 
-              {/* Career progression below image */}
+              {/* Career history */}
               {coach.career && coach.career.length > 0 && (
-                <div className="mt-8 space-y-6">
+                <div className="mt-10 space-y-7">
                   {coach.career.map((section) => (
                     <div key={section.label}>
-                      <p className={`text-[10px] uppercase tracking-[0.2em] font-semibold mb-3 ${sectionColors[section.label] ?? 'text-gray-400'}`}>
-                        {section.label}
-                      </p>
-                      <div className="space-y-2">
+                      {/* Section label */}
+                      <div className="flex items-center gap-3 mb-4">
+                        <span className="text-white/25 uppercase tracking-[0.25em]" style={{ fontSize: '9px' }}>
+                          {section.label}
+                        </span>
+                        <div className="h-px flex-1 bg-white/8" />
+                      </div>
+                      {/* Club rows */}
+                      <div className="space-y-2.5">
                         {section.entries.map((entry, i) => (
-                          <div key={i} className="flex items-center gap-3">
-                            <div className="w-7 h-7 flex-shrink-0 flex items-center justify-center">
+                          <div key={i} className="flex items-center gap-3 group/club">
+                            <div className="w-6 h-6 flex-shrink-0 flex items-center justify-center">
                               <img
                                 src={entry.icon}
                                 alt={entry.name}
-                                className="max-w-full max-h-full object-contain"
+                                className="max-w-full max-h-full object-contain opacity-70 group-hover/club:opacity-100 transition-opacity"
                                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
                               />
                             </div>
-                            <span className="text-gray-300 text-sm">{entry.name}</span>
+                            <span className="text-white/55 text-[13px] group-hover/club:text-white/80 transition-colors">
+                              {entry.name}
+                            </span>
                           </div>
                         ))}
                       </div>
@@ -335,56 +336,51 @@ const CoachDetailPage = () => {
                 </div>
               )}
 
-              {/* Contact button (mobile: shown below image) */}
-              <div className="mt-8 lg:hidden">
+              {/* Mobile contact */}
+              <div className="mt-10 lg:hidden">
                 <button
                   onClick={() => navigate('/contact')}
-                  className="w-full bg-white text-black font-semibold py-3 rounded-lg hover:bg-gray-200 transition-colors"
+                  className="w-full bg-white text-black font-semibold py-3 rounded-full hover:bg-white/85 transition-colors text-sm"
                 >
-                  Contact
+                  Get in Touch
                 </button>
               </div>
             </div>
 
-            {/* ── RIGHT: name, title, bio ── */}
+            {/* ── RIGHT: name + bio ── */}
             <div className="flex-1 min-w-0">
-
-              {/* Title + name */}
-              <p className="text-blue-400 text-xs font-semibold uppercase tracking-[0.2em] mb-3">
+              <span className="text-white/30 uppercase tracking-[0.25em]" style={{ fontSize: '10px' }}>
                 {coach.title}
-              </p>
-              <h1 className="text-5xl xl:text-6xl font-bold text-white font-lt-wave leading-tight mb-5">
+              </span>
+              <h1
+                className="text-white font-bold leading-none mt-3 mb-8"
+                style={{ fontSize: 'clamp(2.8rem, 5.5vw, 5rem)' }}
+              >
                 {coach.name}
               </h1>
 
-              {/* Status */}
-              <div className="flex items-center gap-2 mb-8">
-                <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                <span className="text-green-400 text-sm font-medium">{coach.status}</span>
-              </div>
+              <div className="h-px bg-white/8 mb-10" />
 
-              <div className="h-px bg-white/10 mb-10" />
-
-              {/* Bio paragraphs */}
+              {/* Bio */}
               {coach.bio && coach.bio.length > 0 ? (
                 <div className="space-y-5">
                   {coach.bio.map((para, i) => (
-                    <p key={i} className="text-gray-400 text-[15px] leading-relaxed">
+                    <p key={i} className="text-white/55 text-[14px] md:text-[15px] leading-relaxed md:leading-loose">
                       {para}
                     </p>
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-500 text-sm italic">Bio coming soon.</p>
+                <p className="text-white/30 text-sm">Bio coming soon.</p>
               )}
 
-              {/* Contact button (desktop) */}
+              {/* Desktop contact */}
               <div className="mt-12 hidden lg:block">
                 <button
                   onClick={() => navigate('/contact')}
-                  className="bg-white text-black font-semibold px-10 py-3 rounded-lg hover:bg-gray-200 transition-colors"
+                  className="bg-white text-black font-semibold px-8 py-3 rounded-full hover:bg-white/85 transition-colors text-sm"
                 >
-                  Contact
+                  Get in Touch
                 </button>
               </div>
             </div>
@@ -393,9 +389,12 @@ const CoachDetailPage = () => {
           {/* Highlights videos */}
           {COACH_VIDEOS[coach.slug] && (
             <div className="mt-20">
-              <div className="h-px bg-white/10 mb-12" />
-              <h2 className="text-2xl font-bold text-white font-lt-wave mb-8">Highlights</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="h-px bg-white/8 mb-12" />
+              <div className="flex items-center gap-4 mb-8">
+                <span className="text-white/25 uppercase tracking-[0.25em]" style={{ fontSize: '10px' }}>Highlights</span>
+                <div className="h-px flex-1 bg-white/8" />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {COACH_VIDEOS[coach.slug].map((src, i) => (
                   <VideoPlayer key={i} src={src} />
                 ))}
