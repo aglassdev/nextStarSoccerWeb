@@ -247,18 +247,14 @@ const InquiriesSection = () => {
     }
   };
 
-  const openInGmail = (inq: Inquiry) => {
+  const openInMail = (inq: Inquiry) => {
     if (!inq.email) return;
     const name = `${inq.firstName || ''} ${inq.lastName || ''}`.trim() || 'there';
-    const to = encodeURIComponent(inq.email);
-    const su = encodeURIComponent(`Re: ${inq.subject || 'Your Inquiry'}`);
+    const subject = encodeURIComponent(`Re: ${inq.subject || 'Your Inquiry'}`);
     const body = encodeURIComponent(
       `Hi ${name},\n\n${replyBody || ''}\n\nBest regards,\nNext Star Soccer\n\n────────────────────\nYour original message:\n\n${inq.message || ''}`
     );
-    window.open(
-      `https://mail.google.com/mail/?view=cm&to=${to}&su=${su}&body=${body}`,
-      '_blank'
-    );
+    window.location.href = `mailto:${inq.email}?subject=${subject}&body=${body}`;
   };
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -646,7 +642,7 @@ const InquiriesSection = () => {
                     <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    Failed to send. Try opening in Gmail instead.
+                    Failed to send. Try opening in Mail instead.
                   </div>
                 )}
               </div>
@@ -658,17 +654,17 @@ const InquiriesSection = () => {
                   Cancel
                 </button>
                 <div className="flex items-center gap-2">
-                  {/* Open in Gmail */}
+                  {/* Open in Mail */}
                   <button
-                    onClick={() => openInGmail(inq)}
+                    onClick={() => openInMail(inq)}
                     disabled={!inq.email}
-                    title="Open Gmail inbox and mark resolved"
+                    title="Open in Mail app"
                     className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-white/[0.10] bg-white/[0.05] text-white text-[12px] hover:bg-white/[0.10] transition-colors disabled:opacity-30"
                   >
                     <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
                       <path d="M22 6C22 4.9 21.1 4 20 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V6ZM20 6L12 11L4 6H20ZM20 18H4V8L12 13L20 8V18Z" fill="currentColor"/>
                     </svg>
-                    Open in Gmail
+                    Open in Mail
                   </button>
 
                   {/* Send */}
