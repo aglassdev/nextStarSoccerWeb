@@ -244,12 +244,12 @@ const HomePageNew = () => {
             </section>
 
             {/* ═══════════════════════ CLUBS CAROUSEL ═══════════════════════ */}
-            <div className="bg-[#f0ead6] pt-6 pb-3">
+            <div className="bg-[#f0ead6] pt-16 pb-3">
               <LogoCarousel icons={CLUB_ICONS} folder="clubs" direction="right" duration="110s" />
             </div>
 
             {/* ═══════════════════════ STATS ═══════════════════════ */}
-            <section className="bg-[#f0ead6] py-20 md:py-28 px-6 md:px-12 lg:px-20 fade-section">
+            <section className="bg-[#f0ead6] py-10 md:py-14 px-6 md:px-12 lg:px-20 fade-section">
                 <div className="max-w-6xl mx-auto">
 
                     {/* Section label */}
@@ -311,7 +311,7 @@ const HomePageNew = () => {
             </section>
 
             {/* ═══════════════════════ COLLEGES CAROUSEL ═══════════════════════ */}
-            <div className="bg-[#f0ead6] pt-3 pb-6">
+            <div className="bg-[#f0ead6] pt-3 pb-16">
               <LogoCarousel icons={COLLEGE_ICONS} folder="colleges" direction="left" duration="60s" />
             </div>
 
