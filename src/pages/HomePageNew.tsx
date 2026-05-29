@@ -71,23 +71,26 @@ const COLLEGE_ICONS = [
 ];
 
 /* ── Logo Carousel ──────────────────────────────────────────────────────────── */
-function LogoCarousel({ icons, folder, direction }: {
+function LogoCarousel({ icons, folder, direction, duration = '60s' }: {
   icons: string[];
   folder: 'clubs' | 'colleges';
   direction: 'left' | 'right';
+  duration?: string;
 }) {
-  // Duplicate for seamless loop
   const doubled = [...icons, ...icons];
   return (
     <div className="overflow-hidden w-full" style={{ maskImage: 'linear-gradient(to right, transparent, black 8%, black 92%, transparent)' }}>
-      <div className={`flex items-center gap-8 w-max ${direction === 'left' ? 'carousel-left' : 'carousel-right'}`}>
+      <div
+        className={`flex items-center gap-8 w-max ${direction === 'left' ? 'carousel-left' : 'carousel-right'}`}
+        style={{ animationDuration: duration }}
+      >
         {doubled.map((file, i) => (
           <img
             key={i}
             src={`/assets/icons/${folder}/${encodeURIComponent(file)}`}
             alt=""
             aria-hidden="true"
-            className="h-10 w-auto object-contain flex-shrink-0 opacity-70 hover:opacity-100 transition-opacity duration-200"
+            className="h-12 w-auto object-contain flex-shrink-0"
             loading="lazy"
             onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
           />
@@ -241,8 +244,8 @@ const HomePageNew = () => {
             </section>
 
             {/* ═══════════════════════ CLUBS CAROUSEL ═══════════════════════ */}
-            <div className="bg-[#f0ead6] pt-14 pb-6">
-              <LogoCarousel icons={CLUB_ICONS} folder="clubs" direction="right" />
+            <div className="bg-[#f0ead6] pt-6 pb-3">
+              <LogoCarousel icons={CLUB_ICONS} folder="clubs" direction="right" duration="110s" />
             </div>
 
             {/* ═══════════════════════ STATS ═══════════════════════ */}
@@ -308,8 +311,8 @@ const HomePageNew = () => {
             </section>
 
             {/* ═══════════════════════ COLLEGES CAROUSEL ═══════════════════════ */}
-            <div className="bg-[#f0ead6] pt-6 pb-14">
-              <LogoCarousel icons={COLLEGE_ICONS} folder="colleges" direction="left" />
+            <div className="bg-[#f0ead6] pt-3 pb-6">
+              <LogoCarousel icons={COLLEGE_ICONS} folder="colleges" direction="left" duration="60s" />
             </div>
 
             {/* ═══════════════════════ WHO WE ARE ═══════════════════════ */}
