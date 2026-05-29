@@ -38,6 +38,18 @@ body {
   min-height: 100vh;
 }
 
+/* ── Logo carousel animations ─────────────────────────────────────────────── */
+@keyframes scroll-left {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+@keyframes scroll-right {
+  0%   { transform: translateX(-50%); }
+  100% { transform: translateX(0); }
+}
+.carousel-left  { animation: scroll-left  40s linear infinite; }
+.carousel-right { animation: scroll-right 40s linear infinite; }
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;

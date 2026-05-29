@@ -28,6 +28,73 @@ const ABOUT_PARAGRAPHS = [
     'Specializing in comprehensive soccer training, Next Star also delivers tailored programs designed to enhance technical skills and physical prowess for individuals and groups alike. Our services encompass mentorship, counseling, and consulting for academies, colleges, and aspiring professionals.',
 ];
 
+const CLUB_ICONS = [
+  '568289-removebg-preview.png','Annapolis_Blues_FC_Logo.png','Chattanooga_FC_logo.svg.png',
+  'Club_Deportivo_Águila_logo.svg.png','Dukla_bb.png','H4.png','New_York_Red_Bulls_logo.svg.png',
+  'Northern_Virginia_FC_logo.png','OH_LEUVEN.png','Orlando_Pride_logo.svg.png',
+  'Portland_Hearts_of_Pine_Logo.png','Portland_Thorns_logo.svg.png','San_Diego_FC_logo.svg.png',
+  'Sarasota_Paradise_Logo.png','St._Louis_City_SC_logo.svg.png','The_Town_FC_logo.svg.png',
+  'ajax.png','albaceteBalompié.png','amiens.png','annapolisBlues.png','arlington.png',
+  'arsenal.png','assyriskaff.png','avalta.png','benfica.png','bethesda.png','bogotafc.png',
+  'bournemouth.png','carolinacore.png','cdAméricadeCali.png','cdCacahuatique.png',
+  'cdsColo-Colo.png','charlotteindependance.png','chicagoFire.png','cincinnati2.png',
+  'clubDestroyers.png','columbusCrew.png','csEmelec.png','dcUnited.png','dothanunited.png',
+  'dynamo.png','elfsborg.png','elpasolocomotive.png','fccincinnati.png','frankfurt.png',
+  'grazerAK.png','hoffenheim.png','huntsvillecity.png','ikSirius.png',
+  'images-removebg-preview.png','khfccinlogo_copy__2_.png','krcgenk.png','lafc.png',
+  'lagalaxy.png','landskronaBolS.png','leverkusen.png','lexington.png',
+  'littleRockRangers.png','logo_Alexandria-SA.png','loudoun.png','louisianaKrewe.png',
+  'louisianafirejuniors.png','maimifc.png','manurewa.png','marylandBobcats.png',
+  'minnesota2.png','montreal.png','nashville.png','newEnglandRevolution.png',
+  'northCarolinafc.png','nycfcii.png','olyonnes.png','pateadores.png','pateadoressc.png',
+  'philadelphiaunion.png','rapids.png','rapids2.png','realmonarchs.png','redlandsfc.png',
+  'roughriders.png','sandnesUlf.png','santabarbarasc.png','santosLaguna.png','seacoast.png',
+  'sjquakes.png','sportingkansas2.png','switchbacks.png','syrianskafc.png','texomafc.png',
+  'torontofc.png','tulsa.png','vancouverWhitecaps.png','vda.png','vermontGreen.png',
+  'wake.png','westerlo.png','wolfsburg.png',
+].filter(f => !['_.png','__.png','___.png','____.png','______.png'].includes(f));
+
+const COLLEGE_ICONS = [
+  'Akron_Zips_logo_2022.svg.png','Lynchburg_Hornets_logo.svg.png','Manhattan_Jaspers_logo.svg.png',
+  'North_Carolina_Tar_Heels_logo.svg.png','Ohio_State_Buckeyes_logo.svg.png',
+  'Providence_Friars_logo.svg.png','Radford_Highlanders_logo.svg.png','Stanford_Cardinal_logo.svg.png',
+  'UMass_Amherst_athletics_logo.svg.png','William_&_Mary_Athletics_logo.svg.png',
+  'Wisconsin_Badgers_logo.svg.png','au.png','binghamton.png','bu.png','bucknell.png',
+  'colgate.png','columbia.png','cornell.png','creighton.png','csdu.png','duke.png',
+  'elon.png','emory.png','georgemason.png','georgetown.png','harvard.png','haverford.png',
+  'high-point.png','howard.png','jmu.png','longwood.png','maryland.png','mississippi.png',
+  'ncstate.png','ncwu.png','odu.png','penn.png','princeton.png','radford.png','sanDiego.png',
+  'uca.png','ucberkeley.png','ucla.png','ucsb.png','uic.png','uk.png','umich.png',
+  'uncg.png','uncw.png','vcu.png','virginia.png','wakeForest.png','washu.png','yale.png',
+].filter(f => !['Group.png','_.png','convert (9).png'].includes(f));
+
+/* ── Logo Carousel ──────────────────────────────────────────────────────────── */
+function LogoCarousel({ icons, folder, direction }: {
+  icons: string[];
+  folder: 'clubs' | 'colleges';
+  direction: 'left' | 'right';
+}) {
+  // Duplicate for seamless loop
+  const doubled = [...icons, ...icons];
+  return (
+    <div className="overflow-hidden w-full" style={{ maskImage: 'linear-gradient(to right, transparent, black 8%, black 92%, transparent)' }}>
+      <div className={`flex items-center gap-8 w-max ${direction === 'left' ? 'carousel-left' : 'carousel-right'}`}>
+        {doubled.map((file, i) => (
+          <img
+            key={i}
+            src={`/assets/icons/${folder}/${encodeURIComponent(file)}`}
+            alt=""
+            aria-hidden="true"
+            className="h-10 w-auto object-contain flex-shrink-0 opacity-70 hover:opacity-100 transition-opacity duration-200"
+            loading="lazy"
+            onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const COLLAGE_IMAGES = [
     { src: images.collage1,  caption: 'Private Training'   },
     { src: images.collage2,  caption: 'Game Day'           },
@@ -171,6 +238,11 @@ const HomePageNew = () => {
                 </div>
             </section>
 
+            {/* ═══════════════════════ CLUBS CAROUSEL ═══════════════════════ */}
+            <div className="bg-[#f0ead6] pt-14 pb-6">
+              <LogoCarousel icons={CLUB_ICONS} folder="clubs" direction="right" />
+            </div>
+
             {/* ═══════════════════════ STATS ═══════════════════════ */}
             <section className="bg-[#f0ead6] py-20 md:py-28 px-6 md:px-12 lg:px-20 fade-section">
                 <div className="max-w-6xl mx-auto">
@@ -232,6 +304,11 @@ const HomePageNew = () => {
 
                 </div>
             </section>
+
+            {/* ═══════════════════════ COLLEGES CAROUSEL ═══════════════════════ */}
+            <div className="bg-[#f0ead6] pt-6 pb-14">
+              <LogoCarousel icons={COLLEGE_ICONS} folder="colleges" direction="left" />
+            </div>
 
             {/* ═══════════════════════ WHO WE ARE ═══════════════════════ */}
             <section
