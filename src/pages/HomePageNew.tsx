@@ -15,9 +15,9 @@ gsap.registerPlugin(ScrollTrigger);
 const STATS: { end: number; suffix: string; label: string; detail: string }[] = [
     { end: 2500, suffix: '+', label: 'Youth Players',        detail: 'Trained across all age groups since founding.' },
     { end: 100,  suffix: '+', label: 'Professional Players', detail: 'Alumni competing at the highest levels worldwide.' },
-    { end: 50,   suffix: '+', label: 'National Team Players',detail: 'Representing the U.S. at youth & senior level.' },
-    { end: 200,  suffix: '+', label: 'NCAA Division I',      detail: 'Alumni earning Division I scholarships.' },
-    { end: 50,   suffix: '+', label: 'NCAA Division II',     detail: 'Alumni competing at the Division II level.' },
+    { end: 50,   suffix: '+', label: 'National Team Players',detail: 'Representing countries around the world at youth & senior national team level.' },
+    { end: 200,  suffix: '+', label: 'NCAA Division I',      detail: 'Alumni playing at the collegiate Division I level.' },
+    { end: 50,   suffix: '+', label: 'NCAA Division II',     detail: 'Alumni playing at the collegiate Division II level.' },
     { end: 100,  suffix: '+', label: 'NCAA Division III',    detail: 'Alumni playing at the collegiate Division III level.' },
 ];
 
@@ -243,13 +243,16 @@ const HomePageNew = () => {
                 </div>
             </section>
 
-            {/* ═══════════════════════ CLUBS CAROUSEL ═══════════════════════ */}
-            <div className="bg-[#f0ead6] pt-16 pb-3">
+            {/* ═══════════════ STATS + CAROUSELS (one unified section) ══════════════ */}
+            <div className="bg-[#f0ead6] fade-section">
+
+            {/* Clubs carousel */}
+            <div className="pt-16 pb-3">
               <LogoCarousel icons={CLUB_ICONS} folder="clubs" direction="right" duration="110s" />
             </div>
 
-            {/* ═══════════════════════ STATS ═══════════════════════ */}
-            <section className="bg-[#f0ead6] py-10 md:py-14 px-6 md:px-12 lg:px-20 fade-section">
+            {/* Stats content */}
+            <section className="py-10 md:py-14 px-6 md:px-12 lg:px-20">
                 <div className="max-w-6xl mx-auto">
 
                     {/* Section label */}
@@ -310,10 +313,12 @@ const HomePageNew = () => {
                 </div>
             </section>
 
-            {/* ═══════════════════════ COLLEGES CAROUSEL ═══════════════════════ */}
-            <div className="bg-[#f0ead6] pt-3 pb-16">
+            {/* Colleges carousel */}
+            <div className="pt-3 pb-16">
               <LogoCarousel icons={COLLEGE_ICONS} folder="colleges" direction="left" duration="60s" />
             </div>
+
+            </div>{/* end unified stats section */}
 
             {/* ═══════════════════════ WHO WE ARE ═══════════════════════ */}
             <section
