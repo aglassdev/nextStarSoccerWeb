@@ -380,17 +380,30 @@ const InquiriesSection = () => {
                 </button>
               </>
             ) : (
-              /* Trash */
-              <button
-                onClick={(e) => moveToTrash(inq.$id, e)}
-                disabled={isActioning}
-                title="Move to trash"
-                className="w-7 h-7 flex items-center justify-center rounded-md text-white/20 hover:text-white/60 hover:bg-white/[0.06] transition-colors"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </button>
+              <>
+                {/* Mark as resolved */}
+                <button
+                  onClick={(e) => { e.stopPropagation(); markResolved(inq.$id); }}
+                  disabled={isActioning}
+                  title="Mark as resolved"
+                  className="w-7 h-7 flex items-center justify-center rounded-md text-white/30 hover:text-green-400 hover:bg-green-400/[0.08] transition-colors"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </button>
+                {/* Trash */}
+                <button
+                  onClick={(e) => moveToTrash(inq.$id, e)}
+                  disabled={isActioning}
+                  title="Move to trash"
+                  className="w-7 h-7 flex items-center justify-center rounded-md text-white/20 hover:text-white/60 hover:bg-white/[0.06] transition-colors"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              </>
             )}
 
             {/* Chevron */}
