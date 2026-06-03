@@ -8,7 +8,7 @@ interface FeedbackDoc {
   issue: string;
   description: string;
   userId?: string;
-  userName?: string;
+  visibility?: string;   // 'anonymous' | 'known' (or undefined for legacy)
   resolved?: boolean;
   resolvedAt?: string;
 }
@@ -20,6 +20,7 @@ const AppFeedbackSection = () => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [resolvingId, setResolvingId] = useState<string | null>(null);
+  const [userNames, setUserNames] = useState<Record<string, string>>({});
 
   useEffect(() => { fetchFeedback(); }, []);
 
@@ -31,12 +32,41 @@ const AppFeedbackSection = () => {
         Query.orderDesc('$createdAt'),
         Query.limit(1000),
       ]);
-      setDocs(res.documents as unknown as FeedbackDoc[]);
+      const fetched = res.documents as unknown as FeedbackDoc[];
+      setDocs(fetched);
+      fetchUserNames(fetched);
     } catch (e) {
       console.error(e);
       setError('Failed to load feedback.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUserNames = async (feedbackDocs: FeedbackDoc[]) => {
+    // Collect unique userIds from known (non-anonymous) entries
+    const knownIds = [
+      ...new Set(
+        feedbackDocs
+          .filter(d => d.visibility === 'known' && d.userId)
+          .map(d => d.userId!)
+      ),
+    ];
+    if (!knownIds.length) return;
+
+    try {
+      const res = await databases.listDocuments(databaseId, collections.parentUsers, [
+        Query.equal('$id', knownIds),
+        Query.limit(knownIds.length),
+      ]);
+      const map: Record<string, string> = {};
+      for (const doc of res.documents as any[]) {
+        const name = [doc.firstName, doc.lastName].filter(Boolean).join(' ').trim();
+        map[doc.$id] = name || doc.email || doc.$id;
+      }
+      setUserNames(map);
+    } catch (e) {
+      console.error('Failed to fetch user names', e);
     }
   };
 
@@ -94,8 +124,18 @@ const AppFeedbackSection = () => {
     return list.filter(d =>
       d.issue.toLowerCase().includes(q) ||
       d.description.toLowerCase().includes(q) ||
-      (d.userId || '').toLowerCase().includes(q)
+      (d.userId || '').toLowerCase().includes(q) ||
+      (d.userId && userNames[d.userId] || '').toLowerCase().includes(q)
     );
+  };
+
+  const isKnown = (doc: FeedbackDoc) => doc.visibility === 'known' && !!doc.userId;
+
+  const displayName = (doc: FeedbackDoc): string => {
+    if (isKnown(doc) && doc.userId) {
+      return userNames[doc.userId] || doc.userId.slice(0, 8) + '…';
+    }
+    return 'Anonymous';
   };
 
   const active   = applySearch(docs.filter(d => !d.resolved));
@@ -104,6 +144,7 @@ const AppFeedbackSection = () => {
   const renderRow = (doc: FeedbackDoc, idx: number, isResolved: boolean) => {
     const isExpanded  = expandedId === doc.$id;
     const isActioning = resolvingId === doc.$id;
+    const known       = isKnown(doc);
 
     return (
       <div key={doc.$id} className="rounded-lg border border-white/[0.07] overflow-hidden">
@@ -130,11 +171,11 @@ const AppFeedbackSection = () => {
 
           {/* Meta */}
           <div className="flex items-center gap-3 flex-shrink-0" onClick={e => e.stopPropagation()}>
-            {doc.userId && (
-              <span className="text-white/25 text-[11px] font-mono hidden sm:block truncate max-w-[100px]">
-                {doc.userId.slice(0, 8)}…
-              </span>
-            )}
+            {/* User badge */}
+            <span className={`text-[11px] font-mono hidden sm:block truncate max-w-[140px] ${known ? 'text-white/50' : 'text-white/20 italic'}`}>
+              {displayName(doc)}
+            </span>
+
             {isResolved && doc.resolvedAt ? (
               <span className="text-green-400/50 text-[11px] font-mono hidden sm:block">
                 resolved {fmtDate(doc.resolvedAt)}
@@ -181,9 +222,20 @@ const AppFeedbackSection = () => {
           <div className="bg-[#0e0d0c] border-t border-white/[0.05] px-5 py-4">
             <div className="flex items-start gap-6 mb-3 text-[11px] font-mono text-white/35 flex-wrap">
               <span><span className="text-white/20">id </span>{doc.$id}</span>
-              {doc.userId && <span><span className="text-white/20">user </span>{doc.userId}</span>}
+              <span>
+                <span className="text-white/20">user </span>
+                {known
+                  ? <span className="text-white/60">{displayName(doc)}{doc.userId ? ` · ${doc.userId}` : ''}</span>
+                  : <span className="italic text-white/20">anonymous</span>
+                }
+              </span>
               <span><span className="text-white/20">at </span>{new Date(doc.$createdAt).toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}</span>
-              {doc.resolvedAt && <span className="text-green-400/50"><span className="text-white/20">resolved </span>{new Date(doc.resolvedAt).toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}</span>}
+              {doc.resolvedAt && (
+                <span className="text-green-400/50">
+                  <span className="text-white/20">resolved </span>
+                  {new Date(doc.resolvedAt).toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}
+                </span>
+              )}
             </div>
             <p className="text-white/80 text-[13px] leading-relaxed whitespace-pre-wrap">{doc.description}</p>
           </div>
