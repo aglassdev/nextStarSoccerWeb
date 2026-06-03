@@ -223,12 +223,13 @@ const HomePageNew = () => {
 
             {/* ═══════════════════════ HERO ═══════════════════════ */}
             <section className="relative h-screen overflow-hidden bg-black">
-                <img
-                    src={images.homeHero}
-                    alt="Next Star Soccer"
+                <video
+                    src="https://nyc.cloud.appwrite.io/v1/storage/buckets/6a1fa457000995c2a83f/files/6a1fa49100141ebd05eb/view?project=68577380002195dec512"
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
                     className="absolute inset-0 w-full h-full object-cover"
-                    fetchPriority="high"
-                    decoding="async"
                 />
                 <div className="absolute inset-0 bg-black/20" />
 
