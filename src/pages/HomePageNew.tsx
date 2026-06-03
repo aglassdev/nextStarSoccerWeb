@@ -224,7 +224,7 @@ const HomePageNew = () => {
             {/* ═══════════════════════ HERO ═══════════════════════ */}
             <section className="relative h-screen overflow-hidden bg-black">
                 <video
-                    src="https://nyc.cloud.appwrite.io/v1/storage/buckets/6a1fa457000995c2a83f/files/6a1fa49100141ebd05eb/view?project=68577380002195dec512"
+                    src="https://nyc.cloud.appwrite.io/v1/storage/buckets/6a1fa457000995c2a83f/files/6a1fa81c001bd64cf360/view?project=68577380002195dec512"
                     autoPlay
                     loop
                     muted
