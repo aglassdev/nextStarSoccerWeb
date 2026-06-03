@@ -9,6 +9,8 @@ interface FeedbackDoc {
   description: string;
   userId?: string;
   userName?: string;
+  resolved?: boolean;
+  resolvedAt?: string;
 }
 
 const AppFeedbackSection = () => {
@@ -17,6 +19,7 @@ const AppFeedbackSection = () => {
   const [error, setError] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [resolvingId, setResolvingId] = useState<string | null>(null);
 
   useEffect(() => { fetchFeedback(); }, []);
 
@@ -37,6 +40,42 @@ const AppFeedbackSection = () => {
     }
   };
 
+  const markResolved = async (id: string) => {
+    setResolvingId(id);
+    try {
+      const resolvedAt = new Date().toISOString();
+      await databases.updateDocument(databaseId, collections.devSupport!, id, {
+        resolved: true,
+        resolvedAt,
+      });
+      setDocs(prev => prev.map(d =>
+        d.$id === id ? { ...d, resolved: true, resolvedAt } : d
+      ));
+      if (expandedId === id) setExpandedId(null);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setResolvingId(null);
+    }
+  };
+
+  const markUnresolved = async (id: string) => {
+    setResolvingId(id);
+    try {
+      await databases.updateDocument(databaseId, collections.devSupport!, id, {
+        resolved: false,
+        resolvedAt: null,
+      });
+      setDocs(prev => prev.map(d =>
+        d.$id === id ? { ...d, resolved: false, resolvedAt: undefined } : d
+      ));
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setResolvingId(null);
+    }
+  };
+
   const fmtDate = (iso: string) => {
     const d = new Date(iso);
     const diff = Date.now() - d.getTime();
@@ -49,15 +88,109 @@ const AppFeedbackSection = () => {
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
-  const filtered = docs.filter(d => {
-    if (!searchQuery) return true;
+  const applySearch = (list: FeedbackDoc[]) => {
+    if (!searchQuery) return list;
     const q = searchQuery.toLowerCase();
-    return (
+    return list.filter(d =>
       d.issue.toLowerCase().includes(q) ||
       d.description.toLowerCase().includes(q) ||
       (d.userId || '').toLowerCase().includes(q)
     );
-  });
+  };
+
+  const active   = applySearch(docs.filter(d => !d.resolved));
+  const resolved = applySearch(docs.filter(d => !!d.resolved));
+
+  const renderRow = (doc: FeedbackDoc, idx: number, isResolved: boolean) => {
+    const isExpanded  = expandedId === doc.$id;
+    const isActioning = resolvingId === doc.$id;
+
+    return (
+      <div key={doc.$id} className="rounded-lg border border-white/[0.07] overflow-hidden">
+
+        {/* Row */}
+        <div
+          onClick={() => setExpandedId(isExpanded ? null : doc.$id)}
+          className="w-full flex items-start gap-4 px-4 py-3.5 text-left bg-[#131211] hover:bg-[#1a1917] transition-colors cursor-pointer select-none"
+        >
+          {/* Index */}
+          <span className="text-white/20 text-[11px] font-mono flex-shrink-0 mt-0.5 w-5 text-right">
+            {String(idx + 1).padStart(2, '0')}
+          </span>
+
+          {/* Content */}
+          <div className="flex-1 min-w-0">
+            <p className={`text-[13px] font-medium leading-snug truncate ${isResolved ? 'text-white/40' : 'text-white'}`}>
+              {doc.issue}
+            </p>
+            {!isExpanded && (
+              <p className="text-white/40 text-[12px] mt-0.5 truncate font-mono">{doc.description}</p>
+            )}
+          </div>
+
+          {/* Meta */}
+          <div className="flex items-center gap-3 flex-shrink-0" onClick={e => e.stopPropagation()}>
+            {doc.userId && (
+              <span className="text-white/25 text-[11px] font-mono hidden sm:block truncate max-w-[100px]">
+                {doc.userId.slice(0, 8)}…
+              </span>
+            )}
+            {isResolved && doc.resolvedAt ? (
+              <span className="text-green-400/50 text-[11px] font-mono hidden sm:block">
+                resolved {fmtDate(doc.resolvedAt)}
+              </span>
+            ) : (
+              <span className="text-white/25 text-[11px] font-mono w-14 text-right">{fmtDate(doc.$createdAt)}</span>
+            )}
+
+            {/* Resolve / Unresolve button */}
+            {isResolved ? (
+              <button
+                onClick={() => markUnresolved(doc.$id)}
+                disabled={isActioning}
+                title="Move back to open"
+                className="w-7 h-7 flex items-center justify-center rounded-md text-white/20 hover:text-white/60 hover:bg-white/[0.06] transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                </svg>
+              </button>
+            ) : (
+              <button
+                onClick={() => markResolved(doc.$id)}
+                disabled={isActioning}
+                title="Mark as resolved"
+                className="w-7 h-7 flex items-center justify-center rounded-md text-white/30 hover:text-green-400 hover:bg-green-400/[0.08] transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </button>
+            )}
+
+            <svg
+              className={`w-3.5 h-3.5 text-white/20 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+              fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </div>
+
+        {/* Expanded */}
+        {isExpanded && (
+          <div className="bg-[#0e0d0c] border-t border-white/[0.05] px-5 py-4">
+            <div className="flex items-start gap-6 mb-3 text-[11px] font-mono text-white/35 flex-wrap">
+              <span><span className="text-white/20">id </span>{doc.$id}</span>
+              {doc.userId && <span><span className="text-white/20">user </span>{doc.userId}</span>}
+              <span><span className="text-white/20">at </span>{new Date(doc.$createdAt).toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}</span>
+              {doc.resolvedAt && <span className="text-green-400/50"><span className="text-white/20">resolved </span>{new Date(doc.resolvedAt).toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}</span>}
+            </div>
+            <p className="text-white/80 text-[13px] leading-relaxed whitespace-pre-wrap">{doc.description}</p>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -70,7 +203,9 @@ const AppFeedbackSection = () => {
             <span>App Feedback</span>
             <span className="text-white/30">{'>'}</span>
           </h2>
-          <p className="text-white/30 text-[11px] font-mono mt-0.5">{loading ? '…' : `${docs.length} reports`}</p>
+          <p className="text-white/30 text-[11px] font-mono mt-0.5">
+            {loading ? '…' : `${active.length} open · ${resolved.length} resolved`}
+          </p>
         </div>
         <button onClick={fetchFeedback} className="text-white/30 hover:text-white transition-colors text-xs font-mono">
           refresh
@@ -103,66 +238,33 @@ const AppFeedbackSection = () => {
         </div>
       ) : error ? (
         <p className="text-red-400 text-sm font-mono text-center py-10">{error}</p>
-      ) : filtered.length === 0 ? (
-        <p className="text-white/25 text-sm font-mono text-center py-10">
-          {searchQuery ? 'no matches.' : 'no feedback yet.'}
-        </p>
       ) : (
-        <div className="space-y-px">
-          {filtered.map((doc, idx) => {
-            const isExpanded = expandedId === doc.$id;
-            return (
-              <div key={doc.$id} className="rounded-lg border border-white/[0.07] overflow-hidden">
+        <>
+          {/* Open */}
+          {active.length === 0 ? (
+            <p className="text-white/25 text-sm font-mono text-center py-10">
+              {searchQuery ? 'no matches.' : 'no open feedback.'}
+            </p>
+          ) : (
+            <div className="space-y-px">
+              {active.map((doc, idx) => renderRow(doc, idx, false))}
+            </div>
+          )}
 
-                {/* Row */}
-                <button
-                  onClick={() => setExpandedId(isExpanded ? null : doc.$id)}
-                  className="w-full flex items-start gap-4 px-4 py-3.5 text-left bg-[#131211] hover:bg-[#1a1917] transition-colors"
-                >
-                  {/* Index */}
-                  <span className="text-white/20 text-[11px] font-mono flex-shrink-0 mt-0.5 w-5 text-right">
-                    {String(idx + 1).padStart(2, '0')}
-                  </span>
-
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white text-[13px] font-medium leading-snug truncate">{doc.issue}</p>
-                    {!isExpanded && (
-                      <p className="text-white/40 text-[12px] mt-0.5 truncate font-mono">{doc.description}</p>
-                    )}
-                  </div>
-
-                  {/* Meta */}
-                  <div className="flex items-center gap-4 flex-shrink-0">
-                    {doc.userId && (
-                      <span className="text-white/25 text-[11px] font-mono hidden sm:block truncate max-w-[100px]">
-                        {doc.userId.slice(0, 8)}…
-                      </span>
-                    )}
-                    <span className="text-white/25 text-[11px] font-mono w-14 text-right">{fmtDate(doc.$createdAt)}</span>
-                    <svg
-                      className={`w-3.5 h-3.5 text-white/20 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
-                      fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </div>
-                </button>
-
-                {/* Expanded */}
-                {isExpanded && (
-                  <div className="bg-[#0e0d0c] border-t border-white/[0.05] px-5 py-4">
-                    <div className="flex items-start gap-6 mb-3 text-[11px] font-mono text-white/35 flex-wrap">
-                      <span><span className="text-white/20">id </span>{doc.$id}</span>
-                      {doc.userId && <span><span className="text-white/20">user </span>{doc.userId}</span>}
-                      <span><span className="text-white/20">at </span>{new Date(doc.$createdAt).toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}</span>
-                    </div>
-                    <p className="text-white/80 text-[13px] leading-relaxed whitespace-pre-wrap">{doc.description}</p>
-                  </div>
-                )}
+          {/* Resolved */}
+          {resolved.length > 0 && (
+            <div className="mt-10">
+              <div className="flex items-center gap-3 mb-3">
+                <span className="text-white/20 text-[11px] font-mono uppercase tracking-widest">Resolved</span>
+                <div className="flex-1 h-px bg-white/[0.06]" />
+                <span className="text-white/20 text-[11px] font-mono">{resolved.length}</span>
               </div>
-            );
-          })}
-        </div>
+              <div className="space-y-px">
+                {resolved.map((doc, idx) => renderRow(doc, idx, true))}
+              </div>
+            </div>
+          )}
+        </>
       )}
 
     </div>
