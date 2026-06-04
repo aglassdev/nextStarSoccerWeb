@@ -128,6 +128,7 @@ const HomePageNew = () => {
     const [visibleCounters, setVisibleCounters] = useState({ row1: false, row2: false });
     const [paragraphsVisible, setParagraphsVisible] = useState([false, false, false, false]);
     const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+    const [videoReady, setVideoReady] = useState(false);
 
     const aboutRef         = useRef<HTMLDivElement>(null);
     const socialSectionRef = useRef<HTMLDivElement>(null);
@@ -221,6 +222,18 @@ const HomePageNew = () => {
     return (
         <div className="min-h-screen font-lt-wave overflow-x-hidden">
 
+            {/* ═══════════════════════ VIDEO LOADING OVERLAY ═══════════════════════ */}
+            <div
+                className="fixed inset-0 z-[9999] bg-black flex items-center justify-center transition-opacity duration-700 pointer-events-none"
+                style={{ opacity: videoReady ? 0 : 1 }}
+            >
+                <img
+                    src="/assets/images/NextStarBall.png"
+                    alt=""
+                    className="w-20 h-20 object-contain animate-pulse"
+                />
+            </div>
+
             {/* ═══════════════════════ HERO ═══════════════════════ */}
             <section className="relative h-screen overflow-hidden bg-black">
                 <video
@@ -229,6 +242,7 @@ const HomePageNew = () => {
                     loop
                     muted
                     playsInline
+                    onCanPlay={() => setVideoReady(true)}
                     className="absolute inset-0 w-full h-full object-cover"
                 />
                 <div className="absolute inset-0 bg-black/20" />
