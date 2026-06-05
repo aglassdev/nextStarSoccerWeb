@@ -38,6 +38,13 @@ body {
   min-height: 100vh;
 }
 
+/* ── Loading pulse (scale) ────────────────────────────────────────────────── */
+@keyframes scale-pulse {
+  0%, 100% { transform: scale(1);    }
+  50%       { transform: scale(1.18); }
+}
+.animate-scale-pulse { animation: scale-pulse 1.4s ease-in-out infinite; }
+
 /* ── Logo carousel animations ─────────────────────────────────────────────── */
 @keyframes scroll-left {
   0%   { transform: translateX(0); }

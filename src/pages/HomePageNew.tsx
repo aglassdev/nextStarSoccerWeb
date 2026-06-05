@@ -230,7 +230,7 @@ const HomePageNew = () => {
                 <img
                     src="/assets/images/NextStarBall.png"
                     alt=""
-                    className="w-20 h-20 object-contain animate-pulse"
+                    className="w-20 h-20 object-contain animate-scale-pulse"
                 />
             </div>
 
