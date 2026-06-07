@@ -24,6 +24,7 @@ import TermsPage from './pages/TermsPage';
 import PrivacyPage from './pages/PrivacyPage';
 import ScholarshipPage from './pages/ScholarshipPage';
 import ScholarshipApplicationPage from './pages/ScholarshipApplicationPage';
+import CoachApplyPage from './pages/CoachApplyPage';
 import CampsPage from './pages/CampsPage';
 import CampDetailPage from './pages/CampDetailPage';
 import Layout from './components/layout/Layout';
@@ -77,6 +78,7 @@ function AppRoutes() {
       <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="/scholarships" element={<ScholarshipPage />} />
       <Route path="/scholarships/apply" element={<ScholarshipApplicationPage />} />
+      <Route path="/coachapply" element={<CoachApplyPage />} />
 
       {/* Auth routes */}
       <Route path="/login" element={<LoginPage />} />

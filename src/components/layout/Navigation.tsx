@@ -1,11 +1,14 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { images } from '../../constants/images';
 
 const Navigation = () => {
+  const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showGetStarted, setShowGetStarted]     = useState(false);
+  const [showChoiceMenu, setShowChoiceMenu]     = useState(false);
   const [scrolled, setScrolled]                 = useState(false);
+  const getStartedRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 10);
@@ -13,6 +16,17 @@ const Navigation = () => {
     window.addEventListener('scroll', fn, { passive: true });
     return () => window.removeEventListener('scroll', fn);
   }, []);
+
+  useEffect(() => {
+    if (!showChoiceMenu) return;
+    const fn = (e: MouseEvent) => {
+      if (getStartedRef.current && !getStartedRef.current.closest('div')?.contains(e.target as Node)) {
+        setShowChoiceMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', fn);
+    return () => document.removeEventListener('mousedown', fn);
+  }, [showChoiceMenu]);
 
   const navLinks = [
     { name: 'Coaches',      path: '/coaches'      },
@@ -85,12 +99,42 @@ const Navigation = () => {
 
               {/* Right — CTA + hamburger */}
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowGetStarted(true)}
-                  className="hidden sm:inline-flex items-center text-black bg-white hover:bg-white/85 px-4 py-2 text-sm font-semibold rounded-full transition-colors"
-                >
-                  Get Started
-                </button>
+                <div className="relative">
+                  <button
+                    ref={getStartedRef}
+                    onClick={() => setShowChoiceMenu(v => !v)}
+                    className="hidden sm:inline-flex items-center text-black bg-white hover:bg-white/85 px-4 py-2 text-sm font-semibold rounded-full transition-colors"
+                  >
+                    Get Started
+                    <svg className={`ml-1.5 w-3 h-3 transition-transform duration-200 ${showChoiceMenu ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  {showChoiceMenu && (
+                    <div className="absolute right-0 top-full mt-2 w-44 bg-[#111] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-[300]">
+                      <button
+                        onClick={() => { setShowChoiceMenu(false); setShowGetStarted(true); }}
+                        className="w-full flex items-center gap-3 px-4 py-3.5 text-white text-sm font-medium hover:bg-white/[0.07] transition-colors text-left"
+                      >
+                        <svg className="w-4 h-4 text-white/40 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        Player
+                      </button>
+                      <div className="h-px bg-white/[0.06] mx-4" />
+                      <button
+                        onClick={() => { setShowChoiceMenu(false); navigate('/coachapply'); }}
+                        className="w-full flex items-center gap-3 px-4 py-3.5 text-white text-sm font-medium hover:bg-white/[0.07] transition-colors text-left"
+                      >
+                        <svg className="w-4 h-4 text-white/40 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
+                        </svg>
+                        Coach
+                      </button>
+                    </div>
+                  )}
+                </div>
 
                 <button
                   onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -126,12 +170,18 @@ const Navigation = () => {
                   {link.name}
                 </Link>
               ))}
-              <div className="mt-1 px-2 pb-1">
+              <div className="mt-1 px-2 pb-1 space-y-2">
                 <button
                   className="w-full text-black bg-white hover:bg-white/85 px-4 py-2.5 text-sm font-semibold rounded-full transition-colors"
                   onClick={() => { setIsMobileMenuOpen(false); setShowGetStarted(true); }}
                 >
-                  Get Started
+                  Get Started — Player
+                </button>
+                <button
+                  className="w-full text-white bg-white/10 hover:bg-white/15 px-4 py-2.5 text-sm font-semibold rounded-full transition-colors"
+                  onClick={() => { setIsMobileMenuOpen(false); navigate('/coachapply'); }}
+                >
+                  Get Started — Coach
                 </button>
               </div>
             </div>

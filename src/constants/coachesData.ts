@@ -118,6 +118,32 @@ export const coaches: Coach[] = [
     slug: 'ryan-machado',
     status: 'Available',
     avatarUrl: images.coach4,
+    bio: [
+      "Ryan Machado is a dynamic soccer player and coach from the Washington, D.C. area who brings professional-level experience and a deep passion for player development to Next Star Soccer. Machado developed his skills through the D.C. United Academy, one of the top youth development programs in Major League Soccer, where he trained alongside some of the most talented young players in the country and gained invaluable experience in a high-performance environment.",
+      "Machado went on to play collegiate soccer at Radford University, where he continued to develop his game and compete at a high level in the Big South Conference. His time at Radford sharpened his tactical awareness, technical ability, and leadership qualities both on and off the field.",
+      "After college, Machado took his talents to the professional level, signing with the Maryland Bobcats FC. Competing in the National Independent Soccer Association, he gained valuable experience playing against top-tier competition and further refined his understanding of the professional game. His time with the Bobcats strengthened his versatility, composure under pressure, and ability to perform in demanding match environments.",
+      "Machado brings his wealth of playing experience to the Next Star Soccer coaching staff, where he works with players of all ages and skill levels. His ability to connect with young athletes, break down complex concepts, and demonstrate techniques at a high level makes him an invaluable member of the team.",
+    ],
+    career: [
+      {
+        label: 'Youth',
+        entries: [
+          { icon: `${ICONS}dcUnited.png`, name: 'D.C. United Academy' },
+        ],
+      },
+      {
+        label: 'College',
+        entries: [
+          { icon: `${ICONS}radford.png`, name: 'Radford University' },
+        ],
+      },
+      {
+        label: 'Professional',
+        entries: [
+          { icon: `${ICONS}marylandBobcats.png`, name: 'Maryland Bobcats FC' },
+        ],
+      },
+    ],
   },
   {
     id: 4,
@@ -127,6 +153,27 @@ export const coaches: Coach[] = [
     slug: 'gonzalo-carrasco',
     status: 'Available',
     avatarUrl: images.coach3,
+    bio: [
+      "Gonzalo Carrasco is an experienced soccer player and coach originally from Spain who brings an international perspective and deep technical knowledge to Next Star Soccer. Carrasco's soccer journey took him from Spain to the United States, where he pursued both his academic and athletic careers at the collegiate level.",
+      "Carrasco played collegiate soccer at Mississippi College, competing as a Choctaw in the Gulf South Conference. He then transferred to Longwood University, where he continued to develop as a player and competed in the Big South Conference. His time across two collegiate programs gave him a well-rounded understanding of different playing styles, coaching philosophies, and tactical systems.",
+      "After his collegiate career, Carrasco transitioned to the professional level, signing with the Little Rock Rangers. His professional experience further sharpened his competitive edge, tactical awareness, and ability to perform under pressure. Carrasco returned to play for Louisiana Krewe FC, continuing to compete at a high level while bringing his on-field experience directly into his coaching.",
+      "Carrasco brings a unique international perspective to the Next Star Soccer coaching staff. Having grown up in the Spanish soccer system and competed at multiple levels in the United States, he offers players insight into different styles of play and approaches to the game. His technical background rooted in Spanish football, combined with his experience in American collegiate and professional soccer, allows him to connect with players and help them develop a well-rounded skill set.",
+    ],
+    career: [
+      {
+        label: 'College',
+        entries: [
+          { icon: `${ICONS}longwood.png`, name: 'Longwood University' },
+        ],
+      },
+      {
+        label: 'Professional',
+        entries: [
+          { icon: `${ICONS}littleRockRangers.png`, name: 'Little Rock Rangers' },
+          { icon: `${ICONS}louisianaKrewe.png`, name: 'Louisiana Krewe FC' },
+        ],
+      },
+    ],
   },
   {
     id: 5,
@@ -306,6 +353,26 @@ export const coaches: Coach[] = [
     slug: 'noah-satriano',
     status: 'Available',
     avatarUrl: images.coach9,
+    bio: [
+      "Noah Satriano is a talented young soccer player and coach from the Washington, D.C. area who brings a unique combination of competitive playing experience and natural coaching ability to Next Star Soccer. A standout defender and midfielder, Satriano developed his skills through the Baltimore Armour, one of the most respected youth development programs in the Mid-Atlantic region, where he competed at a high level and gained invaluable experience against top-tier competition.",
+      "Satriano went on to play collegiate soccer at Georgetown University, one of the premier programs in the Big East Conference. At Georgetown, he continued to develop his tactical understanding of the game, competing against some of the best college players in the country. His time with the Hoyas sharpened his defensive awareness, positioning, and ability to read the game at an advanced level.",
+      "After college, Satriano continued his playing career with the Annapolis Blues, further adding to his competitive experience and deepening his understanding of the game at a professional level. His versatility and defensive intelligence made him a valuable asset on the pitch.",
+      "For the past year, Satriano has been an integral part of the Next Star Soccer coaching staff, working extensively with group training sessions and summer camp programs. He has quickly established himself as one of the most effective coaches with younger players, bringing an infectious energy, patience, and ability to break down complex concepts into simple, actionable lessons.",
+    ],
+    career: [
+      {
+        label: 'College',
+        entries: [
+          { icon: `${ICONS}georgetown.png`, name: 'Georgetown University' },
+        ],
+      },
+      {
+        label: 'Professional',
+        entries: [
+          { icon: `${ICONS}annapolisBlues.png`, name: 'Annapolis Blues' },
+        ],
+      },
+    ],
   },
   {
     id: 10,
@@ -315,5 +382,34 @@ export const coaches: Coach[] = [
     slug: 'gabe-segal',
     status: 'Available',
     avatarUrl: images.coach10,
+    bio: [
+      "Gabe Segal, born on May 17, 2001, in Washington, D.C., is a professional soccer player currently competing for D.C. United in Major League Soccer. A dynamic forward known for his sharp instincts in front of goal, technical ability, and relentless work rate, Segal has built an impressive resume spanning youth national teams, elite collegiate soccer, and professional leagues in the United States and Europe. Growing up in Bethesda, Maryland, Segal developed his skills with Bethesda Soccer Club, establishing himself as one of the top young attacking talents in the region.",
+      "Segal's talent earned him early recognition at the international level, representing the United States at the U-16, U-17, and U-18 levels. At Stanford University, he quickly became one of the most impactful players in the Pac-12 Conference, making 54 appearances over his collegiate career from 2019 to 2021, scoring 14 goals and adding 5 assists. He helped Stanford win the 2020–21 Pac-12 regular season championship and earned All-Pac-12 Second Team honors.",
+      "Segal's professional journey began when he signed with Loudoun United FC in the USL Championship in 2019. After Stanford, he moved to Germany to play for 1. FC Köln II in the Regionalliga West before returning stateside to join New York City FC in MLS in 2023. A loan spell to Hapoel Tel Aviv broadened his international experience before he signed with Houston Dynamo FC, where he scored 4 goals in 24 MLS appearances, along with a prolific 10 goals in 11 matches for Houston Dynamo 2.",
+      "In 2026, Segal returned home to the nation's capital, signing with D.C. United and fulfilling a lifelong dream of playing for his hometown club. Beyond his professional career, Segal has joined the coaching staff at Next Star Soccer, bringing his wealth of experience from youth national teams, top-level college soccer, and professional leagues across three continents.",
+    ],
+    career: [
+      {
+        label: 'Youth',
+        entries: [
+          { icon: `${ICONS}bethesda.png`, name: 'Bethesda SC' },
+        ],
+      },
+      {
+        label: 'College',
+        entries: [
+          { icon: `${ICONS}Stanford_Cardinal_logo.svg.png`, name: 'Stanford University' },
+        ],
+      },
+      {
+        label: 'Professional',
+        entries: [
+          { icon: `${ICONS}loudoun.png`, name: 'Loudoun United FC' },
+          { icon: `${ICONS}nycfcii.png`, name: 'New York City FC' },
+          { icon: `${ICONS}dynamo.png`, name: 'Houston Dynamo FC' },
+          { icon: `${ICONS}dcUnited.png`, name: 'D.C. United' },
+        ],
+      },
+    ],
   },
 ];

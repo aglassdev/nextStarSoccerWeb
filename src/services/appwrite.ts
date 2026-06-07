@@ -69,6 +69,7 @@ export const collections = {
   websiteInquiries: 'website_inquiries',
   scholarshipApplications: import.meta.env.VITE_APPWRITE_SCHOLARSHIP_COLLECTION_ID || 'scholarship_applications',
   devSupport: 'dev-support',
+  coachApplications: 'coach_applications',
   sessionReviews: import.meta.env.VITE_APPWRITE_SESSION_REVIEWS_COLLECTION_ID || 'session_reviews',
 };
 
