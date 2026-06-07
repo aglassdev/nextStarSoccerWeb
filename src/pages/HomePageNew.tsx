@@ -288,7 +288,7 @@ const HomePageNew = () => {
                     {/* Row 1 */}
                     <div data-row="row1" className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
                         {STATS.slice(0, 3).map((stat, i) => (
-                            <article key={i} className="stat-card rounded-2xl bg-white border border-stone-200/80 p-6 md:p-8">
+                            <article key={i} className="stat-card rounded-2xl bg-[#f0ead6] border border-stone-300/60 p-6 md:p-8">
                                 <AnimatedCounter
                                     isVisible={visibleCounters.row1}
                                     endValue={stat.end}
@@ -298,7 +298,7 @@ const HomePageNew = () => {
                                     numberClassName="leading-none text-stone-900 font-bold"
                                     numberStyle={{ fontSize: 'clamp(2.8rem, 6.5vw, 5rem)', lineHeight: 1, fontFamily: "'LT Wave', sans-serif" }}
                                 />
-                                <div className="h-px bg-stone-200 my-4" />
+                                <div className="h-px bg-stone-300/50 my-4" />
                                 <p className="section-label text-stone-500 mb-1.5">{stat.label}</p>
                                 <p className="text-[13px] text-stone-400 leading-relaxed">{stat.detail}</p>
                             </article>
@@ -308,7 +308,7 @@ const HomePageNew = () => {
                     {/* Row 2 */}
                     <div data-row="row2" className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         {STATS.slice(3).map((stat, i) => (
-                            <article key={i} className="stat-card rounded-2xl bg-white border border-stone-200/80 p-6 md:p-8">
+                            <article key={i} className="stat-card rounded-2xl bg-[#f0ead6] border border-stone-300/60 p-6 md:p-8">
                                 <AnimatedCounter
                                     isVisible={visibleCounters.row2}
                                     endValue={stat.end}
@@ -318,7 +318,7 @@ const HomePageNew = () => {
                                     numberClassName="leading-none text-stone-900 font-bold"
                                     numberStyle={{ fontSize: 'clamp(2.8rem, 6.5vw, 5rem)', lineHeight: 1, fontFamily: "'LT Wave', sans-serif" }}
                                 />
-                                <div className="h-px bg-stone-200 my-4" />
+                                <div className="h-px bg-stone-300/50 my-4" />
                                 <p className="section-label text-stone-500 mb-1.5">{stat.label}</p>
                                 <p className="text-[13px] text-stone-400 leading-relaxed">{stat.detail}</p>
                             </article>
@@ -437,7 +437,7 @@ const HomePageNew = () => {
             </section>
 
             {/* ═══════════════════════ PHOTO COLLAGE (after socials) ═══════════════════════ */}
-            <section className="bg-[#f0ead6] py-12 md:py-16 px-6 md:px-12 lg:px-20 fade-section">
+            <section className="bg-black py-12 md:py-16 px-6 md:px-12 lg:px-20 fade-section">
                 <div className="max-w-6xl mx-auto">
                     <div className="columns-2 md:columns-3 lg:columns-4 gap-3">
                         {COLLAGE_IMAGES.map((item, i) => (
