@@ -11,6 +11,7 @@ interface ParentRecord {
   email?: string;
   phone?: string;
   dependantCount: number;
+  childNames: string[];
   [key: string]: any;
 }
 
@@ -30,12 +31,57 @@ const ParentsSection = () => {
         databases.listDocuments(databaseId, collections.parentUsers, [Query.limit(5000)]),
         databases.listDocuments(databaseId, collections.familyRelationships, [Query.limit(5000)]),
       ]);
-      const dependantCounts: Record<string, number> = {};
-      for (const rel of relationshipsRes.documents) {
-        const pid = (rel as any).parentUserId || (rel as any).parentId;
-        if (pid) dependantCounts[pid] = (dependantCounts[pid] || 0) + 1;
+
+      // Group child IDs by parent
+      const childIdsByParent: Record<string, string[]> = {};
+      for (const rel of relationshipsRes.documents as any[]) {
+        const pid = rel.parentUserId || rel.parentId;
+        const cid = rel.childId || rel.youthPlayerId || rel.playerId;
+        if (pid && cid) {
+          if (!childIdsByParent[pid]) childIdsByParent[pid] = [];
+          childIdsByParent[pid].push(cid);
+        }
       }
-      setParents(parentsRes.documents.map((d: any) => ({ ...d, dependantCount: dependantCounts[d.$id] || 0 })));
+
+      // Collect all unique child IDs
+      const allChildIds = [...new Set(Object.values(childIdsByParent).flat())];
+
+      // Batch-fetch player names from all three collections
+      const playerNameMap: Record<string, string> = {};
+      if (allChildIds.length) {
+        const collectionList: (string | undefined)[] = [
+          collections.youthPlayers,
+          collections.collegiatePlayers,
+          collections.professionalPlayers,
+        ];
+        await Promise.all(
+          collectionList.filter(Boolean).map(async (collId) => {
+            try {
+              // Appwrite limits Query.equal arrays, so chunk if needed
+              const chunks: string[][] = [];
+              for (let i = 0; i < allChildIds.length; i += 100) chunks.push(allChildIds.slice(i, i + 100));
+              for (const chunk of chunks) {
+                const res = await databases.listDocuments(databaseId, collId!, [
+                  Query.equal('$id', chunk),
+                  Query.limit(chunk.length),
+                ]);
+                for (const doc of res.documents as any[]) {
+                  const n = `${doc.firstName || ''} ${doc.lastName || ''}`.trim();
+                  if (n) playerNameMap[doc.$id] = n;
+                }
+              }
+            } catch { /* collection may not have these ids, skip */ }
+          })
+        );
+      }
+
+      setParents(parentsRes.documents.map((d: any) => {
+        const cids = childIdsByParent[d.$id] || [];
+        const childNames = cids
+          .map(id => playerNameMap[id])
+          .filter(Boolean) as string[];
+        return { ...d, dependantCount: cids.length, childNames };
+      }));
     } catch (err: any) {
       setError('Failed to load parents: ' + (err.message || 'Unknown error'));
     } finally { setLoading(false); }
@@ -85,7 +131,19 @@ const ParentsSection = () => {
                     className="hover:bg-white/[0.03] cursor-pointer transition-colors">
                     <td className="px-4 py-3 text-white text-sm">{getDisplayName(parent)}</td>
                     <td className="px-4 py-3 text-white/50 text-sm">{parent.email || '—'}</td>
-                    <td className="px-4 py-3 text-white/50 text-sm">{parent.dependantCount}</td>
+                    <td className="px-4 py-3 text-sm">
+                      {parent.childNames.length === 0 ? (
+                        <span className="text-white/25">—</span>
+                      ) : (
+                        <div className="flex flex-wrap gap-1.5">
+                          {parent.childNames.map((name, i) => (
+                            <span key={i} className="inline-block bg-white/[0.06] border border-white/[0.08] rounded-full px-2.5 py-0.5 text-white/70 text-[12px]">
+                              {name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </td>
                   </tr>
                 ))
               )}
