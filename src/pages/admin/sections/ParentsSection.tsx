@@ -27,60 +27,26 @@ const ParentsSection = () => {
   const fetchParents = async () => {
     setLoading(true); setError('');
     try {
-      const [parentsRes, relationshipsRes] = await Promise.all([
+      // proxy_children have parentUserId directly — one fetch gives us all names
+      const [parentsRes, proxyRes] = await Promise.all([
         databases.listDocuments(databaseId, collections.parentUsers, [Query.limit(5000)]),
-        databases.listDocuments(databaseId, collections.familyRelationships, [Query.limit(5000)]),
+        databases.listDocuments(databaseId, collections.proxyChildren, [Query.limit(5000)]),
       ]);
 
-      // Group child IDs by parent
-      const childIdsByParent: Record<string, string[]> = {};
-      for (const rel of relationshipsRes.documents as any[]) {
-        const pid = rel.parentUserId || rel.parentId;
-        const cid = rel.childId || rel.youthPlayerId || rel.playerId;
-        if (pid && cid) {
-          if (!childIdsByParent[pid]) childIdsByParent[pid] = [];
-          childIdsByParent[pid].push(cid);
-        }
-      }
-
-      // Collect all unique child IDs
-      const allChildIds = [...new Set(Object.values(childIdsByParent).flat())];
-
-      // Batch-fetch player names from all three collections
-      const playerNameMap: Record<string, string> = {};
-      if (allChildIds.length) {
-        const collectionList: (string | undefined)[] = [
-          collections.youthPlayers,
-          collections.collegiatePlayers,
-          collections.professionalPlayers,
-        ];
-        await Promise.all(
-          collectionList.filter(Boolean).map(async (collId) => {
-            try {
-              // Appwrite limits Query.equal arrays, so chunk if needed
-              const chunks: string[][] = [];
-              for (let i = 0; i < allChildIds.length; i += 100) chunks.push(allChildIds.slice(i, i + 100));
-              for (const chunk of chunks) {
-                const res = await databases.listDocuments(databaseId, collId!, [
-                  Query.equal('$id', chunk),
-                  Query.limit(chunk.length),
-                ]);
-                for (const doc of res.documents as any[]) {
-                  const n = `${doc.firstName || ''} ${doc.lastName || ''}`.trim();
-                  if (n) playerNameMap[doc.$id] = n;
-                }
-              }
-            } catch { /* collection may not have these ids, skip */ }
-          })
-        );
+      // Group proxy child names by parentUserId
+      const childNamesByParent: Record<string, string[]> = {};
+      for (const doc of proxyRes.documents as any[]) {
+        const pid = doc.parentUserId;
+        if (!pid) continue;
+        const name = `${doc.firstName || ''} ${doc.lastName || ''}`.trim();
+        if (!name) continue;
+        if (!childNamesByParent[pid]) childNamesByParent[pid] = [];
+        childNamesByParent[pid].push(name);
       }
 
       setParents(parentsRes.documents.map((d: any) => {
-        const cids = childIdsByParent[d.$id] || [];
-        const childNames = cids
-          .map(id => playerNameMap[id])
-          .filter(Boolean) as string[];
-        return { ...d, dependantCount: cids.length, childNames };
+        const childNames = childNamesByParent[d.$id] || [];
+        return { ...d, dependantCount: childNames.length, childNames };
       }));
     } catch (err: any) {
       setError('Failed to load parents: ' + (err.message || 'Unknown error'));

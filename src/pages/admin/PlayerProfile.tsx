@@ -236,7 +236,11 @@ const PlayerProfile = () => {
         setMonthCounts(counts);
 
         const rels = (relRes as any).documents as any[];
-        const playerRels = rels.filter((r: any) => r.childId === id || r.childId === uid || r.youthPlayerId === id);
+        // childProxyId is the actual field for proxy children; fall back to legacy names
+        const playerRels = rels.filter((r: any) =>
+          r.childProxyId === id || r.childUserId === id ||
+          r.childId === id || r.childId === uid || r.youthPlayerId === id
+        );
         const parents: FamilyMember[] = [];
         await Promise.all(playerRels.map(async (rel: any) => {
           const parentId = rel.parentId || rel.parentUserId;

@@ -77,40 +77,53 @@ const ParentProfile = () => {
           }
         }
 
-        // Family
-        if (!collections.familyRelationships) { setLoading(false); return; }
-        const relRes = await databases.listDocuments(databaseId, collections.familyRelationships, [
-          Query.limit(5000),
-        ]).catch(() => ({ documents: [] }));
-
-        const rels = (relRes.documents as any[]).filter((r: any) =>
-          r.parentId === id || r.parentUserId === id
-        );
-
-        const collectionPairs: [string, string][] = ([
-          ['Youth',        collections.youthPlayers],
-          ['Collegiate',   collections.collegiatePlayers],
-          ['Professional', collections.professionalPlayers],
-        ] as [string, string | undefined][])
-          .filter((pair): pair is [string, string] => !!pair[1]);
+        // Family — proxy children have parentUserId directly on them
+        const proxyRes = await databases.listDocuments(
+          databaseId, collections.proxyChildren, [Query.limit(5000)]
+        ).catch(() => ({ documents: [] }));
 
         const resolved: ChildData[] = [];
-        await Promise.all(rels.map(async (rel: any) => {
-          const playerId = rel.childId || rel.youthPlayerId || rel.playerId;
-          if (!playerId) return;
-          let playerDoc: any = null;
-          let playerType = 'Youth';
-          for (const [typeName, collId] of collectionPairs) {
-            try {
-              playerDoc = await databases.getDocument(databaseId, collId, playerId);
-              playerType = typeName;
-              break;
-            } catch { /* try next */ }
-          }
-          if (!playerDoc) return;
-          const childName = `${playerDoc.firstName || ''} ${playerDoc.lastName || ''}`.trim() || playerId;
-          resolved.push({ $id: playerId, name: childName, type: playerType });
-        }));
+
+        // Proxy children linked to this parent
+        for (const doc of proxyRes.documents as any[]) {
+          if (doc.parentUserId !== id) continue;
+          const childName = `${doc.firstName || ''} ${doc.lastName || ''}`.trim() || doc.$id;
+          resolved.push({ $id: doc.$id, name: childName, type: 'Youth' });
+        }
+
+        // Real user children via relationships (childUserId field)
+        if (collections.familyRelationships) {
+          const relRes = await databases.listDocuments(databaseId, collections.familyRelationships, [
+            Query.limit(5000),
+          ]).catch(() => ({ documents: [] }));
+
+          const realChildIds = (relRes.documents as any[])
+            .filter((r: any) => r.parentUserId === id && r.childUserId)
+            .map((r: any) => r.childUserId as string);
+
+          const collectionPairs: [string, string][] = ([
+            ['Youth',        collections.youthPlayers],
+            ['Collegiate',   collections.collegiatePlayers],
+            ['Professional', collections.professionalPlayers],
+          ] as [string, string | undefined][])
+            .filter((pair): pair is [string, string] => !!pair[1]);
+
+          await Promise.all(realChildIds.map(async (playerId: string) => {
+            let playerDoc: any = null;
+            let playerType = 'Youth';
+            for (const [typeName, collId] of collectionPairs) {
+              try {
+                playerDoc = await databases.getDocument(databaseId, collId, playerId);
+                playerType = typeName;
+                break;
+              } catch { /* try next */ }
+            }
+            if (!playerDoc) return;
+            const childName = `${playerDoc.firstName || ''} ${playerDoc.lastName || ''}`.trim() || playerId;
+            resolved.push({ $id: playerId, name: childName, type: playerType });
+          }));
+        }
+
         setChildrenData(resolved);
       } catch (e) {
         console.error(e);
