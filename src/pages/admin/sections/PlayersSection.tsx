@@ -36,9 +36,10 @@ const PlayersSection = () => {
           ? databases.listDocuments(databaseId, collections.proxyChildren, [Query.limit(5000)])
           : Promise.resolve({ documents: [] }),
       ]);
-      const youth: PlayerRecord[] = youthRes.documents.map((d: any) => ({ ...d, type: 'Youth' as PlayerType }));
-      const collegiate: PlayerRecord[] = collegiateRes.documents.map((d: any) => ({ ...d, type: 'Collegiate' as PlayerType }));
-      const professional: PlayerRecord[] = professionalRes.documents.map((d: any) => ({ ...d, type: 'Professional' as PlayerType }));
+      const normDob = (d: any) => ({ ...d, dateOfBirth: d.dateOfBirth || d.birthDate || d.dob || d.birthdate });
+      const youth: PlayerRecord[] = youthRes.documents.map((d: any) => ({ ...normDob(d), type: 'Youth' as PlayerType }));
+      const collegiate: PlayerRecord[] = collegiateRes.documents.map((d: any) => ({ ...normDob(d), type: 'Collegiate' as PlayerType }));
+      const professional: PlayerRecord[] = professionalRes.documents.map((d: any) => ({ ...normDob(d), type: 'Professional' as PlayerType }));
       const proxy: PlayerRecord[] = proxyRes.documents.map((d: any) => ({
         ...d,
         // proxy_children uses birthDate, normalize to dateOfBirth for display
@@ -118,7 +119,15 @@ const PlayersSection = () => {
                     className={`transition-colors ${player.isProxy ? 'cursor-default' : 'hover:bg-white/[0.03] cursor-pointer'}`}>
                     <td className="px-4 py-3 text-white text-sm">{player.firstName} {player.lastName}</td>
                     <td className="px-4 py-3 text-white/50 text-sm">
-                      {player.dateOfBirth ? new Date(player.dateOfBirth).toLocaleDateString() : '—'}
+                      {player.dateOfBirth
+                        ? (() => {
+                            const raw = player.dateOfBirth as string;
+                            // MM/DD/YYYY → already human-readable, return as-is
+                            if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(raw)) return raw;
+                            const d = new Date(raw);
+                            return isNaN(d.getTime()) ? raw : d.toLocaleDateString();
+                          })()
+                        : '—'}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1.5">
