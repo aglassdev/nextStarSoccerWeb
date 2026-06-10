@@ -21,6 +21,8 @@ interface PlayerRecord {
   firstName: string;
   lastName: string;
   type: 'Youth' | 'Collegiate' | 'Professional';
+  isProxy?: boolean;
+  parentUserId?: string;
 }
 
 interface EventFormData {
@@ -416,7 +418,7 @@ const EventAssistantSection = () => {
     (async () => {
       setLoadingPeople(true);
       try {
-        const [coachRes, youthRes, colRes, proRes] = await Promise.all([
+        const [coachRes, youthRes, colRes, proRes, proxyRes] = await Promise.all([
           collections.coaches
             ? databases.listDocuments(databaseId, collections.coaches, [Query.limit(500)]).catch(() => ({ documents: [] }))
             : { documents: [] },
@@ -429,6 +431,9 @@ const EventAssistantSection = () => {
           collections.professionalPlayers
             ? databases.listDocuments(databaseId, collections.professionalPlayers, [Query.limit(1000)]).catch(() => ({ documents: [] }))
             : { documents: [] },
+          collections.proxyChildren
+            ? databases.listDocuments(databaseId, collections.proxyChildren, [Query.limit(1000)]).catch(() => ({ documents: [] }))
+            : { documents: [] },
         ]);
         setCoaches(((coachRes as any).documents as CoachRecord[]).sort((a, b) =>
           `${a.firstName ?? ''} ${a.lastName ?? ''}`.localeCompare(`${b.firstName ?? ''} ${b.lastName ?? ''}`)
@@ -437,6 +442,15 @@ const EventAssistantSection = () => {
           ...(youthRes as any).documents.map((p: any) => ({ $id: p.$id, userId: p.userId, firstName: p.firstName || '', lastName: p.lastName || '', type: 'Youth' as const })),
           ...(colRes as any).documents.map((p: any) => ({ $id: p.$id, userId: p.userId, firstName: p.firstName || '', lastName: p.lastName || '', type: 'Collegiate' as const })),
           ...(proRes as any).documents.map((p: any) => ({ $id: p.$id, userId: p.userId, firstName: p.firstName || '', lastName: p.lastName || '', type: 'Professional' as const })),
+          ...(proxyRes as any).documents.map((p: any) => ({
+            $id: p.$id,
+            userId: p.userId || undefined,
+            parentUserId: p.parentUserId,
+            firstName: p.firstName || '',
+            lastName: p.lastName || '',
+            type: 'Youth' as const,
+            isProxy: true,
+          })),
         ];
         setAllPlayers(players);
       } catch { /* ignore */ }
@@ -823,7 +837,7 @@ function CreateEventForm({
               firstName: p.firstName,
               lastName: p.lastName,
               type: 'bill',
-              isProxySignup: false,
+              isProxySignup: p.isProxy === true,
             })
           ));
         }
@@ -1037,7 +1051,9 @@ function CreateEventForm({
                   className="w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-white/[0.04] transition-colors"
                 >
                   <span className="text-gray-300">{p.firstName} {p.lastName}</span>
-                  <span className="text-[10px] text-gray-500 uppercase tracking-wider">{p.type}</span>
+                  <span className="text-[10px] text-gray-500 uppercase tracking-wider">
+                    {p.type}{p.isProxy ? ' · Proxy' : ''}
+                  </span>
                 </button>
               ))}
             </div>
