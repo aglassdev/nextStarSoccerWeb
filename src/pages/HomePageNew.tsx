@@ -77,12 +77,28 @@ function LogoCarousel({ icons, folder, direction, duration = '60s' }: {
   direction: 'left' | 'right';
   duration?: string;
 }) {
-  const doubled = [...icons, ...icons];
+  // For right-scrolling, reverse the doubled array so icons appear to move right
+  // without relying on a translateX(-50%) initial state (which breaks lazy-loading on mobile)
+  const doubled = direction === 'right'
+    ? [...icons, ...icons].reverse()
+    : [...icons, ...icons];
+
+  const maskStyle = 'linear-gradient(to right, transparent, black 8%, black 92%, transparent)';
+
   return (
-    <div className="overflow-hidden w-full" style={{ maskImage: 'linear-gradient(to right, transparent, black 8%, black 92%, transparent)' }}>
+    <div
+      className="overflow-hidden w-full"
+      style={{ maskImage: maskStyle, WebkitMaskImage: maskStyle }}
+    >
       <div
-        className={`flex items-center gap-8 w-max ${direction === 'left' ? 'carousel-left' : 'carousel-right'}`}
-        style={{ animationDuration: duration }}
+        // Both directions use carousel-left (translateX 0→-50%) for consistent
+        // mobile behaviour — reversed array creates the opposite visual direction
+        className={`flex items-center gap-8 w-max ${direction === 'right' ? 'carousel-right-safe' : 'carousel-left'}`}
+        style={{
+          animationDuration: duration,
+          willChange: 'transform',
+          animationFillMode: 'both',
+        }}
       >
         {doubled.map((file, i) => (
           <img
@@ -91,7 +107,7 @@ function LogoCarousel({ icons, folder, direction, duration = '60s' }: {
             alt=""
             aria-hidden="true"
             className="h-12 w-auto object-contain flex-shrink-0"
-            loading="lazy"
+            loading="eager"   // must be eager — lazy + overflow-hidden skips loading on mobile
             onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
           />
         ))}

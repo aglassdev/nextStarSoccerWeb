@@ -50,12 +50,11 @@ body {
   0%   { transform: translateX(0); }
   100% { transform: translateX(-50%); }
 }
-@keyframes scroll-right {
-  0%   { transform: translateX(-50%); }
-  100% { transform: translateX(0); }
-}
-.carousel-left  { animation: scroll-left  40s linear infinite; }
-.carousel-right { animation: scroll-right 40s linear infinite; }
+/* carousel-right-safe: array is pre-reversed in JS so we still scroll left 0→-50%.
+   This avoids the translateX(-50%) initial state that causes lazy-loaded images
+   to never appear on mobile (browser considers them off-screen). */
+.carousel-left       { animation: scroll-left 40s linear infinite; animation-fill-mode: both; }
+.carousel-right-safe { animation: scroll-left 40s linear infinite; animation-fill-mode: both; }
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {

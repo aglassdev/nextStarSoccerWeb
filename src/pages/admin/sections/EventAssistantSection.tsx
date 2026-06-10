@@ -378,6 +378,8 @@ const EventAssistantSection = () => {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
+  // eventID → ["First Last", ...] of signed-up players
+  const [eventSignupNames, setEventSignupNames] = useState<Record<string, string[]>>({});
 
   // Convert a CalendarEvent into an EventFormData snapshot for the edit form
   const eventToForm = (ev: CalendarEvent): EventFormData => {
@@ -464,10 +466,29 @@ const EventAssistantSection = () => {
     (async () => {
       setLoadingEvents(true);
       setEvents([]);
+      setEventSignupNames({});
       try {
         const now = new Date();
         const evs = await googleCalendarService.getEventsForMonth(now.getFullYear(), now.getMonth(), calType);
-        setEvents(evs.filter(e => !isEventCancelled(e)));
+        const filtered = evs.filter(e => !isEventCancelled(e));
+        setEvents(filtered);
+
+        // Fetch player signups for these events so we can show who's signed up
+        if (collections.signups && filtered.length > 0) {
+          try {
+            const signupRes = await databases.listDocuments(databaseId, collections.signups, [Query.limit(5000)]);
+            const namesByEvent: Record<string, string[]> = {};
+            for (const doc of (signupRes as any).documents) {
+              const eid = doc.eventID;
+              if (!eid) continue;
+              const name = `${doc.firstName || ''} ${doc.lastName || ''}`.trim();
+              if (!name) continue;
+              if (!namesByEvent[eid]) namesByEvent[eid] = [];
+              namesByEvent[eid].push(name);
+            }
+            setEventSignupNames(namesByEvent);
+          } catch { /* signups not critical */ }
+        }
       } catch { setEvents([]); }
       finally { setLoadingEvents(false); }
     })();
@@ -605,34 +626,46 @@ const EventAssistantSection = () => {
                 <p className="text-gray-600 text-sm text-center py-12">No events found for this month</p>
               ) : (
                 <div className="space-y-2 max-w-2xl">
-                  {events.map(ev => (
-                    <button
-                      key={ev.id}
-                      onClick={() => setEditingEvent(ev)}
-                      className="w-full text-left bg-[#0e0e0e] border border-[#1c1c1c] hover:border-white/20 rounded-xl px-4 py-3 flex items-center gap-3 transition-colors"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="text-white text-sm font-medium truncate">{ev.title}</p>
-                        <p className="text-gray-500 text-xs mt-0.5">
-                          {formatDate(ev.startDateTime)} · {formatTime(ev.startDateTime, ev.dateOnly)}
-                        </p>
-                        {ev.location && <p className="text-gray-600 text-xs truncate mt-0.5">{ev.location}</p>}
-                      </div>
-                      <span
-                        role="button"
-                        tabIndex={0}
-                        onClick={(e) => { e.stopPropagation(); handleDeleteEvent(ev); }}
-                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); handleDeleteEvent(ev); } }}
-                        className="p-1.5 text-gray-600 hover:text-red-400 transition-colors cursor-pointer"
-                        title="Delete"
+                  {events.map(ev => {
+                    const signedUp = eventSignupNames[ev.id] || [];
+                    return (
+                      <button
+                        key={ev.id}
+                        onClick={() => setEditingEvent(ev)}
+                        className="w-full text-left bg-[#0e0e0e] border border-[#1c1c1c] hover:border-white/20 rounded-xl px-4 py-3 flex items-center gap-3 transition-colors"
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </span>
-                    </button>
-                  ))}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white text-sm font-medium truncate">{ev.title}</p>
+                          <p className="text-gray-500 text-xs mt-0.5">
+                            {formatDate(ev.startDateTime)} · {formatTime(ev.startDateTime, ev.dateOnly)}
+                          </p>
+                          {ev.location && <p className="text-gray-600 text-xs truncate mt-0.5">{ev.location}</p>}
+                          {signedUp.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1.5">
+                              {signedUp.map((name, i) => (
+                                <span key={i} className="px-1.5 py-0.5 bg-blue-500/10 border border-blue-500/20 rounded text-blue-400 text-[10px] font-medium">
+                                  {name}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          onClick={(e) => { e.stopPropagation(); handleDeleteEvent(ev); }}
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); handleDeleteEvent(ev); } }}
+                          className="p-1.5 text-gray-600 hover:text-red-400 transition-colors cursor-pointer"
+                          title="Delete"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </>
@@ -773,17 +806,63 @@ function CreateEventForm({
 
       // ─── EDIT MODE ───
       if (mode === 'edit' && editingEvent) {
-        await callCalendarFunction('updateEvent', {
-          calendarType,
-          eventId: editingEvent.id,
-          title: eventTitle,
-          date: form.date,
-          startTime: startTime24,
-          endTime: endTime24,
-          location: form.location,
-          description: '',
-        });
-        onSuccess('Event updated successfully.');
+        // Only hit the calendar function if a calendar field actually changed.
+        // Adding players/coaches has nothing to do with Google Calendar, and
+        // calling updateEvent unnecessarily causes "Calendar function failed".
+        const calendarFieldsChanged =
+          eventTitle !== ((initialForm?.title || initialForm?.eventType || '').trim() || initialForm?.eventType || '') ||
+          form.date !== (initialForm?.date || '') ||
+          form.startTime !== (initialForm?.startTime || '') ||
+          form.endTime !== (initialForm?.endTime || '') ||
+          form.location !== (initialForm?.location || '') ||
+          form.eventType !== (initialForm?.eventType || '');
+
+        if (calendarFieldsChanged) {
+          await callCalendarFunction('updateEvent', {
+            calendarType,
+            eventId: editingEvent.id,
+            title: eventTitle,
+            date: form.date,
+            startTime: startTime24,
+            endTime: endTime24,
+            location: form.location,
+            description: '',
+          });
+        }
+
+        // Always persist any new player signups (non-public events)
+        if (calendarType !== 'public' && form.selectedPlayers.length > 0 && collections.signups) {
+          const eventDateISO = `${form.date}T${startTime24}:00`;
+          await Promise.allSettled(form.selectedPlayers.map(p =>
+            databases.createDocument(databaseId, collections.signups!, ID.unique(), {
+              eventID: editingEvent.id,
+              eventTitle,
+              eventDate: eventDateISO,
+              userId: p.userId || p.$id,
+              firstName: p.firstName,
+              lastName: p.lastName,
+              type: 'bill',
+              isProxySignup: p.isProxy === true,
+            })
+          ));
+        }
+
+        // Always persist any new coach signups
+        if (form.selectedCoaches.length > 0 && collections.coachSignups) {
+          const eventDateISO = `${form.date}T${startTime24}:00`;
+          await Promise.allSettled(form.selectedCoaches.map(c =>
+            databases.createDocument(databaseId, collections.coachSignups!, ID.unique(), {
+              eventID: editingEvent.id,
+              eventTitle,
+              eventDate: eventDateISO,
+              coachUserId: c.userId || c.$id,
+              coaches: [c.$id],
+              isHeadCoach: false,
+            })
+          ));
+        }
+
+        onSuccess(calendarFieldsChanged ? 'Event updated successfully.' : 'Players added successfully.');
         if (onDoneEditing) onDoneEditing();
         return;
       }
