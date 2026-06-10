@@ -11,6 +11,7 @@ interface PlayerSearchResult {
   firstName: string;
   lastName: string;
   type: 'Youth' | 'Collegiate' | 'Professional';
+  isProxy?: boolean;
 }
 
 interface CheckinDoc {
@@ -76,7 +77,7 @@ function EventDetailView({
     // Load all players once for search
     (async () => {
       try {
-        const [yRes, cRes, pRes] = await Promise.all([
+        const [yRes, cRes, pRes, proxyRes] = await Promise.all([
           collections.youthPlayers
             ? databases.listDocuments(databaseId, collections.youthPlayers, [Query.limit(2000)]).catch(() => ({ documents: [] }))
             : { documents: [] },
@@ -85,6 +86,9 @@ function EventDetailView({
             : { documents: [] },
           collections.professionalPlayers
             ? databases.listDocuments(databaseId, collections.professionalPlayers, [Query.limit(2000)]).catch(() => ({ documents: [] }))
+            : { documents: [] },
+          collections.proxyChildren
+            ? databases.listDocuments(databaseId, collections.proxyChildren, [Query.limit(2000)]).catch(() => ({ documents: [] }))
             : { documents: [] },
         ]);
         const players: PlayerSearchResult[] = [
@@ -96,6 +100,9 @@ function EventDetailView({
           })),
           ...((pRes as any).documents).map((d: any) => ({
             $id: d.$id, userId: d.userId || d.$id, firstName: d.firstName || '', lastName: d.lastName || '', type: 'Professional' as const,
+          })),
+          ...((proxyRes as any).documents).map((d: any) => ({
+            $id: d.$id, userId: d.$id, firstName: d.firstName || '', lastName: d.lastName || '', type: 'Youth' as const, isProxy: true,
           })),
         ];
         setAllPlayers(players);
@@ -146,7 +153,7 @@ function EventDetailView({
               firstName: p.firstName,
               lastName: p.lastName,
               type: 'bill',
-              isProxySignup: false,
+              isProxySignup: p.isProxy === true,
             });
           }
         } catch (e) { console.error('Signup create failed:', e); }
@@ -167,7 +174,7 @@ function EventDetailView({
               lastName: p.lastName,
               type: 'bill',
               calendarSource: calType,
-              isProxyCheckin: false,
+              isProxyCheckin: p.isProxy === true,
             });
           }
         } catch (e) { console.error('Checkin create failed:', e); }
@@ -271,7 +278,7 @@ function EventDetailView({
                   >
                     <span className="text-white">{p.firstName} {p.lastName}</span>
                     <span className="text-[10px] text-white/40 uppercase tracking-wider">
-                      {adding === p.$id ? 'adding…' : p.type}
+                      {adding === p.$id ? 'adding…' : p.type}{p.isProxy && adding !== p.$id ? ' · Proxy' : ''}
                     </span>
                   </button>
                 ))}
