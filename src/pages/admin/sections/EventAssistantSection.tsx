@@ -843,12 +843,14 @@ function CreateEventForm({
           await callCalendarFunction('updateEvent', {
             calendarType,
             eventId: editingEvent.id,
-            title: eventTitle,
-            date: form.date,
-            startTime: startTime24,
-            endTime: endTime24,
-            location: form.location,
-            description: '',
+            // Function expects nested eventData with ISO datetimes
+            eventData: {
+              title: eventTitle,
+              location: form.location,
+              description: '',
+              startDateTime: `${form.date}T${startTime24}:00`,
+              endDateTime: `${form.date}T${endTime24}:00`,
+            },
           });
         }
 
@@ -900,17 +902,18 @@ function CreateEventForm({
 
         const result = await callCalendarFunction('createEvent', {
           calendarType,
-          title: eventTitle,
-          date: eventDateStr,
-          startTime: startTime24,
-          endTime: endTime24,
-          location: form.location,
-          description: '',
-          coachIds: form.selectedCoaches.map(c => c.$id),
-          playerIds: form.selectedPlayers.map(p => p.$id),
+          // Function expects a nested eventData object with ISO datetimes
+          eventData: {
+            title: eventTitle,
+            location: form.location,
+            description: '',
+            startDateTime: `${eventDateStr}T${startTime24}:00`,
+            endDateTime: `${eventDateStr}T${endTime24}:00`,
+          },
         });
 
-        const eventId: string = result.eventId || result.id || '';
+        // Function returns the created Google Calendar event under result.data
+        const eventId: string = result?.data?.id || result?.eventId || result?.id || '';
         const eventDateISO = `${eventDateStr}T${startTime24}:00`;
 
         // Coach signups
@@ -1031,23 +1034,31 @@ function CreateEventForm({
       {!isAnalysis && (
         <div>
           <label className="block text-gray-400 text-xs mb-1">Location<Req /></label>
-          <button
-            type="button"
-            onClick={() => setLocationModalOpen(true)}
-            className={`w-full px-3 py-2 bg-[#1a1a1a] border rounded-lg text-left text-sm transition-colors flex items-center justify-between focus:outline-none focus:ring-1 focus:ring-blue-500 ${
-              errors.location ? 'border-red-500/50' : 'border-[#2a2a2a] hover:border-gray-600'
-            }`}
-          >
-            <span className={form.location ? 'text-white truncate' : 'text-gray-600'}>
-              {form.location || 'Pick a venue or address…'}
-            </span>
-            <svg className="w-4 h-4 text-gray-500 flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          </button>
+          <div className="relative">
+            <input
+              type="text"
+              value={form.location}
+              onChange={e => set('location', e.target.value)}
+              placeholder="Type an address, or click the pin to search…"
+              className={`w-full px-3 py-2 pr-9 bg-[#1a1a1a] border rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder-gray-600 ${
+                errors.location ? 'border-red-500/50' : 'border-[#2a2a2a]'
+              }`}
+            />
+            {/* Pin icon opens the search/map modal */}
+            <button
+              type="button"
+              onClick={() => setLocationModalOpen(true)}
+              className="absolute inset-y-0 right-0 px-2.5 flex items-center text-gray-500 hover:text-white transition-colors"
+              title="Search for a location"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                  d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                  d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </button>
+          </div>
           {errors.location && <p className="text-red-400 text-xs mt-1">Please enter a location.</p>}
         </div>
       )}
