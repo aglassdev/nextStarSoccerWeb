@@ -77,13 +77,9 @@ function LogoCarousel({ icons, folder, direction, duration = '60s' }: {
   direction: 'left' | 'right';
   duration?: string;
 }) {
-  // For right-scrolling, reverse the doubled array so icons appear to move right
-  // without relying on a translateX(-50%) initial state (which breaks lazy-loading on mobile)
-  const doubled = direction === 'right'
-    ? [...icons, ...icons].reverse()
-    : [...icons, ...icons];
-
-  const maskStyle = 'linear-gradient(to right, transparent, black 8%, black 92%, transparent)';
+  const doubled = [...icons, ...icons];
+  // 15% fade on each edge so even wide logos fully dissolve before the clip boundary
+  const maskStyle = 'linear-gradient(to right, transparent, black 15%, black 85%, transparent)';
 
   return (
     <div
@@ -91,13 +87,15 @@ function LogoCarousel({ icons, folder, direction, duration = '60s' }: {
       style={{ maskImage: maskStyle, WebkitMaskImage: maskStyle }}
     >
       <div
-        // Both directions use carousel-left (translateX 0→-50%) for consistent
-        // mobile behaviour — reversed array creates the opposite visual direction
-        className={`flex items-center gap-8 w-max ${direction === 'right' ? 'carousel-right-safe' : 'carousel-left'}`}
+        className={`flex items-center gap-8 w-max ${direction === 'left' ? 'carousel-left' : 'carousel-right'}`}
         style={{
           animationDuration: duration,
+          // Force a GPU compositor layer so iOS Safari never pauses this
+          // animation when the element is temporarily off-screen / under opacity:0
+          transform: 'translateZ(0)',
+          backfaceVisibility: 'hidden',
+          WebkitBackfaceVisibility: 'hidden' as any,
           willChange: 'transform',
-          animationFillMode: 'both',
         }}
       >
         {doubled.map((file, i) => (
@@ -107,7 +105,7 @@ function LogoCarousel({ icons, folder, direction, duration = '60s' }: {
             alt=""
             aria-hidden="true"
             className="h-12 w-auto object-contain flex-shrink-0"
-            loading="eager"   // must be eager — lazy + overflow-hidden skips loading on mobile
+            loading="eager"
             onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
           />
         ))}
@@ -148,12 +146,27 @@ const HomePageNew = () => {
 
     const aboutRef         = useRef<HTMLDivElement>(null);
     const socialSectionRef = useRef<HTMLDivElement>(null);
+    const videoRef         = useRef<HTMLVideoElement>(null);
 
     /* ── Responsive ── */
     useEffect(() => {
         const fn = () => setIsMobile(window.innerWidth < 768);
         window.addEventListener('resize', fn);
         return () => window.removeEventListener('resize', fn);
+    }, []);
+
+    /* ── Video autoplay + loading-screen fallback ──
+         On iOS/mobile, the browser may not fire canplay until well into buffering,
+         or may block autoplay entirely.  We:
+           1. Call play() imperatively (required on some iOS builds)
+           2. Accept any network / autoplay error and dismiss the overlay anyway
+           3. Force-dismiss the overlay after 5 s no matter what                 */
+    useEffect(() => {
+        const vid = videoRef.current;
+        if (!vid) return;
+        vid.play().catch(() => setVideoReady(true));
+        const timer = setTimeout(() => setVideoReady(true), 5000);
+        return () => clearTimeout(timer);
     }, []);
 
     /* ── Paragraph reveal ── */
@@ -253,12 +266,14 @@ const HomePageNew = () => {
             {/* ═══════════════════════ HERO ═══════════════════════ */}
             <section className="relative h-screen overflow-hidden bg-black">
                 <video
+                    ref={videoRef}
                     src="https://nyc.cloud.appwrite.io/v1/storage/buckets/6a1fa457000995c2a83f/files/6a1fa81c001bd64cf360/view?project=68577380002195dec512"
                     autoPlay
                     loop
                     muted
                     playsInline
                     onCanPlay={() => setVideoReady(true)}
+                    onError={() => setVideoReady(true)}
                     className="absolute inset-0 w-full h-full object-cover"
                 />
                 <div className="absolute inset-0 bg-black/20" />
@@ -275,12 +290,13 @@ const HomePageNew = () => {
             </section>
 
             {/* ═══════════════ STATS + CAROUSELS (one unified section) ══════════════ */}
-            <div className="bg-[#f0ead6] fade-section">
 
-            {/* Clubs carousel */}
-            <div className="pt-16 pb-3">
+            {/* Clubs carousel — outside fade-section so opacity:0 never pauses the animation */}
+            <div className="bg-[#f0ead6] pt-16 pb-3 overflow-hidden">
               <LogoCarousel icons={CLUB_ICONS} folder="clubs" direction="right" duration="110s" />
             </div>
+
+            <div className="bg-[#f0ead6] fade-section">
 
             {/* Stats content */}
             <section className="py-10 md:py-14 px-6 md:px-12 lg:px-20">
@@ -344,12 +360,12 @@ const HomePageNew = () => {
                 </div>
             </section>
 
-            {/* Colleges carousel */}
-            <div className="pt-3 pb-16">
+            </div>{/* end fade-section stats content */}
+
+            {/* Colleges carousel — outside fade-section so opacity:0 never pauses the animation */}
+            <div className="bg-[#f0ead6] pt-3 pb-16 overflow-hidden">
               <LogoCarousel icons={COLLEGE_ICONS} folder="colleges" direction="left" duration="60s" />
             </div>
-
-            </div>{/* end unified stats section */}
 
             {/* ═══════════════════════ WHO WE ARE ═══════════════════════ */}
             <section
