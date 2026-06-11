@@ -38,9 +38,11 @@ interface EventFormData {
   recurringWeeks: string;
 }
 
-const EMPTY_FORM: EventFormData = {
+// Returns today's date as YYYY-MM-DD in local time (used as default for the date field)
+const todayStr = () => new Date().toLocaleDateString('en-CA');
+
+const EMPTY_FORM_BASE: Omit<EventFormData, 'date'> = {
   title: '',
-  date: '',
   startTime: '',
   endTime: '',
   location: '',
@@ -50,6 +52,8 @@ const EMPTY_FORM: EventFormData = {
   isRecurring: false,
   recurringWeeks: '',
 };
+// Always call this to get a fresh form — date stamps today
+const makeEmptyForm = (): EventFormData => ({ ...EMPTY_FORM_BASE, date: todayStr() });
 
 // ── Constants copied verbatim from mobile EventMakerScreen ───────────────────
 const PUBLIC_EVENT_TYPES = [
@@ -495,16 +499,37 @@ const EventAssistantSection = () => {
   }, [tab, calType]);
 
   const callCalendarFunction = async (action: string, payload: object) => {
-    const res = await functions.createExecution(
-      APPWRITE_FUNCTION_ID,
-      JSON.stringify({ service: 'google-calendar', action, ...payload }),
-      false,
-    );
-    if (res.status !== 'completed' || res.responseStatusCode !== 200) {
-      throw new Error('Calendar function failed.');
+    let res: Awaited<ReturnType<typeof functions.createExecution>>;
+    try {
+      res = await functions.createExecution(
+        APPWRITE_FUNCTION_ID,
+        JSON.stringify({ service: 'google-calendar', action, ...payload }),
+        false,
+      );
+    } catch (sdkErr: any) {
+      throw new Error(`SDK error calling calendar function: ${sdkErr?.message || String(sdkErr)}`);
     }
-    const body = JSON.parse(res.responseBody);
-    if (!body.success) throw new Error(body.error || 'Function returned an error');
+
+    if (res.status !== 'completed' || res.responseStatusCode !== 200) {
+      // Build a human-readable detail string so we can diagnose what went wrong
+      const errText = (res.errors || '').trim();
+      const bodyText = (res.responseBody || '').trim();
+      const detail = errText || bodyText.slice(0, 400) || `status="${res.status}" code=${res.responseStatusCode}`;
+      throw new Error(`Calendar function failed (${action}): ${detail}`);
+    }
+
+    if (!res.responseBody) {
+      throw new Error(`Calendar function returned empty body for action "${action}"`);
+    }
+
+    let body: any;
+    try {
+      body = JSON.parse(res.responseBody);
+    } catch {
+      throw new Error(`Calendar function returned invalid JSON: ${res.responseBody.slice(0, 200)}`);
+    }
+
+    if (!body.success) throw new Error(body.error || 'Function returned success=false');
     return body;
   };
 
@@ -698,7 +723,7 @@ function CreateEventForm({
   editingEvent?: CalendarEvent;
   onDoneEditing?: () => void;
 }) {
-  const [form, setForm] = useState<EventFormData>(initialForm || EMPTY_FORM);
+  const [form, setForm] = useState<EventFormData>(initialForm || makeEmptyForm());
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
 
@@ -717,12 +742,9 @@ function CreateEventForm({
 
   // ─── Location modal ───
   const [locationModalOpen, setLocationModalOpen] = useState(false);
-  // For edit mode the initial location is already valid; otherwise it must be confirmed via modal
-  const [addrSelected, setAddrSelected] = useState(mode === 'edit');
 
   const handlePickLocation = (location: string) => {
     set('location', location);
-    setAddrSelected(true);
     setLocationModalOpen(false);
   };
 
@@ -782,7 +804,7 @@ function CreateEventForm({
       startTime: !startValid,
       endTime: !endValid,
       timeOrder: timeOrderInvalid,
-      location: !isAnalysis && (!form.location.trim() || !addrSelected),
+      location: !isAnalysis && !form.location.trim(),
       eventType: !form.eventType,
     };
     setErrors(newErr);
@@ -928,8 +950,7 @@ function CreateEventForm({
           ? 'Event created successfully.'
           : `${createdCount} recurring events created successfully.`
       );
-      setForm(EMPTY_FORM);
-      setAddrSelected(false);
+      setForm(makeEmptyForm());
       setErrors({});
     } catch (err: any) {
       onError(err.message || 'Failed to create event.');
@@ -1027,7 +1048,7 @@ function CreateEventForm({
                 d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
           </button>
-          {errors.location && <p className="text-red-400 text-xs mt-1">Please select a location from suggestions.</p>}
+          {errors.location && <p className="text-red-400 text-xs mt-1">Please enter a location.</p>}
         </div>
       )}
 
