@@ -27,21 +27,40 @@ const ParentsSection = () => {
   const fetchParents = async () => {
     setLoading(true); setError('');
     try {
-      // proxy_children have parentUserId directly — one fetch gives us all names
-      const [parentsRes, proxyRes] = await Promise.all([
+      const [parentsRes, proxyRes, relRes] = await Promise.all([
         databases.listDocuments(databaseId, collections.parentUsers, [Query.limit(5000)]),
         databases.listDocuments(databaseId, collections.proxyChildren, [Query.limit(5000)]),
+        databases.listDocuments(databaseId, collections.familyRelationships, [Query.limit(5000)]),
       ]);
 
-      // Group proxy child names by parentUserId
+      // Build proxy child ID → name lookup
+      const proxyNameById: Record<string, string> = {};
+      for (const doc of proxyRes.documents as any[]) {
+        const name = `${doc.firstName || ''} ${doc.lastName || ''}`.trim();
+        if (name) proxyNameById[doc.$id] = name;
+      }
+
+      // Group child names by parentUserId — first from proxy_children directly
       const childNamesByParent: Record<string, string[]> = {};
+      const addChild = (pid: string, name: string) => {
+        if (!childNamesByParent[pid]) childNamesByParent[pid] = [];
+        if (!childNamesByParent[pid].includes(name)) childNamesByParent[pid].push(name);
+      };
+
       for (const doc of proxyRes.documents as any[]) {
         const pid = doc.parentUserId;
         if (!pid) continue;
         const name = `${doc.firstName || ''} ${doc.lastName || ''}`.trim();
-        if (!name) continue;
-        if (!childNamesByParent[pid]) childNamesByParent[pid] = [];
-        childNamesByParent[pid].push(name);
+        if (name) addChild(pid, name);
+      }
+
+      // Also pull from family_relationships_001 (manually-created connections)
+      for (const doc of relRes.documents as any[]) {
+        const pid = doc.parentUserId;
+        if (!pid) continue;
+        if (doc.childProxyId && proxyNameById[doc.childProxyId]) {
+          addChild(pid, proxyNameById[doc.childProxyId]);
+        }
       }
 
       setParents(parentsRes.documents.map((d: any) => {
