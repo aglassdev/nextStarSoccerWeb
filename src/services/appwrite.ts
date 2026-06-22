@@ -71,6 +71,7 @@ export const collections = {
   devSupport: 'dev-support',
   coachApplications: 'coach_applications',
   sessionReviews: import.meta.env.VITE_APPWRITE_SESSION_REVIEWS_COLLECTION_ID || 'session_reviews',
+  sessionNotes: 'session_notes',
 };
 
 // Storage bucket IDs

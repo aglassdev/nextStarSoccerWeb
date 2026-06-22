@@ -230,6 +230,7 @@ const AdminDashboard = () => {
 
   const [displayName, setDisplayName] = useState('');
   const [openGroups, setOpenGroups] = useState<Set<NavGroup>>(new Set());
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const toggleGroup = (group: NavGroup) => {
     setOpenGroups(prev => {
@@ -418,27 +419,39 @@ const AdminDashboard = () => {
     <div className="flex h-screen bg-[#0d0b09] text-white overflow-hidden">
 
       {/* ── Sidebar ─────────────────────────────────────────────────────────── */}
-      <aside className="w-[210px] bg-[#0f0d0b] border-r border-white/[0.08] flex flex-col flex-shrink-0">
+      <aside className={`${sidebarCollapsed ? 'w-12' : 'w-[210px]'} transition-all duration-200 bg-[#0f0d0b] border-r border-white/[0.08] flex flex-col flex-shrink-0 overflow-hidden`}>
 
         {/* Brand */}
-        <div className="px-5 pt-5 pb-4 border-b border-white/[0.07]">
-          <button onClick={() => setActiveSection(null)}
-            className="w-full flex items-center justify-between hover:opacity-75 transition-opacity">
-            <p className="text-white font-medium text-[13px] truncate min-w-0">
-              {displayName || user?.email?.split('@')[0] || 'Admin'}
-            </p>
-            <img src="/assets/images/NextStarBall.png" alt="NSS"
-              className="w-6 h-6 flex-shrink-0 ml-3"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+        <div className={`${sidebarCollapsed ? 'px-2 py-3 justify-center' : 'px-5 pt-5 pb-4 justify-between'} border-b border-white/[0.07] flex items-center gap-2`}>
+          {!sidebarCollapsed && (
+            <button onClick={() => setActiveSection(null)}
+              className="flex-1 text-left hover:opacity-75 transition-opacity min-w-0">
+              <p className="text-white font-medium text-[13px] truncate">
+                {displayName || user?.email?.split('@')[0] || 'Admin'}
+              </p>
+            </button>
+          )}
+          <img src="/assets/images/NextStarBall.png" alt="NSS"
+            className="w-6 h-6 flex-shrink-0"
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+          <button
+            onClick={() => setSidebarCollapsed(c => !c)}
+            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            className="text-white/30 hover:text-white transition-colors flex-shrink-0">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d={sidebarCollapsed ? 'M9 5l7 7-7 7' : 'M15 19l-7-7 7-7'} />
+            </svg>
           </button>
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-px">
+        <nav className={`flex-1 ${sidebarCollapsed ? 'px-1' : 'px-3'} py-3 overflow-y-auto space-y-px`}>
 
           {/* Dashboard */}
           <button onClick={() => setActiveSection(null)}
-            className={`w-full flex items-center gap-2.5 px-3 py-[7px] rounded-md text-[13px] transition-all duration-150 text-left text-white ${
+            title={sidebarCollapsed ? 'Dashboard' : undefined}
+            className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center py-[7px]' : 'gap-2.5 px-3 py-[7px]'} rounded-md text-[13px] transition-all duration-150 text-left text-white ${
               activeSection === null ? 'bg-white/[0.08]' : 'hover:bg-white/[0.05]'
             }`}>
             <svg className="w-[15px] h-[15px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -447,11 +460,12 @@ const AdminDashboard = () => {
               <rect x="3" y="14" width="7" height="7" rx="1.5" strokeWidth={1.5} />
               <rect x="14" y="14" width="7" height="7" rx="1.5" strokeWidth={1.5} />
             </svg>
-            <span>Dashboard</span>
+            {!sidebarCollapsed && <span>Dashboard</span>}
           </button>
 
           {/* Directory */}
           <NavGroupItem label="Directory" open={openGroups.has('Directory')} onToggle={() => toggleGroup('Directory')}
+            collapsed={sidebarCollapsed} onExpand={() => setSidebarCollapsed(false)}
             icon={<svg className="w-[15px] h-[15px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>}>
             <NavChild section="players" label="Players" active={activeSection === 'players'} onSelect={setActiveSection}
               icon={<svg className="w-[13px] h-[13px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>} />
@@ -462,21 +476,21 @@ const AdminDashboard = () => {
           {/* Coach Management — standalone */}
           <button
             onClick={() => setActiveSection('coachManagement')}
-            className={`w-full flex items-center gap-2.5 px-3 py-[7px] rounded-md text-[13px] transition-all duration-150 text-left text-white ${
-              activeSection === 'coachManagement'
-                ? 'bg-white/[0.08]'
-                : 'hover:bg-white/[0.05]'
+            title={sidebarCollapsed ? 'Coach Management' : undefined}
+            className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center py-[7px]' : 'gap-2.5 px-3 py-[7px]'} rounded-md text-[13px] transition-all duration-150 text-left text-white ${
+              activeSection === 'coachManagement' ? 'bg-white/[0.08]' : 'hover:bg-white/[0.05]'
             }`}
           >
             <svg className="w-[15px] h-[15px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            <span>Coach Management</span>
+            {!sidebarCollapsed && <span>Coach Management</span>}
           </button>
 
           {/* Messages */}
           <NavGroupItem label="Messages" open={openGroups.has('Messages')} onToggle={() => toggleGroup('Messages')}
             badge={stats.unreadMessages > 0 ? stats.unreadMessages : undefined}
+            collapsed={sidebarCollapsed} onExpand={() => setSidebarCollapsed(false)}
             icon={<svg className="w-[15px] h-[15px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>}>
             <NavChild section="messages" label="Chats" active={activeSection === 'messages'} onSelect={setActiveSection}
               icon={<svg className="w-[13px] h-[13px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>} />
@@ -487,6 +501,7 @@ const AdminDashboard = () => {
           {/* Payments */}
           <NavGroupItem label="Payments" open={openGroups.has('Payments')} onToggle={() => toggleGroup('Payments')}
             badge={stats.outstandingBills > 0 ? stats.outstandingBills : undefined}
+            collapsed={sidebarCollapsed} onExpand={() => setSidebarCollapsed(false)}
             icon={<svg className="w-[15px] h-[15px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>}>
             <NavChild section="bills" label="Billing" active={activeSection === 'bills'} onSelect={setActiveSection}
               icon={<svg className="w-[13px] h-[13px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>} />
@@ -498,6 +513,7 @@ const AdminDashboard = () => {
 
           {/* Events */}
           <NavGroupItem label="Events" open={openGroups.has('Events')} onToggle={() => toggleGroup('Events')}
+            collapsed={sidebarCollapsed} onExpand={() => setSidebarCollapsed(false)}
             icon={<svg className="w-[15px] h-[15px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>}>
             <NavChild section="calendar" label="Calendar" active={activeSection === 'calendar'} onSelect={setActiveSection}
               icon={<svg className="w-[13px] h-[13px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>} />
@@ -512,8 +528,9 @@ const AdminDashboard = () => {
         </nav>
 
         {/* Development */}
-        <div className="px-3 pb-1 border-t border-white/[0.07] pt-2">
+        <div className={`${sidebarCollapsed ? 'px-1' : 'px-3'} pb-1 border-t border-white/[0.07] pt-2`}>
           <NavGroupItem label="Development" open={openGroups.has('Development')} onToggle={() => toggleGroup('Development')}
+            collapsed={sidebarCollapsed} onExpand={() => setSidebarCollapsed(false)}
             icon={<svg className="w-[15px] h-[15px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>}>
             <NavChild section="devOverview" label="Overview" active={activeSection === 'devOverview'} onSelect={setActiveSection}
               icon={<svg className="w-[13px] h-[13px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>} />
@@ -523,13 +540,14 @@ const AdminDashboard = () => {
         </div>
 
         {/* Sign out */}
-        <div className="px-3 py-3 border-t border-white/[0.07]">
+        <div className={`${sidebarCollapsed ? 'px-1' : 'px-3'} py-3 border-t border-white/[0.07]`}>
           <button onClick={handleLogout}
-            className="w-full flex items-center gap-2.5 px-3 py-[7px] rounded-md text-[13px] text-white hover:bg-white/[0.05] transition-all duration-150">
+            title={sidebarCollapsed ? 'Sign out' : undefined}
+            className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center py-[7px]' : 'gap-2.5 px-3 py-[7px]'} rounded-md text-[13px] text-white hover:bg-white/[0.05] transition-all duration-150`}>
             <svg className="w-[15px] h-[15px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             </svg>
-            Sign out
+            {!sidebarCollapsed && 'Sign out'}
           </button>
         </div>
       </aside>
@@ -726,25 +744,42 @@ const AdminDashboard = () => {
 };
 
 // ─── Nav Group (collapsible) ─────────────────────────────────────────────────
-const NavGroupItem = ({ label, icon, open, onToggle, badge, children }: {
+const NavGroupItem = ({ label, icon, open, onToggle, badge, children, collapsed, onExpand }: {
   label: string; icon: React.ReactNode; open: boolean; onToggle: () => void;
-  badge?: number; children: React.ReactNode;
-}) => (
-  <div>
-    <button onClick={onToggle}
-      className="w-full flex items-center gap-2.5 px-3 py-[7px] rounded-md text-[13px] transition-all duration-150 text-left text-white hover:bg-white/[0.05]">
-      {icon}
-      <span className="flex-1 leading-none">{label}</span>
-      {badge !== undefined && !open && (
-        <span className="w-[18px] h-[18px] rounded-full bg-white flex items-center justify-center flex-shrink-0 mr-1">
-          <span className="text-black text-[10px] font-bold leading-none">{badge}</span>
-        </span>
-      )}
-      <Chevron open={open} />
-    </button>
-    {open && <div className="ml-3 mt-px space-y-px">{children}</div>}
-  </div>
-);
+  badge?: number; children: React.ReactNode; collapsed?: boolean; onExpand?: () => void;
+}) => {
+  if (collapsed) {
+    return (
+      <button
+        onClick={() => { onExpand?.(); onToggle(); }}
+        title={label}
+        className="w-full flex items-center justify-center py-[7px] rounded-md text-white hover:bg-white/[0.05] transition-all duration-150 relative">
+        {icon}
+        {badge !== undefined && (
+          <span className="absolute top-0.5 right-0.5 w-[14px] h-[14px] rounded-full bg-white flex items-center justify-center">
+            <span className="text-black text-[8px] font-bold leading-none">{badge}</span>
+          </span>
+        )}
+      </button>
+    );
+  }
+  return (
+    <div>
+      <button onClick={onToggle}
+        className="w-full flex items-center gap-2.5 px-3 py-[7px] rounded-md text-[13px] transition-all duration-150 text-left text-white hover:bg-white/[0.05]">
+        {icon}
+        <span className="flex-1 leading-none">{label}</span>
+        {badge !== undefined && !open && (
+          <span className="w-[18px] h-[18px] rounded-full bg-white flex items-center justify-center flex-shrink-0 mr-1">
+            <span className="text-black text-[10px] font-bold leading-none">{badge}</span>
+          </span>
+        )}
+        <Chevron open={open} />
+      </button>
+      {open && <div className="ml-3 mt-px space-y-px">{children}</div>}
+    </div>
+  );
+};
 
 // ─── Nav Child ───────────────────────────────────────────────────────────────
 const NavChild = ({ section, label, active, onSelect, icon }: {

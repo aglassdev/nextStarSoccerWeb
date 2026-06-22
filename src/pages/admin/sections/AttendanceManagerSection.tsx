@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Query, ID } from 'appwrite';
 import { databases, databaseId, collections } from '../../../services/appwrite';
+import { useAuth } from '../../../contexts/AuthContext';
 import { googleCalendarService, CalendarEvent, isEventCancelled } from '../../../services/googleCalendar';
 
 type CalType = 'public' | 'private';
@@ -41,17 +42,130 @@ function formatFullDate(dt: string) {
   });
 }
 
+interface SessionNoteDoc {
+  $id: string;
+  content: string;
+  eventID?: string;
+  sessionDate?: string;
+  sessionTime?: string;
+  coachUserId?: string;
+  coachName?: string;
+  $updatedAt?: string;
+}
+
+// ── Session Notes Panel ───────────────────────────────────────────────────────
+function SessionNotesPanel({ eventId, eventDate, eventTime, currentUserId, currentUserName }: {
+  eventId: string;
+  eventDate: string;
+  eventTime: string;
+  currentUserId?: string;
+  currentUserName?: string;
+}) {
+  const [note, setNote] = useState<SessionNoteDoc | null>(null);
+  const [content, setContent] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      try {
+        if (!collections.sessionNotes) { setLoading(false); return; }
+        const res = await databases.listDocuments(databaseId, collections.sessionNotes, [
+          Query.equal('eventID', eventId), Query.limit(1),
+        ]);
+        if (res.documents.length > 0) {
+          const doc = res.documents[0] as any as SessionNoteDoc;
+          setNote(doc);
+          setContent(doc.content);
+        }
+      } catch { /* ignore */ }
+      finally { setLoading(false); }
+    })();
+  }, [eventId]);
+
+  const handleSave = async () => {
+    if (!content.trim()) return;
+    setSaving(true);
+    try {
+      const payload = {
+        content: content.trim(),
+        eventID: eventId,
+        sessionDate: eventDate,
+        sessionTime: eventTime,
+        coachUserId: currentUserId || '',
+        coachName: currentUserName || '',
+      };
+      let updated: any;
+      if (note) {
+        updated = await databases.updateDocument(databaseId, collections.sessionNotes!, note.$id, payload);
+      } else {
+        updated = await databases.createDocument(databaseId, collections.sessionNotes!, ID.unique(), payload);
+      }
+      setNote(updated as SessionNoteDoc);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (e) { console.error(e); }
+    finally { setSaving(false); }
+  };
+
+  const lastSaved = note?.$updatedAt
+    ? new Date(note.$updatedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/New_York' })
+    : null;
+
+  return (
+    <div className="bg-[#1d1c21] border border-white/[0.08] rounded-xl p-5">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-white/50 text-[11px] font-medium tracking-widest uppercase">Session Notes</p>
+        <div className="flex items-center gap-3">
+          {lastSaved && <span className="text-white/25 text-[10px]">Saved {lastSaved}{note?.coachName ? ` · ${note.coachName}` : ''}</span>}
+          {saved && <span className="text-green-400 text-[10px]">Saved</span>}
+        </div>
+      </div>
+      {loading ? (
+        <div className="flex items-center justify-center h-20">
+          <div className="w-4 h-4 border border-white/10 border-t-white/40 rounded-full animate-spin" />
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <textarea
+            value={content}
+            onChange={e => setContent(e.target.value)}
+            placeholder="Add session notes — drills covered, player observations, coaching points…"
+            rows={5}
+            className="w-full px-3 py-2.5 bg-white/[0.03] border border-white/[0.10] rounded-lg text-white text-sm placeholder-white/20 focus:outline-none focus:border-white/25 transition-colors resize-none leading-relaxed"
+          />
+          <div className="flex justify-end">
+            <button
+              onClick={handleSave}
+              disabled={saving || !content.trim()}
+              className="px-4 py-1.5 bg-white/[0.08] hover:bg-white/[0.13] disabled:opacity-40 disabled:cursor-not-allowed rounded-lg text-white text-sm transition-colors"
+            >
+              {saving ? 'Saving…' : note ? 'Update Notes' : 'Save Notes'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Event detail view (with attending list + add player search) ─────────────
 function EventDetailView({
   event,
   calType,
   onBack,
   onFeedback,
+  currentUserId,
+  currentUserName,
 }: {
   event: CalendarEvent;
   calType: CalType;
   onBack: () => void;
   onFeedback: (msg: string, isError?: boolean) => void;
+  currentUserId?: string;
+  currentUserName?: string;
 }) {
   const [checkins, setCheckins] = useState<CheckinDoc[]>([]);
   const [loadingCheckins, setLoadingCheckins] = useState(true);
@@ -214,7 +328,8 @@ function EventDetailView({
         Back to events
       </button>
 
-      <div className="grid grid-cols-2 gap-4 max-w-5xl">
+      <div className="space-y-4 max-w-5xl">
+      <div className="grid grid-cols-2 gap-4">
         {/* Event Details */}
         <div className="bg-[#1d1c21] border border-white/[0.08] rounded-xl p-5">
           <p className="text-white/50 text-[11px] font-medium tracking-widest uppercase mb-4">Event Details</p>
@@ -253,7 +368,7 @@ function EventDetailView({
         </div>
 
         {/* Attending Players */}
-        <div className="bg-[#1d1c21] border border-white/[0.08] rounded-xl p-5">
+        <div className="bg-[#1d1c21] border border-white/[0.08] rounded-xl p-5 overflow-hidden">
           <p className="text-white/50 text-[11px] font-medium tracking-widest uppercase mb-4">
             Attending Players · {checkins.length}
           </p>
@@ -329,12 +444,21 @@ function EventDetailView({
           )}
         </div>
       </div>
-    </div>
+      </div>
+      <SessionNotesPanel
+        eventId={event.id}
+        eventDate={event.startDateTime.slice(0, 10)}
+        eventTime={event.dateOnly ? 'All Day' : formatTime(event.startDateTime)}
+        currentUserId={currentUserId}
+        currentUserName={currentUserName}
+      />
+      </div>
   );
 }
 
 // ── Main section ─────────────────────────────────────────────────────────────
 const AttendanceManagerSection = () => {
+  const { user } = useAuth();
   const [publicEvents, setPublicEvents] = useState<CalendarEvent[]>([]);
   const [privateEvents, setPrivateEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -433,6 +557,8 @@ const AttendanceManagerSection = () => {
           calType={selected.calType}
           onBack={() => setSelected(null)}
           onFeedback={showFeedback}
+          currentUserId={user?.$id}
+          currentUserName={user?.name || user?.email?.split('@')[0]}
         />
       ) : loading ? (
         <div className="flex items-center justify-center h-40">
