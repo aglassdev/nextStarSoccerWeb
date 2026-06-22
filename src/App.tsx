@@ -116,6 +116,7 @@ function AppRoutes() {
       <Route path="/admin/calendar" element={<AdminDashboard />} />
       <Route path="/admin/event-assistant" element={<AdminDashboard />} />
       <Route path="/admin/attendance" element={<AdminDashboard />} />
+      <Route path="/admin/attendance/:calType/:eventId" element={<AdminDashboard />} />
       <Route path="/admin/dev" element={<AdminDashboard />} />
       <Route path="/admin/dev/feedback" element={<AdminDashboard />} />
       <Route path="/admin/session-reviews" element={<AdminDashboard />} />

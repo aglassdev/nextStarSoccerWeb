@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Query, ID } from 'appwrite';
 import { databases, databaseId, collections } from '../../../services/appwrite';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -459,6 +460,8 @@ function EventDetailView({
 // ── Main section ─────────────────────────────────────────────────────────────
 const AttendanceManagerSection = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const params = useParams<{ calType?: string; eventId?: string }>();
   const [publicEvents, setPublicEvents] = useState<CalendarEvent[]>([]);
   const [privateEvents, setPrivateEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -497,8 +500,18 @@ const AttendanceManagerSection = () => {
             (a, b) => Date.parse(a.startDateTime) - Date.parse(b.startDateTime)
           );
         };
-        setPublicEvents(dedup(pub));
-        setPrivateEvents(dedup(priv));
+        const dedupedPub = dedup(pub);
+        const dedupedPriv = dedup(priv);
+        setPublicEvents(dedupedPub);
+        setPrivateEvents(dedupedPriv);
+
+        // Restore selected event from URL params on (re)load
+        if (params.eventId && params.calType) {
+          const calType = params.calType as CalType;
+          const list = calType === 'public' ? dedupedPub : dedupedPriv;
+          const found = list.find(e => e.id === params.eventId);
+          if (found) setSelected({ event: found, calType });
+        }
       } finally { setLoading(false); }
     })();
   }, []);
@@ -555,7 +568,7 @@ const AttendanceManagerSection = () => {
         <EventDetailView
           event={selected.event}
           calType={selected.calType}
-          onBack={() => setSelected(null)}
+          onBack={() => { setSelected(null); navigate('/admin/attendance'); }}
           onFeedback={showFeedback}
           currentUserId={user?.$id}
           currentUserName={user?.name || user?.email?.split('@')[0]}
@@ -582,7 +595,7 @@ const AttendanceManagerSection = () => {
                   <button
                     key={ev.id}
                     ref={isFirstUpcoming ? publicTodayRef : undefined}
-                    onClick={() => setSelected({ event: ev, calType: 'public' })}
+                    onClick={() => { setSelected({ event: ev, calType: 'public' }); navigate(`/admin/attendance/public/${ev.id}`); }}
                     className={`w-full text-left bg-[#0e0e0e] border rounded-xl px-4 py-3 transition-colors ${
                       isFirstUpcoming
                         ? 'border-white/30'
@@ -615,7 +628,7 @@ const AttendanceManagerSection = () => {
                   <button
                     key={ev.id}
                     ref={isFirstUpcoming ? privateTodayRef : undefined}
-                    onClick={() => setSelected({ event: ev, calType: 'private' })}
+                    onClick={() => { setSelected({ event: ev, calType: 'private' }); navigate(`/admin/attendance/private/${ev.id}`); }}
                     className={`w-full text-left bg-[#0e0e0e] border rounded-xl px-4 py-3 transition-colors ${
                       isFirstUpcoming
                         ? 'border-white/30'

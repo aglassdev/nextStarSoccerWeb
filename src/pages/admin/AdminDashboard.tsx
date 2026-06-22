@@ -207,7 +207,8 @@ const AdminDashboard = () => {
   const { user, logout, initialized } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const activeSection: Section | null = SECTION_FROM_PATH[location.pathname] || null;
+  const activeSection: Section | null = SECTION_FROM_PATH[location.pathname]
+    || (location.pathname.startsWith('/admin/attendance/') ? 'attendance' : null);
 
   const SECTION_TO_PATH: Record<Section, string> = {
     players: '/admin/players',
