@@ -132,7 +132,7 @@ function SessionNotesPanel({ eventId, eventDate, eventTime, currentUserId, curre
           <textarea
             value={content}
             onChange={e => setContent(e.target.value)}
-            placeholder="Add session notes — drills covered, player observations, coaching points…"
+            placeholder=""
             rows={5}
             className="w-full px-3 py-2.5 bg-white/[0.03] border border-white/[0.10] rounded-lg text-white text-sm placeholder-white/20 focus:outline-none focus:border-white/25 transition-colors resize-none leading-relaxed"
           />
@@ -444,7 +444,6 @@ function EventDetailView({
           )}
         </div>
       </div>
-      </div>
       <SessionNotesPanel
         eventId={event.id}
         eventDate={event.startDateTime.slice(0, 10)}
@@ -453,6 +452,7 @@ function EventDetailView({
         currentUserName={currentUserName}
       />
       </div>
+    </div>
   );
 }
 
