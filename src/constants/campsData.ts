@@ -83,7 +83,7 @@ export const camps: Camp[] = [
       { label: 'Half-Day', time: '9:00 AM – 12:00 PM' },
       { label: 'Full-Day', time: '9:00 AM – 3:00 PM' },
     ],
-    pricing: 'Half-Day: $299 / week\nFull-Day: $429 / week',
+    pricing: 'Half-Day: $299 / week | $80 / day\nFull-Day: $429 / week | $115 / day',
     pricingNote: 'Ages 6-18 · Coed · All skill levels',
     description:
       'Join us for our Next Star Soccer Camp in partnership with Nike at Howard University in Washington, D.C. Under Howard Men\'s Soccer Coach Phillip Gyau and Next Star Soccer Director Paul Torres, campers will get to learn, practice, improve, and have fun. Our curriculum is simple but proven, allowing every camper, no matter their age or skill level, to learn and continue to progress.',
