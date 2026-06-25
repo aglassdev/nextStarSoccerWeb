@@ -368,6 +368,8 @@ const BillsSection = () => {
   const [activeTab, setActiveTab] = useState<BillStatus>('outstanding');
   const [search, setSearch] = useState('');
   const [selectedBill, setSelectedBill] = useState<BillRecord | null>(null);
+  const [sortKey, setSortKey] = useState<'monthName' | 'name' | 'dueDate' | 'totalAmount' | 'status' | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
   useEffect(() => { fetchBills(); }, []);
 
@@ -402,14 +404,15 @@ const BillsSection = () => {
         } catch { /* skip */ }
       }
 
-      // Proxy children use their $id as the bill userId (no userId field)
+      // Proxy children: bills store proxyId (not $id) as the userId
       if (collections.proxyChildren) {
         try {
           const proxyRes = await databases.listDocuments(databaseId, collections.proxyChildren, [Query.limit(5000)]);
           for (const doc of proxyRes.documents as any[]) {
-            if (uniqueIds.includes(doc.$id) && !nameMap[doc.$id]) {
+            const key = doc.proxyId || doc.$id;
+            if (uniqueIds.includes(key) && !nameMap[key]) {
               const full = `${doc.firstName || ''} ${doc.lastName || ''}`.trim();
-              if (full) nameMap[doc.$id] = full;
+              if (full) nameMap[key] = full;
             }
           }
         } catch { /* skip */ }
@@ -425,8 +428,26 @@ const BillsSection = () => {
 
   const getName = (b: BillRecord) => userNames[b.userId] || b.userId || '—';
 
+  const toggleSort = (key: typeof sortKey) => {
+    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortKey(key); setSortDir('asc'); }
+  };
+
   const tabBills = bills.filter(b => deriveBillStatus(b) === activeTab);
   const filtered = tabBills.filter(b => getName(b).toLowerCase().includes(search.toLowerCase()));
+
+  const sorted = sortKey ? [...filtered].sort((a, b) => {
+    let av: string | number = '';
+    let bv: string | number = '';
+    if (sortKey === 'name') { av = getName(a).toLowerCase(); bv = getName(b).toLowerCase(); }
+    else if (sortKey === 'totalAmount') { av = a.totalAmount ?? 0; bv = b.totalAmount ?? 0; }
+    else if (sortKey === 'dueDate') { av = a.dueDate ?? ''; bv = b.dueDate ?? ''; }
+    else if (sortKey === 'monthName') { av = a.monthName ?? ''; bv = b.monthName ?? ''; }
+    else if (sortKey === 'status') { av = deriveBillStatus(a); bv = deriveBillStatus(b); }
+    if (av < bv) return sortDir === 'asc' ? -1 : 1;
+    if (av > bv) return sortDir === 'asc' ? 1 : -1;
+    return 0;
+  }) : filtered;
 
   // Re-sync a bill record after edits (refresh from state)
   const handleBillUpdated = () => fetchBills();
@@ -475,22 +496,35 @@ const BillsSection = () => {
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-800 bg-gray-950">
-                <th className="text-left px-4 py-3 text-gray-400 text-sm font-medium">Month</th>
-                <th className="text-left px-4 py-3 text-gray-400 text-sm font-medium">Name</th>
-                <th className="text-left px-4 py-3 text-gray-400 text-sm font-medium">Due Date</th>
-                <th className="text-left px-4 py-3 text-gray-400 text-sm font-medium">Amount</th>
-                <th className="text-left px-4 py-3 text-gray-400 text-sm font-medium">Status</th>
+                {([
+                  ['Month', 'monthName'],
+                  ['Name', 'name'],
+                  ['Due Date', 'dueDate'],
+                  ['Amount', 'totalAmount'],
+                  ['Status', 'status'],
+                ] as [string, typeof sortKey][]).map(([label, key]) => (
+                  <th key={key} onClick={() => toggleSort(key)}
+                    className="text-left px-4 py-3 text-gray-400 text-sm font-medium cursor-pointer select-none hover:text-white transition-colors">
+                    <span className="inline-flex items-center gap-1">
+                      {label}
+                      {sortKey === key
+                        ? <span className="text-blue-400">{sortDir === 'asc' ? '↑' : '↓'}</span>
+                        : <span className="text-gray-700">↕</span>
+                      }
+                    </span>
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800">
-              {filtered.length === 0 ? (
+              {sorted.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
                     No {tabLabel[activeTab].toLowerCase()} bills found
                   </td>
                 </tr>
               ) : (
-                filtered.map(bill => (
+                sorted.map(bill => (
                   <tr
                     key={bill.$id}
                     onClick={() => setSelectedBill(bill)}
