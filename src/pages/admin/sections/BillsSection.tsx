@@ -20,10 +20,11 @@ interface BillRecord {
 interface BillItemRecord {
   $id: string;
   billId: string;
-  description: string;
-  amount: number;
-  quantity?: number;
+  eventTitle: string;
+  eventDate?: string;
+  price: number;
   eventId?: string;
+  calendarSource?: string;
   [key: string]: any;
 }
 
@@ -147,8 +148,8 @@ const BillModal = ({
     setSavingItemId(item.$id);
     setError('');
     try {
-      await databases.updateDocument(databaseId, collections.billItems, item.$id, { amount: val });
-      setItems(prev => prev.map(i => i.$id === item.$id ? { ...i, amount: val } : i));
+      await databases.updateDocument(databaseId, collections.billItems, item.$id, { price: val });
+      setItems(prev => prev.map(i => i.$id === item.$id ? { ...i, price: val } : i));
       setEditingItemId(null);
     } catch (e: any) {
       setError(e.message || 'Failed to update item');
@@ -158,7 +159,7 @@ const BillModal = ({
   };
 
   const handleDeleteItem = async (item: BillItemRecord) => {
-    if (!confirm(`Delete session "${item.description}"?`)) return;
+    if (!confirm(`Delete session "${item.eventTitle}"?`)) return;
     setDeletingItemId(item.$id);
     setError('');
     try {
@@ -270,9 +271,9 @@ const BillModal = ({
                     <div key={item.$id} className="bg-[#0d0d0d] border border-[#1e1e1e] rounded-xl px-4 py-3">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
-                          <p className="text-white text-sm font-medium truncate">{item.description || '—'}</p>
-                          {item.quantity && item.quantity > 1 && (
-                            <p className="text-gray-600 text-xs mt-0.5">×{item.quantity}</p>
+                          <p className="text-white text-sm font-medium truncate">{item.eventTitle || '—'}</p>
+                          {item.eventDate && (
+                            <p className="text-gray-600 text-xs mt-0.5">{item.eventDate}</p>
                           )}
                         </div>
 
@@ -306,10 +307,10 @@ const BillModal = ({
                         ) : (
                           <div className="flex items-center gap-2">
                             <span className="text-white text-sm font-medium">
-                              ${Number(item.amount).toFixed(2)}
+                              ${Number(item.price).toFixed(2)}
                             </span>
                             <button
-                              onClick={() => { setEditItemVal(String(item.amount)); setEditingItemId(item.$id); }}
+                              onClick={() => { setEditItemVal(String(item.price)); setEditingItemId(item.$id); }}
                               className="text-gray-600 hover:text-blue-400 transition-colors"
                               title="Edit amount"
                             >
@@ -396,6 +397,19 @@ const BillsSection = () => {
             if (doc.userId && uniqueIds.includes(doc.userId) && !nameMap[doc.userId]) {
               const full = `${doc.firstName || ''} ${doc.lastName || ''}`.trim();
               if (full) nameMap[doc.userId] = full;
+            }
+          }
+        } catch { /* skip */ }
+      }
+
+      // Proxy children use their $id as the bill userId (no userId field)
+      if (collections.proxyChildren) {
+        try {
+          const proxyRes = await databases.listDocuments(databaseId, collections.proxyChildren, [Query.limit(5000)]);
+          for (const doc of proxyRes.documents as any[]) {
+            if (uniqueIds.includes(doc.$id) && !nameMap[doc.$id]) {
+              const full = `${doc.firstName || ''} ${doc.lastName || ''}`.trim();
+              if (full) nameMap[doc.$id] = full;
             }
           }
         } catch { /* skip */ }
