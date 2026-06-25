@@ -396,23 +396,31 @@ const BillsSection = () => {
         try {
           const colRes = await databases.listDocuments(databaseId, colId, [Query.limit(5000)]);
           for (const doc of colRes.documents as any[]) {
+            const full = `${doc.firstName || ''} ${doc.lastName || ''}`.trim();
+            if (!full) continue;
             if (doc.userId && uniqueIds.includes(doc.userId) && !nameMap[doc.userId]) {
-              const full = `${doc.firstName || ''} ${doc.lastName || ''}`.trim();
-              if (full) nameMap[doc.userId] = full;
+              nameMap[doc.userId] = full;
+            }
+            // Also index by $id for old accounts where $id ≠ userId
+            if (doc.$id && doc.$id !== doc.userId && uniqueIds.includes(doc.$id) && !nameMap[doc.$id]) {
+              nameMap[doc.$id] = full;
             }
           }
         } catch { /* skip */ }
       }
 
-      // Proxy children: bills store proxyId (not $id) as the userId
+      // Proxy children: bills may store proxyId OR $id as userId — register both
       if (collections.proxyChildren) {
         try {
           const proxyRes = await databases.listDocuments(databaseId, collections.proxyChildren, [Query.limit(5000)]);
           for (const doc of proxyRes.documents as any[]) {
-            const key = doc.proxyId || doc.$id;
-            if (uniqueIds.includes(key) && !nameMap[key]) {
-              const full = `${doc.firstName || ''} ${doc.lastName || ''}`.trim();
-              if (full) nameMap[key] = full;
+            const full = `${doc.firstName || ''} ${doc.lastName || ''}`.trim();
+            if (!full) continue;
+            if (doc.proxyId && uniqueIds.includes(doc.proxyId) && !nameMap[doc.proxyId]) {
+              nameMap[doc.proxyId] = full;
+            }
+            if (doc.$id && uniqueIds.includes(doc.$id) && !nameMap[doc.$id]) {
+              nameMap[doc.$id] = full;
             }
           }
         } catch { /* skip */ }
