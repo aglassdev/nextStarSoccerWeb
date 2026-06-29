@@ -16,7 +16,7 @@ interface PlayerSearchResult {
   isProxy?: boolean;
 }
 
-interface CheckinDoc {
+interface AttendeeDoc {
   $id: string;
   userId?: string;
   firstName?: string;
@@ -24,6 +24,7 @@ interface CheckinDoc {
   checkinTime?: string;
   $createdAt?: string;
 }
+
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function formatTime(dt: string, dateOnly?: boolean) {
@@ -152,7 +153,7 @@ function SessionNotesPanel({ eventId, eventDate, eventTime, currentUserId, curre
   );
 }
 
-// ── Event detail view (with attending list + add player search) ─────────────
+// ── Event detail view ─────────────────────────────────────────────────────────
 function EventDetailView({
   event,
   calType,
@@ -168,13 +169,27 @@ function EventDetailView({
   currentUserId?: string;
   currentUserName?: string;
 }) {
-  const [checkins, setCheckins] = useState<CheckinDoc[]>([]);
+  const [signups, setSignups] = useState<AttendeeDoc[]>([]);
+  const [checkins, setCheckins] = useState<AttendeeDoc[]>([]);
+  const [loadingSignups, setLoadingSignups] = useState(true);
   const [loadingCheckins, setLoadingCheckins] = useState(true);
   const [allPlayers, setAllPlayers] = useState<PlayerSearchResult[]>([]);
   const [search, setSearch] = useState('');
+  const [listSearch, setListSearch] = useState('');
   const [adding, setAdding] = useState<string | null>(null);
 
-  // Load checkins for this event
+  const reloadSignups = async () => {
+    setLoadingSignups(true);
+    try {
+      if (!collections.signups) { setSignups([]); return; }
+      const res = await databases.listDocuments(databaseId, collections.signups, [
+        Query.equal('eventID', event.id), Query.limit(500),
+      ]);
+      setSignups(res.documents as any);
+    } catch { setSignups([]); }
+    finally { setLoadingSignups(false); }
+  };
+
   const reloadCheckins = async () => {
     setLoadingCheckins(true);
     try {
@@ -188,8 +203,8 @@ function EventDetailView({
   };
 
   useEffect(() => {
+    reloadSignups();
     reloadCheckins();
-    // Load all players once for search
     (async () => {
       try {
         const [yRes, cRes, pRes, proxyRes] = await Promise.all([
@@ -226,9 +241,9 @@ function EventDetailView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event.id]);
 
-  const checkedInUserIds = useMemo(
-    () => new Set(checkins.map(c => c.userId).filter(Boolean) as string[]),
-    [checkins],
+  const signedUpUserIds = useMemo(
+    () => new Set(signups.map(s => s.userId).filter(Boolean) as string[]),
+    [signups],
   );
 
   const filteredPlayers = useMemo(() => {
@@ -236,7 +251,7 @@ function EventDetailView({
     if (q.length < 2) return [];
     return allPlayers
       .filter(p => `${p.firstName} ${p.lastName}`.toLowerCase().includes(q))
-      .filter(p => !checkedInUserIds.has(p.userId))
+      .filter(p => !signedUpUserIds.has(p.userId))
       .sort((a, b) => {
         const an = `${a.firstName} ${a.lastName}`.toLowerCase();
         const bn = `${b.firstName} ${b.lastName}`.toLowerCase();
@@ -246,14 +261,12 @@ function EventDetailView({
         return an.localeCompare(bn);
       })
       .slice(0, 12);
-  }, [allPlayers, search, checkedInUserIds]);
+  }, [allPlayers, search, signedUpUserIds]);
 
-  // Add a player to attendance: create signup + checkin docs (no notifications)
   const handleAddPlayer = async (p: PlayerSearchResult) => {
     setAdding(p.$id);
     try {
       const eventDateISO = event.startDateTime;
-      // Signup (skip if duplicate)
       if (collections.signups) {
         try {
           const existing = await databases.listDocuments(databaseId, collections.signups, [
@@ -261,19 +274,13 @@ function EventDetailView({
           ]);
           if (existing.documents.length === 0) {
             await databases.createDocument(databaseId, collections.signups, ID.unique(), {
-              eventID: event.id,
-              eventTitle: event.title,
-              eventDate: eventDateISO,
-              userId: p.userId,
-              firstName: p.firstName,
-              lastName: p.lastName,
-              type: 'bill',
-              isProxySignup: p.isProxy === true,
+              eventID: event.id, eventTitle: event.title, eventDate: eventDateISO,
+              userId: p.userId, firstName: p.firstName, lastName: p.lastName,
+              type: 'bill', isProxySignup: p.isProxy === true,
             });
           }
         } catch (e) { console.error('Signup create failed:', e); }
       }
-      // Checkin (skip if duplicate)
       if (collections.checkins) {
         try {
           const existing = await databases.listDocuments(databaseId, collections.checkins, [
@@ -281,21 +288,16 @@ function EventDetailView({
           ]);
           if (existing.documents.length === 0) {
             await databases.createDocument(databaseId, collections.checkins, ID.unique(), {
-              eventID: event.id,
-              eventTitle: event.title,
-              eventDate: eventDateISO,
-              userId: p.userId,
-              firstName: p.firstName,
-              lastName: p.lastName,
-              type: 'bill',
-              calendarSource: calType,
-              isProxyCheckin: p.isProxy === true,
+              eventID: event.id, eventTitle: event.title, eventDate: eventDateISO,
+              userId: p.userId, firstName: p.firstName, lastName: p.lastName,
+              type: 'bill', calendarSource: calType, isProxyCheckin: p.isProxy === true,
             });
           }
         } catch (e) { console.error('Checkin create failed:', e); }
       }
-      onFeedback(`${p.firstName} ${p.lastName} added (no notification sent).`);
+      onFeedback(`${p.firstName} ${p.lastName} added.`);
       setSearch('');
+      reloadSignups();
       reloadCheckins();
     } catch (e: any) {
       onFeedback(e.message || 'Failed to add player', true);
@@ -304,18 +306,31 @@ function EventDetailView({
     }
   };
 
-  const handleRemoveCheckin = async (c: CheckinDoc) => {
-    if (!confirm(`Remove ${c.firstName ?? ''} ${c.lastName ?? ''} from attendance?`)) return;
+  const handleRemoveSignup = async (s: AttendeeDoc) => {
+    if (!confirm(`Remove ${s.firstName ?? ''} ${s.lastName ?? ''} from signups?`)) return;
     try {
-      if (collections.checkins) {
-        await databases.deleteDocument(databaseId, collections.checkins, c.$id);
-      }
-      onFeedback('Player removed from attendance.');
-      reloadCheckins();
-    } catch (e: any) {
-      onFeedback(e.message || 'Failed to remove', true);
-    }
+      if (collections.signups) await databases.deleteDocument(databaseId, collections.signups, s.$id);
+      onFeedback('Removed from signups.');
+      reloadSignups();
+    } catch (e: any) { onFeedback(e.message || 'Failed to remove', true); }
   };
+
+  const handleRemoveCheckin = async (c: AttendeeDoc) => {
+    if (!confirm(`Remove ${c.firstName ?? ''} ${c.lastName ?? ''} from check-ins?`)) return;
+    try {
+      if (collections.checkins) await databases.deleteDocument(databaseId, collections.checkins, c.$id);
+      onFeedback('Removed from check-ins.');
+      reloadCheckins();
+    } catch (e: any) { onFeedback(e.message || 'Failed to remove', true); }
+  };
+
+  const lq = listSearch.trim().toLowerCase();
+  const filteredSignups = lq
+    ? signups.filter(s => `${s.firstName ?? ''} ${s.lastName ?? ''}`.toLowerCase().includes(lq))
+    : signups;
+  const filteredCheckins = lq
+    ? checkins.filter(c => `${c.firstName ?? ''} ${c.lastName ?? ''}`.toLowerCase().includes(lq))
+    : checkins;
 
   return (
     <div>
@@ -330,11 +345,10 @@ function EventDetailView({
       </button>
 
       <div className="space-y-4 max-w-5xl">
-      <div className="grid grid-cols-2 gap-4">
         {/* Event Details */}
         <div className="bg-[#1d1c21] border border-white/[0.08] rounded-xl p-5">
-          <p className="text-white/50 text-[11px] font-medium tracking-widest uppercase mb-4">Event Details</p>
-          <div className="space-y-3">
+          <p className="text-white/50 text-[11px] font-medium tracking-widest uppercase mb-3">Event Details</p>
+          <div className="flex flex-wrap gap-x-8 gap-y-2">
             <div>
               <p className="text-white/40 text-[10px] uppercase tracking-wider mb-0.5">Title</p>
               <p className="text-white text-sm">{event.title}</p>
@@ -359,99 +373,138 @@ function EventDetailView({
               <p className="text-white/40 text-[10px] uppercase tracking-wider mb-0.5">Calendar</p>
               <p className="text-white text-sm capitalize">{calType}</p>
             </div>
-            {event.description && (
-              <div>
-                <p className="text-white/40 text-[10px] uppercase tracking-wider mb-0.5">Description</p>
-                <p className="text-white text-sm whitespace-pre-wrap">{event.description}</p>
-              </div>
-            )}
           </div>
         </div>
 
-        {/* Attending Players */}
-        <div className="bg-[#1d1c21] border border-white/[0.08] rounded-xl p-5 overflow-hidden">
-          <p className="text-white/50 text-[11px] font-medium tracking-widest uppercase mb-4">
-            Attending Players · {checkins.length}
-          </p>
-
-          {/* Player search */}
-          <div className="relative mb-4">
-            <input
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search a player to add…"
-              className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.10] rounded-lg text-white text-sm placeholder-white/25 focus:outline-none focus:border-white/30 transition-colors"
-            />
-            {filteredPlayers.length > 0 && (
-              <div className="absolute z-20 left-0 right-0 mt-1 bg-[#111] border border-white/[0.10] rounded-lg shadow-xl max-h-60 overflow-y-auto divide-y divide-white/[0.05]">
-                {filteredPlayers.map(p => (
-                  <button
-                    key={p.$id}
-                    onClick={() => handleAddPlayer(p)}
-                    disabled={adding === p.$id}
-                    className="w-full flex items-center justify-between px-3 py-2.5 text-sm hover:bg-white/[0.04] transition-colors disabled:opacity-50"
-                  >
-                    <span className="text-white">{p.firstName} {p.lastName}</span>
-                    <span className="text-[10px] text-white/40 uppercase tracking-wider">
-                      {adding === p.$id ? 'adding…' : p.type}{p.isProxy && adding !== p.$id ? ' · Proxy' : ''}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
-            {search.trim().length >= 2 && filteredPlayers.length === 0 && (
-              <p className="text-white/30 text-xs mt-2">No matching players (or already attending)</p>
-            )}
-          </div>
-
-          {/* List of checked-in players */}
-          {loadingCheckins ? (
-            <div className="flex items-center justify-center h-20">
-              <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-            </div>
-          ) : checkins.length === 0 ? (
-            <p className="text-white/30 text-sm text-center py-4">No players have checked in yet.</p>
-          ) : (
-            <div className="space-y-1 max-h-[400px] overflow-y-auto">
-              {checkins.map(c => {
-                const name = `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim() || c.userId || 'Unknown';
-                return (
-                  <div
-                    key={c.$id}
-                    className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.05]"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-white text-sm truncate">{name}</p>
-                      {(c.checkinTime || c.$createdAt) && (
-                        <p className="text-white/40 text-[10px]">
-                          checked in {formatTime(c.checkinTime || c.$createdAt!)}
-                        </p>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => handleRemoveCheckin(c)}
-                      className="p-1 text-white/30 hover:text-red-400 transition-colors flex-shrink-0"
-                      title="Remove"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                );
-              })}
+        {/* Add player search */}
+        <div className="relative">
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search a player to add…"
+            className="w-full px-4 py-2.5 bg-white/[0.04] border border-white/[0.10] rounded-xl text-white text-sm placeholder-white/25 focus:outline-none focus:border-white/30 transition-colors"
+          />
+          {filteredPlayers.length > 0 && (
+            <div className="absolute z-20 left-0 right-0 mt-1 bg-[#111] border border-white/[0.10] rounded-xl shadow-xl max-h-60 overflow-y-auto divide-y divide-white/[0.05]">
+              {filteredPlayers.map(p => (
+                <button
+                  key={p.$id}
+                  onClick={() => handleAddPlayer(p)}
+                  disabled={adding === p.$id}
+                  className="w-full flex items-center justify-between px-4 py-2.5 text-sm hover:bg-white/[0.04] transition-colors disabled:opacity-50"
+                >
+                  <span className="text-white">{p.firstName} {p.lastName}</span>
+                  <span className="text-[10px] text-white/40 uppercase tracking-wider">
+                    {adding === p.$id ? 'adding…' : p.type}{p.isProxy && adding !== p.$id ? ' · Proxy' : ''}
+                  </span>
+                </button>
+              ))}
             </div>
           )}
+          {search.trim().length >= 2 && filteredPlayers.length === 0 && (
+            <p className="text-white/30 text-xs mt-2 px-1">No matching players (or already signed up)</p>
+          )}
         </div>
-      </div>
-      <SessionNotesPanel
-        eventId={event.id}
-        eventDate={event.startDateTime.slice(0, 10)}
-        eventTime={event.dateOnly ? 'All Day' : formatTime(event.startDateTime)}
-        currentUserId={currentUserId}
-        currentUserName={currentUserName}
-      />
+
+        {/* Filter list search */}
+        <input
+          type="text"
+          value={listSearch}
+          onChange={e => setListSearch(e.target.value)}
+          placeholder="Filter signups & check-ins…"
+          className="w-full px-4 py-2 bg-white/[0.03] border border-white/[0.07] rounded-xl text-white text-sm placeholder-white/20 focus:outline-none focus:border-white/20 transition-colors"
+        />
+
+        {/* Signups | Checkins columns */}
+        <div className="grid grid-cols-2 gap-4">
+          {/* Signups */}
+          <div className="bg-[#1d1c21] border border-white/[0.08] rounded-xl p-5 overflow-hidden">
+            <p className="text-white/50 text-[11px] font-medium tracking-widest uppercase mb-4">
+              Signups · {signups.length}
+            </p>
+            {loadingSignups ? (
+              <div className="flex items-center justify-center h-20">
+                <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+              </div>
+            ) : filteredSignups.length === 0 ? (
+              <p className="text-white/30 text-sm text-center py-4">
+                {lq ? 'No matches.' : 'No signups yet.'}
+              </p>
+            ) : (
+              <div className="space-y-1 max-h-[400px] overflow-y-auto">
+                {filteredSignups.map(s => {
+                  const name = `${s.firstName ?? ''} ${s.lastName ?? ''}`.trim() || s.userId || 'Unknown';
+                  return (
+                    <div key={s.$id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.05]">
+                      <p className="text-white text-sm truncate">{name}</p>
+                      <button
+                        onClick={() => handleRemoveSignup(s)}
+                        className="p-1 text-white/30 hover:text-red-400 transition-colors flex-shrink-0"
+                        title="Remove signup"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Check-ins */}
+          <div className="bg-[#1d1c21] border border-white/[0.08] rounded-xl p-5 overflow-hidden">
+            <p className="text-white/50 text-[11px] font-medium tracking-widest uppercase mb-4">
+              Check-ins · {checkins.length}
+            </p>
+            {loadingCheckins ? (
+              <div className="flex items-center justify-center h-20">
+                <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+              </div>
+            ) : filteredCheckins.length === 0 ? (
+              <p className="text-white/30 text-sm text-center py-4">
+                {lq ? 'No matches.' : 'No check-ins yet.'}
+              </p>
+            ) : (
+              <div className="space-y-1 max-h-[400px] overflow-y-auto">
+                {filteredCheckins.map(c => {
+                  const name = `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim() || c.userId || 'Unknown';
+                  return (
+                    <div key={c.$id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.05]">
+                      <div className="min-w-0">
+                        <p className="text-white text-sm truncate">{name}</p>
+                        {(c.checkinTime || c.$createdAt) && (
+                          <p className="text-white/40 text-[10px]">
+                            {formatTime(c.checkinTime || c.$createdAt!)}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => handleRemoveCheckin(c)}
+                        className="p-1 text-white/30 hover:text-red-400 transition-colors flex-shrink-0"
+                        title="Remove check-in"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <SessionNotesPanel
+          eventId={event.id}
+          eventDate={event.startDateTime.slice(0, 10)}
+          eventTime={event.dateOnly ? 'All Day' : formatTime(event.startDateTime)}
+          currentUserId={currentUserId}
+          currentUserName={currentUserName}
+        />
       </div>
     </div>
   );
