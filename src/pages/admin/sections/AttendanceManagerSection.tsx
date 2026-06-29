@@ -177,6 +177,7 @@ function EventDetailView({
   const [search, setSearch] = useState('');
   const [listSearch, setListSearch] = useState('');
   const [adding, setAdding] = useState<string | null>(null);
+  const [checkingIn, setCheckingIn] = useState<string | null>(null);
 
   const reloadSignups = async () => {
     setLoadingSignups(true);
@@ -246,6 +247,11 @@ function EventDetailView({
     [signups],
   );
 
+  const checkedInUserIds = useMemo(
+    () => new Set(checkins.map(c => c.userId).filter(Boolean) as string[]),
+    [checkins],
+  );
+
   const filteredPlayers = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (q.length < 2) return [];
@@ -313,6 +319,30 @@ function EventDetailView({
       onFeedback('Removed from signups.');
       reloadSignups();
     } catch (e: any) { onFeedback(e.message || 'Failed to remove', true); }
+  };
+
+  const handleCheckinFromSignup = async (s: AttendeeDoc) => {
+    if (!s.userId || checkedInUserIds.has(s.userId)) return;
+    setCheckingIn(s.$id);
+    try {
+      if (collections.checkins) {
+        await databases.createDocument(databaseId, collections.checkins, ID.unique(), {
+          eventID: event.id,
+          eventTitle: event.title,
+          eventDate: event.startDateTime,
+          userId: s.userId,
+          firstName: s.firstName ?? '',
+          lastName: s.lastName ?? '',
+          type: 'bill',
+          calendarSource: calType,
+        });
+      }
+      reloadCheckins();
+    } catch (e: any) {
+      onFeedback(e.message || 'Check-in failed', true);
+    } finally {
+      setCheckingIn(null);
+    }
   };
 
   const handleRemoveCheckin = async (c: AttendeeDoc) => {
@@ -435,9 +465,25 @@ function EventDetailView({
               <div className="space-y-1 max-h-[400px] overflow-y-auto">
                 {filteredSignups.map(s => {
                   const name = `${s.firstName ?? ''} ${s.lastName ?? ''}`.trim() || s.userId || 'Unknown';
+                  const alreadyCheckedIn = s.userId ? checkedInUserIds.has(s.userId) : false;
+                  const isCheckingIn = checkingIn === s.$id;
                   return (
                     <div key={s.$id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.05]">
-                      <p className="text-white text-sm truncate">{name}</p>
+                      <button
+                        onClick={() => handleCheckinFromSignup(s)}
+                        disabled={alreadyCheckedIn || isCheckingIn}
+                        title={alreadyCheckedIn ? 'Already checked in' : 'Click to check in'}
+                        className={`flex-1 min-w-0 text-left flex items-center gap-2 group ${alreadyCheckedIn ? 'cursor-default' : 'cursor-pointer'}`}
+                      >
+                        <p className={`text-sm truncate transition-colors ${alreadyCheckedIn ? 'text-white/40' : 'text-white group-hover:text-green-400'}`}>
+                          {isCheckingIn ? 'Checking in…' : name}
+                        </p>
+                        {alreadyCheckedIn && (
+                          <svg className="w-3 h-3 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414L8.414 15l-4.121-4.121a1 1 0 011.414-1.414L8.414 12.172l6.879-6.879a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </button>
                       <button
                         onClick={() => handleRemoveSignup(s)}
                         className="p-1 text-white/30 hover:text-red-400 transition-colors flex-shrink-0"
