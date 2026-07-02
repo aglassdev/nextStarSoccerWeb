@@ -164,7 +164,7 @@ const CalendarPage = () => {
 
     // ── Specific camp / group types ─────────────────────────────────────────
     if (lowerTitle.includes("youth group")) return "youth-group-camp";
-    if (lowerTitle.includes("college/pro group")) return "college-pro-group-camp";
+    if (lowerTitle.includes("college/pro group") || lowerTitle.includes("pro/college group")) return "college-pro-group-camp";
     if (lowerTitle.includes("camp morning")) return "camp-morning";
     if (lowerTitle.includes("camp afternoon")) return "camp-afternoon";
 
