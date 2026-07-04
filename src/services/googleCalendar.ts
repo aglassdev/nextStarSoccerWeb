@@ -248,7 +248,8 @@ class GoogleCalendarService {
   async getTodaysEvents(): Promise<CalendarEvent[]> {
     const now = new Date();
     const events = await this.getEventsForMonth(now.getFullYear(), now.getMonth());
-    const today = now.toISOString().split("T")[0];
+    // Use local date components to avoid UTC day-flip issues in EDT/EST
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     return events.filter((event) => event.startDateTime.split("T")[0] === today);
   }
 

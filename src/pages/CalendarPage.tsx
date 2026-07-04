@@ -517,10 +517,7 @@ const CalendarPage = () => {
                   const dayEvents = getEventsForDay(day);
                   const isTodayDate = isToday(day);
 
-                  // For today's date, combine regular day events with today's events
-                  const displayEvents = isTodayDate && todaysEvents.length > 0
-                    ? todaysEvents
-                    : dayEvents;
+                  const displayEvents = dayEvents;
 
                   return (
                     <div
