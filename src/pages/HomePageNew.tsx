@@ -156,17 +156,25 @@ const HomePageNew = () => {
     }, []);
 
     /* ── Video autoplay + loading-screen fallback ──
-         On iOS/mobile, the browser may not fire canplay until well into buffering,
-         or may block autoplay entirely.  We:
-           1. Call play() imperatively (required on some iOS builds)
-           2. Accept any network / autoplay error and dismiss the overlay anyway
-           3. Force-dismiss the overlay after 5 s no matter what                 */
+         On iOS/mobile autoplay may be blocked and canplay may never fire before
+         the user sees the page.  We dismiss the overlay on whichever event
+         arrives first: playing (video is rendering frames), loadeddata (first
+         frame decoded), canplay, or an error.  Hard timeout is 3 s.           */
     useEffect(() => {
         const vid = videoRef.current;
         if (!vid) return;
-        vid.play().catch(() => setVideoReady(true));
-        const timer = setTimeout(() => setVideoReady(true), 5000);
-        return () => clearTimeout(timer);
+        const done = () => setVideoReady(true);
+        vid.addEventListener('playing',    done, { once: true });
+        vid.addEventListener('loadeddata', done, { once: true });
+        vid.addEventListener('canplay',    done, { once: true });
+        vid.play().catch(done);
+        const timer = setTimeout(done, 3000);
+        return () => {
+            vid.removeEventListener('playing',    done);
+            vid.removeEventListener('loadeddata', done);
+            vid.removeEventListener('canplay',    done);
+            clearTimeout(timer);
+        };
     }, []);
 
     /* ── Paragraph reveal ── */
@@ -272,7 +280,6 @@ const HomePageNew = () => {
                     loop
                     muted
                     playsInline
-                    onCanPlay={() => setVideoReady(true)}
                     onError={() => setVideoReady(true)}
                     className="absolute inset-0 w-full h-full object-cover"
                 />
@@ -291,12 +298,16 @@ const HomePageNew = () => {
 
             {/* ═══════════════ STATS + CAROUSELS (one unified section) ══════════════ */}
 
-            {/* Clubs carousel — outside fade-section so opacity:0 never pauses the animation */}
-            <div className="bg-[#f0ead6] pt-16 pb-3 overflow-hidden">
+            {/* Outer wrapper keeps bg-[#f0ead6] always visible so no black shows
+                through while the stats fade-section is at opacity:0 */}
+            <div className="bg-[#f0ead6]">
+
+            {/* Clubs carousel — sibling of fade-section so it always renders */}
+            <div className="pt-16 pb-3 overflow-hidden">
               <LogoCarousel icons={CLUB_ICONS} folder="clubs" direction="right" duration="110s" />
             </div>
 
-            <div className="bg-[#f0ead6] fade-section">
+            <div className="fade-section">
 
             {/* Stats content */}
             <section className="py-10 md:py-14 px-6 md:px-12 lg:px-20">
@@ -362,10 +373,12 @@ const HomePageNew = () => {
 
             </div>{/* end fade-section stats content */}
 
-            {/* Colleges carousel — outside fade-section so opacity:0 never pauses the animation */}
-            <div className="bg-[#f0ead6] pt-3 pb-16 overflow-hidden">
+            {/* Colleges carousel — sibling of fade-section, inside the outer bg wrapper */}
+            <div className="pt-3 pb-16 overflow-hidden">
               <LogoCarousel icons={COLLEGE_ICONS} folder="colleges" direction="left" duration="60s" />
             </div>
+
+            </div>{/* end outer bg-[#f0ead6] wrapper */}
 
             {/* ═══════════════════════ WHO WE ARE ═══════════════════════ */}
             <section
