@@ -202,10 +202,13 @@ const PlayerProfile = () => {
         }
         setMonths(mo);
 
-        // For proxy children, signups/checkins can be keyed by the doc $id (admin-added)
-        // OR by onBehalfOfProxyId (billing-created). Query both and dedupe.
+        // For proxy children:
+        //   - signups/checkins may use doc.$id as userId (admin-added) OR
+        //     onBehalfOfProxyId == doc.$id (billing-created, userId = parent)
+        //   - bills use doc.proxyId (a separate field) as userId
         const uid = p.userId || p.$id;
-        const proxyId = isProxy ? id : undefined;
+        // proxyId FIELD on the doc — distinct from the doc $id, used as userId in bills
+        const proxyFieldId: string | undefined = isProxy ? (doc as any).proxyId : undefined;
 
         const fetchDocs = async (collId: string | undefined, field: string, value: string) => {
           if (!collId) return [];
@@ -217,15 +220,18 @@ const PlayerProfile = () => {
         const [
           signupsByUid, signupsByProxy,
           checkinsByUid, checkinsByProxy,
-          billsByUid, billsByProxy,
+          billsRes,
           relRes,
         ] = await Promise.all([
+          // signups/checkins: admin-added use userId==doc.$id; billing-created use onBehalfOfProxyId==doc.$id
           fetchDocs(collections.signups, 'userId', uid),
-          proxyId ? fetchDocs(collections.signups, 'onBehalfOfProxyId', proxyId) : Promise.resolve([]),
+          isProxy ? fetchDocs(collections.signups, 'onBehalfOfProxyId', id) : Promise.resolve([]),
           fetchDocs(collections.checkins, 'userId', uid),
-          proxyId ? fetchDocs(collections.checkins, 'onBehalfOfProxyId', proxyId) : Promise.resolve([]),
-          fetchDocs(collections.bills, 'userId', proxyId ?? uid),
-          proxyId ? fetchDocs(collections.bills, 'userId', uid) : Promise.resolve([]),
+          isProxy ? fetchDocs(collections.checkins, 'onBehalfOfProxyId', id) : Promise.resolve([]),
+          // bills: proxy children are stored with userId == doc.proxyId (the proxyId field)
+          proxyFieldId
+            ? fetchDocs(collections.bills, 'userId', proxyFieldId)
+            : fetchDocs(collections.bills, 'userId', uid),
           collections.familyRelationships
             ? databases.listDocuments(databaseId, collections.familyRelationships, [Query.limit(5000)]).catch(() => ({ documents: [] }))
             : { documents: [] },
@@ -239,7 +245,7 @@ const PlayerProfile = () => {
 
         const allSignups = dedupeById(signupsByUid, signupsByProxy);
         const allCheckins = dedupeById(checkinsByUid, checkinsByProxy);
-        const allBills = dedupeById(billsByUid, billsByProxy);
+        const allBills = billsRes;
 
         setCheckins(allCheckins);
         setBills(allBills);
