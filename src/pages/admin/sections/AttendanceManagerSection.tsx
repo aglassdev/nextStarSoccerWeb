@@ -346,11 +346,22 @@ function EventDetailView({
   };
 
   const handleRemoveCheckin = async (c: AttendeeDoc) => {
-    if (!confirm(`Remove ${c.firstName ?? ''} ${c.lastName ?? ''} from check-ins?`)) return;
+    if (!confirm(`Remove ${c.firstName ?? ''} ${c.lastName ?? ''} from check-ins and signups?`)) return;
     try {
-      if (collections.checkins) await databases.deleteDocument(databaseId, collections.checkins, c.$id);
-      onFeedback('Removed from check-ins.');
+      const deletes: Promise<any>[] = [];
+      if (collections.checkins) deletes.push(databases.deleteDocument(databaseId, collections.checkins, c.$id));
+      if (collections.signups && c.userId) {
+        const existing = await databases.listDocuments(databaseId, collections.signups, [
+          Query.equal('eventID', event.id), Query.equal('userId', c.userId), Query.limit(10),
+        ]);
+        for (const doc of existing.documents) {
+          deletes.push(databases.deleteDocument(databaseId, collections.signups, doc.$id));
+        }
+      }
+      await Promise.all(deletes);
+      onFeedback('Removed from check-ins and signups.');
       reloadCheckins();
+      reloadSignups();
     } catch (e: any) { onFeedback(e.message || 'Failed to remove', true); }
   };
 
