@@ -145,8 +145,12 @@ const PlayersSection = () => {
               ) : (
                 filtered.map(player => (
                   <tr key={player.$id}
-                    onClick={() => !player.isProxy && navigate(`/admin/players/${typeToPath[player.type]}/${player.$id}`)}
-                    className={`transition-colors ${player.isProxy ? 'cursor-default' : 'hover:bg-white/[0.03] cursor-pointer'}`}>
+                    onClick={() => navigate(
+                      player.isProxy
+                        ? `/admin/players/proxy/${player.$id}`
+                        : `/admin/players/${typeToPath[player.type]}/${player.$id}`
+                    )}
+                    className="transition-colors hover:bg-white/[0.03] cursor-pointer">
                     <td className="px-4 py-3 text-white text-sm">{player.firstName} {player.lastName}</td>
                     <td className="px-4 py-3 text-white/50 text-sm">
                       {player.dateOfBirth

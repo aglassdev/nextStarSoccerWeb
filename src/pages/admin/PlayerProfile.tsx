@@ -175,20 +175,25 @@ const PlayerProfile = () => {
     if (!id || !type) return;
     (async () => {
       try {
+        const isProxy = type.toLowerCase() === 'proxy';
         const collMap: Record<string, string | undefined> = {
           youth: collections.youthPlayers,
           collegiate: collections.collegiatePlayers,
           professional: collections.professionalPlayers,
+          proxy: collections.proxyChildren,
         };
         const collId = collMap[type.toLowerCase()];
         if (!collId) return;
 
         const doc = await databases.getDocument(databaseId, collId, id);
-        const p: PlayerRecord = { ...(doc as any), type: (type.charAt(0).toUpperCase() + type.slice(1)) as PlayerType };
+        const playerType: PlayerType = isProxy ? 'Youth' : (type.charAt(0).toUpperCase() + type.slice(1)) as PlayerType;
+        const p: PlayerRecord = { ...(doc as any), type: playerType, isProxy };
         setPlayer(p);
-        setTier(p.tier || 'Basic');
-        setBilling(p.billing || 'unapproved');
-        setScholarship(p.scholarship || 'none');
+        if (!isProxy) {
+          setTier(p.tier || 'Basic');
+          setBilling(p.billing || 'unapproved');
+          setScholarship(p.scholarship || 'none');
+        }
 
         const now = new Date();
         const mo: string[] = [];
@@ -197,27 +202,47 @@ const PlayerProfile = () => {
         }
         setMonths(mo);
 
+        // For proxy children, signups/checkins can be keyed by the doc $id (admin-added)
+        // OR by onBehalfOfProxyId (billing-created). Query both and dedupe.
         const uid = p.userId || p.$id;
+        const proxyId = isProxy ? id : undefined;
 
-        const [signupsRes, checkinsRes, billsRes, relRes] = await Promise.all([
-          collections.signups
-            ? databases.listDocuments(databaseId, collections.signups, [Query.equal('userId', uid), Query.limit(5000)]).catch(() => ({ documents: [] }))
-            : { documents: [] },
-          collections.checkins
-            ? databases.listDocuments(databaseId, collections.checkins, [Query.equal('userId', uid), Query.limit(5000)]).catch(() => ({ documents: [] }))
-            : { documents: [] },
-          collections.bills
-            ? databases.listDocuments(databaseId, collections.bills, [Query.equal('userId', uid), Query.limit(5000)]).catch(() => ({ documents: [] }))
-            : { documents: [] },
+        const fetchDocs = async (collId: string | undefined, field: string, value: string) => {
+          if (!collId) return [];
+          return databases.listDocuments(databaseId, collId, [Query.equal(field, value), Query.limit(5000)])
+            .then((r: any) => r.documents as any[])
+            .catch(() => [] as any[]);
+        };
+
+        const [
+          signupsByUid, signupsByProxy,
+          checkinsByUid, checkinsByProxy,
+          billsByUid, billsByProxy,
+          relRes,
+        ] = await Promise.all([
+          fetchDocs(collections.signups, 'userId', uid),
+          proxyId ? fetchDocs(collections.signups, 'onBehalfOfProxyId', proxyId) : Promise.resolve([]),
+          fetchDocs(collections.checkins, 'userId', uid),
+          proxyId ? fetchDocs(collections.checkins, 'onBehalfOfProxyId', proxyId) : Promise.resolve([]),
+          fetchDocs(collections.bills, 'userId', proxyId ?? uid),
+          proxyId ? fetchDocs(collections.bills, 'userId', uid) : Promise.resolve([]),
           collections.familyRelationships
             ? databases.listDocuments(databaseId, collections.familyRelationships, [Query.limit(5000)]).catch(() => ({ documents: [] }))
             : { documents: [] },
         ]);
 
-        const allSignups = (signupsRes as any).documents as any[];
-        const allCheckins = (checkinsRes as any).documents as any[];
+        // Dedupe by $id
+        const dedupeById = (a: any[], b: any[]) => {
+          const seen = new Set<string>();
+          return [...a, ...b].filter(d => { if (seen.has(d.$id)) return false; seen.add(d.$id); return true; });
+        };
+
+        const allSignups = dedupeById(signupsByUid, signupsByProxy);
+        const allCheckins = dedupeById(checkinsByUid, checkinsByProxy);
+        const allBills = dedupeById(billsByUid, billsByProxy);
+
         setCheckins(allCheckins);
-        setBills((billsRes as any).documents);
+        setBills(allBills);
 
         const checkedEventIds = new Set(allCheckins.map((c: any) => c.eventId || c.eventID || c.eventid));
         setSignups(allSignups.filter((s: any) => {
@@ -235,22 +260,30 @@ const PlayerProfile = () => {
         });
         setMonthCounts(counts);
 
-        const rels = (relRes as any).documents as any[];
-        // childProxyId is the actual field for proxy children; fall back to legacy names
-        const playerRels = rels.filter((r: any) =>
-          r.childProxyId === id || r.childUserId === id ||
-          r.childId === id || r.childId === uid || r.youthPlayerId === id
-        );
+        // For proxy children, pull the parent directly from the doc's parentUserId field
         const parents: FamilyMember[] = [];
-        await Promise.all(playerRels.map(async (rel: any) => {
-          const parentId = rel.parentId || rel.parentUserId;
-          if (!parentId || !collections.parentUsers) return;
+        if (isProxy && (doc as any).parentUserId && collections.parentUsers) {
           try {
-            const pd = await databases.getDocument(databaseId, collections.parentUsers, parentId);
+            const pd = await databases.getDocument(databaseId, collections.parentUsers, (doc as any).parentUserId);
             const name = `${(pd as any).firstName || ''} ${(pd as any).lastName || ''}`.trim() || (pd as any).email || 'Parent';
-            parents.push({ $id: parentId, name });
+            parents.push({ $id: (doc as any).parentUserId, name });
           } catch { /* ignore */ }
-        }));
+        } else {
+          const rels = (relRes as any).documents as any[];
+          const playerRels = rels.filter((r: any) =>
+            r.childProxyId === id || r.childUserId === id ||
+            r.childId === id || r.childId === uid || r.youthPlayerId === id
+          );
+          await Promise.all(playerRels.map(async (rel: any) => {
+            const parentId = rel.parentId || rel.parentUserId;
+            if (!parentId || !collections.parentUsers) return;
+            try {
+              const pd = await databases.getDocument(databaseId, collections.parentUsers, parentId);
+              const name = `${(pd as any).firstName || ''} ${(pd as any).lastName || ''}`.trim() || (pd as any).email || 'Parent';
+              parents.push({ $id: parentId, name });
+            } catch { /* ignore */ }
+          }));
+        }
         setFamily(parents);
 
       } catch (e) { console.error(e); }
@@ -386,6 +419,11 @@ const PlayerProfile = () => {
         <span className="text-[11px] text-white/40 border border-white/15 rounded px-2 py-0.5 uppercase tracking-wider font-semibold">
           {player.type}
         </span>
+        {player.isProxy && (
+          <span className="text-[11px] text-white/40 border border-white/15 rounded px-2 py-0.5 uppercase tracking-wider font-semibold">
+            Proxy
+          </span>
+        )}
         {saving && <span className="text-white/30 text-xs">saving…</span>}
       </div>
 
@@ -513,7 +551,8 @@ const PlayerProfile = () => {
         {/* Right column: Admin Controls + Family stacked */}
         <div className="flex flex-col gap-4">
 
-          {/* Admin Controls */}
+          {/* Admin Controls — not applicable for proxy players */}
+          {!player.isProxy && (
           <div className="bg-[#1d1c21] border border-white/[0.08] rounded-xl p-5">
             <p className="text-white/50 text-[11px] font-medium tracking-widest uppercase mb-4">Admin Controls</p>
             <div className="space-y-4">
@@ -541,6 +580,7 @@ const PlayerProfile = () => {
               />
             </div>
           </div>
+          )}
 
           {/* Family */}
           <div className="bg-[#1d1c21] border border-white/[0.08] rounded-xl p-5">
