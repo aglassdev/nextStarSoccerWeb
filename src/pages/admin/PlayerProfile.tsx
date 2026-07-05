@@ -202,49 +202,58 @@ const PlayerProfile = () => {
         }
         setMonths(mo);
 
-        // For proxy children:
-        //   - signups/checkins may use doc.$id as userId (admin-added) OR
-        //     onBehalfOfProxyId == doc.$id (billing-created, userId = parent)
-        //   - bills use doc.proxyId (a separate field) as userId
+        // Proxy children have two IDs:
+        //   doc.$id       — Appwrite document ID; admin-added signups/checkins use this as userId
+        //   doc.proxyId   — separate field; billing uses this as userId in bills and may use it
+        //                   in onBehalfOfProxyId too (exact value is unclear, so query both)
         const uid = p.userId || p.$id;
-        // proxyId FIELD on the doc — distinct from the doc $id, used as userId in bills
         const proxyFieldId: string | undefined = isProxy ? (doc as any).proxyId : undefined;
 
         const fetchDocs = async (collId: string | undefined, field: string, value: string) => {
-          if (!collId) return [];
+          if (!collId || !value) return [];
           return databases.listDocuments(databaseId, collId, [Query.equal(field, value), Query.limit(5000)])
             .then((r: any) => r.documents as any[])
             .catch(() => [] as any[]);
         };
 
+        // Dedupe by $id — used immediately after parallel fetches
+        const dedupeById = (...arrays: any[][]) => {
+          const seen = new Set<string>();
+          return arrays.flat().filter(d => { if (seen.has(d.$id)) return false; seen.add(d.$id); return true; });
+        };
+
         const [
-          signupsByUid, signupsByProxy,
-          checkinsByUid, checkinsByProxy,
+          signupsByDocId, signupsByProxyDocId, signupsByProxyFieldId, signupsByProxyFieldUserId,
+          checkinsByDocId, checkinsByProxyDocId, checkinsByProxyFieldId, checkinsByProxyFieldUserId,
           billsRes,
           relRes,
         ] = await Promise.all([
-          // signups/checkins: admin-added use userId==doc.$id; billing-created use onBehalfOfProxyId==doc.$id
+          // userId == doc.$id (admin-added via search bar)
           fetchDocs(collections.signups, 'userId', uid),
+          // onBehalfOfProxyId == doc.$id (billing-created, if billing stores $id there)
           isProxy ? fetchDocs(collections.signups, 'onBehalfOfProxyId', id) : Promise.resolve([]),
+          // onBehalfOfProxyId == doc.proxyId (billing-created, if billing stores proxyId there)
+          isProxy && proxyFieldId ? fetchDocs(collections.signups, 'onBehalfOfProxyId', proxyFieldId) : Promise.resolve([]),
+          // userId == doc.proxyId (in case some path used proxyId as userId in signups)
+          isProxy && proxyFieldId ? fetchDocs(collections.signups, 'userId', proxyFieldId) : Promise.resolve([]),
+
           fetchDocs(collections.checkins, 'userId', uid),
           isProxy ? fetchDocs(collections.checkins, 'onBehalfOfProxyId', id) : Promise.resolve([]),
-          // bills: proxy children are stored with userId == doc.proxyId (the proxyId field)
+          isProxy && proxyFieldId ? fetchDocs(collections.checkins, 'onBehalfOfProxyId', proxyFieldId) : Promise.resolve([]),
+          isProxy && proxyFieldId ? fetchDocs(collections.checkins, 'userId', proxyFieldId) : Promise.resolve([]),
+
+          // bills always use proxyId field as userId
           proxyFieldId
             ? fetchDocs(collections.bills, 'userId', proxyFieldId)
             : fetchDocs(collections.bills, 'userId', uid),
+
           collections.familyRelationships
             ? databases.listDocuments(databaseId, collections.familyRelationships, [Query.limit(5000)]).catch(() => ({ documents: [] }))
             : { documents: [] },
         ]);
 
-        // Dedupe by $id
-        const dedupeById = (a: any[], b: any[]) => {
-          const seen = new Set<string>();
-          return [...a, ...b].filter(d => { if (seen.has(d.$id)) return false; seen.add(d.$id); return true; });
-        };
-
-        const allSignups = dedupeById(signupsByUid, signupsByProxy);
-        const allCheckins = dedupeById(checkinsByUid, checkinsByProxy);
+        const allSignups = dedupeById(signupsByDocId, signupsByProxyDocId, signupsByProxyFieldId, signupsByProxyFieldUserId);
+        const allCheckins = dedupeById(checkinsByDocId, checkinsByProxyDocId, checkinsByProxyFieldId, checkinsByProxyFieldUserId);
         const allBills = billsRes;
 
         setCheckins(allCheckins);
