@@ -6,6 +6,7 @@ import {
   googleCalendarService,
   CalendarEvent,
   isEventCancelled,
+  getEventCoach,
 } from "../services/googleCalendar";
 
 const BUTTON_WIDTH = 140;
@@ -334,6 +335,7 @@ const CalendarPage = () => {
                   );
                   const isCancelled = isEventCancelled(event);
                   const eventColor = getEventColor(event.title);
+                  const coach = getEventCoach(event);
 
                   return (
                     <button
@@ -352,6 +354,9 @@ const CalendarPage = () => {
                             <p className="text-white/80 text-xs mt-0.5">{time}</p>
                             {event.location && (
                               <p className="text-white/70 text-xs mt-0.5">{getLocationName(event.location)}</p>
+                            )}
+                            {coach && (
+                              <p className="text-white/60 text-xs mt-0.5">🎽 {coach}</p>
                             )}
                           </div>
                         </div>
@@ -603,11 +608,18 @@ const CalendarPage = () => {
                   />
                   <div className="flex-1">
                     <h2 className="text-2xl font-bold text-white mb-2">{selectedEvent.title}</h2>
-                    {isEventCancelled(selectedEvent) && (
-                      <span className="inline-block bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full mb-2">
-                        CANCELLED
-                      </span>
-                    )}
+                    <div className="flex flex-wrap gap-2 mb-1">
+                      {isEventCancelled(selectedEvent) && (
+                        <span className="inline-block bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full">
+                          CANCELLED
+                        </span>
+                      )}
+                      {getEventCoach(selectedEvent) && (
+                        <span className="inline-block bg-white/10 text-white/90 text-xs font-medium px-3 py-1 rounded-full">
+                          Coach: {getEventCoach(selectedEvent)}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <button

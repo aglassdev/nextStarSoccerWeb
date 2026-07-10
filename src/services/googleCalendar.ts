@@ -10,6 +10,19 @@ export interface CalendarEvent {
   dateOnly?: boolean;
 }
 
+// Returns the coach name from the event description, or null if not found.
+// Matches lines like "Coach: Name", "coach - Name", "Coached by: Name", etc.
+export const getEventCoach = (event: CalendarEvent): string | null => {
+  if (!event.description) return null;
+  for (const line of event.description.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const m = trimmed.match(/^coach(?:ed\s+by)?[\s:\-]+(.+)/i);
+    if (m && m[1].trim()) return m[1].trim();
+  }
+  return null;
+};
+
 export const isEventCancelled = (event: CalendarEvent): boolean => {
   if (!event.description) return false;
 
