@@ -10,17 +10,29 @@ export interface CalendarEvent {
   dateOnly?: boolean;
 }
 
-// Returns the coach name from the event description, or null if not found.
-// Matches lines like "Coach: Name", "coach - Name", "Coached by: Name", etc.
+// Words that indicate cancellation — used to exclude those lines from coach detection.
+const CANCEL_WORDS = new Set([
+  "cancel", "cancelled", "canceled", "cancellation",
+  "event cancelled", "event canceled", "session cancelled", "session canceled",
+]);
+
+const isCancelLine = (line: string): boolean => {
+  const lower = line.toLowerCase();
+  if (CANCEL_WORDS.has(lower)) return true;
+  if (lower.startsWith("cancel")) return true;
+  return lower.split(/\s+/).some(w => w === "cancel" || w === "cancelled" || w === "canceled" || w === "cancellation");
+};
+
+// Returns the coach name from the event description, or null.
+// The description may just be a raw name ("John Smith") or a name alongside
+// a cancellation note. Strips any cancelled-variant lines and returns the rest.
 export const getEventCoach = (event: CalendarEvent): string | null => {
   if (!event.description) return null;
-  for (const line of event.description.split('\n')) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    const m = trimmed.match(/^coach(?:ed\s+by)?[\s:\-]+(.+)/i);
-    if (m && m[1].trim()) return m[1].trim();
-  }
-  return null;
+  const coachLines = event.description
+    .split('\n')
+    .map(l => l.trim())
+    .filter(l => l.length > 0 && !isCancelLine(l));
+  return coachLines.length > 0 ? coachLines[0] : null;
 };
 
 export const isEventCancelled = (event: CalendarEvent): boolean => {

@@ -169,6 +169,10 @@ const CalendarPage = () => {
     if (lowerTitle.includes("camp morning")) return "camp-morning";
     if (lowerTitle.includes("camp afternoon")) return "camp-afternoon";
 
+    // ── Next Star x Nike camps: morning → camp-morning, full day/afternoon → camp-afternoon
+    if (lowerTitle.includes("nike") && lowerTitle.includes("morning")) return "camp-morning";
+    if (lowerTitle.includes("nike") && (lowerTitle.includes("full day") || lowerTitle.includes("afternoon"))) return "camp-afternoon";
+
     // ── Generic camp (summer/spring/winter/fall + any unnamed camp)
     //    as long as it doesn't mention nike, youth, pro, or college ──────────
     if (
