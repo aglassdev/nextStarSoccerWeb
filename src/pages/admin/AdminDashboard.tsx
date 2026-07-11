@@ -304,29 +304,44 @@ const AdminDashboard = () => {
         setStats({ unreadMessages: (unread as any).total, outstandingBills: (outstanding as any).total, loading: false });
 
         const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1).toISOString();
-        const allPayments = collections.payments
-          ? await databases.listDocuments(databaseId, collections.payments, [Query.greaterThanEqual('$createdAt', sixMonthsAgo), Query.limit(5000)]).catch(() => ({ documents: [] }))
-          : { documents: [] };
+        // Revenue = one-time/prepaid payments (payments collection) + paid
+        // monthly bills (bills collection — these are NOT mirrored into payments,
+        // so they must be summed here or revenue is undercounted).
+        const [allPayments, allBillsRes] = await Promise.all([
+          collections.payments
+            ? databases.listDocuments(databaseId, collections.payments, [Query.greaterThanEqual('$createdAt', sixMonthsAgo), Query.limit(5000)]).catch(() => ({ documents: [] }))
+            : { documents: [] },
+          collections.bills
+            ? databases.listDocuments(databaseId, collections.bills, [Query.limit(5000)]).catch(() => ({ documents: [] }))
+            : { documents: [] },
+        ]);
 
         const monthly: Record<string, number> = {};
         for (let i = 5; i >= 0; i--) {
           const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
           monthly[`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`] = 0;
         }
+        const bucketKey = (raw: string) => {
+          const d = new Date(raw);
+          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        };
         (allPayments as any).documents.forEach((p: any) => {
-          const d = new Date(p.$createdAt);
-          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+          const key = bucketKey(p.$createdAt);
           if (key in monthly) monthly[key] += (p.price || 0);
+        });
+        (allBillsRes as any).documents.forEach((b: any) => {
+          if (b.status !== 'paid') return;
+          const key = bucketKey(b.paidAt || b.$updatedAt || b.$createdAt);
+          if (key in monthly) monthly[key] += (b.totalAmount || 0);
         });
         const currentKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
         setRevenueData(Object.entries(monthly).map(([k, v]) => ({
           label: MONTHS[parseInt(k.split('-')[1]) - 1], value: v, highlight: k === currentKey,
         })));
 
-        if (collections.bills) {
-          const allBills = await databases.listDocuments(databaseId, collections.bills, [Query.limit(5000)]).catch(() => ({ documents: [] }));
+        {
           const today = Date.now(); let paid = 0, pending = 0, overdue = 0;
-          (allBills as any).documents.forEach((b: any) => {
+          (allBillsRes as any).documents.forEach((b: any) => {
             if (b.status === 'paid' || b.status === 'cancelled') { if (b.status === 'paid') paid++; return; }
             const dueMs = b.dueDate ? Date.parse(b.dueDate) : NaN;
             if (!isNaN(dueMs) && dueMs < today) overdue++; else pending++;
