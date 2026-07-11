@@ -161,9 +161,9 @@ const PaymentPortalPage = () => {
       setLoading(true);
       setError('');
       try {
-        // Resolve the user's real name from their profile (firstName/lastName)
+        // Greeting uses the user's first name only (from their profile)
         const ctx = await resolveUserStripeContext(user.$id);
-        const name = [ctx.profile?.firstName, ctx.profile?.lastName].filter(Boolean).join(' ').trim();
+        const name = (ctx.profile?.firstName || '').trim();
         if (name) setDisplayName(name);
 
         const result = await getUserBills(user.$id);
