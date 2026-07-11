@@ -82,9 +82,10 @@ const CheckoutForm = ({
   const [stripeCustomerId, setStripeCustomerId] = useState<string | null>(null);
   const [userType, setUserType] = useState<string | null>(null);
 
-  // Selection: a saved method id, 'card' (new card), or 'ach' (direct debit)
-  const [selection, setSelection] = useState<string>('card');
-  const [selectedBrand, setSelectedBrand] = useState<string>('visa');
+  // Selection: '' (nothing chosen yet), a saved method id, 'card' (new card),
+  // or 'ach' (direct debit). Card entry only appears once a card icon is picked.
+  const [selection, setSelection] = useState<string>('');
+  const [selectedBrand, setSelectedBrand] = useState<string>('');
 
   const [cardComplete, setCardComplete] = useState(false);
   const [cardError, setCardError] = useState('');
@@ -114,7 +115,8 @@ const CheckoutForm = ({
 
   const isCardMode = selection === 'card';
   const isAchMode = selection === 'ach';
-  const isSavedMode = !isCardMode && !isAchMode;
+  const isSavedMode = !!selection && !isCardMode && !isAchMode;
+  const noneSelected = selection === '';
 
   const createIntent = async () => {
     if (!user) throw new Error('Not signed in.');
@@ -218,7 +220,7 @@ const CheckoutForm = ({
   };
 
   const canPay =
-    !!stripe && !processing && total > 0 && (isCardMode ? cardComplete : true);
+    !!stripe && !processing && total > 0 && !noneSelected && (isCardMode ? cardComplete : true);
 
   const payLabel = isAchMode ? `Pay ${formatMoney(total)} by bank` : `Pay ${formatMoney(total)}`;
 
@@ -296,7 +298,7 @@ const CheckoutForm = ({
             decorative; Bank Transfer is the ACH choice. */}
         <div className="space-y-4">
           {[METHOD_TILES.slice(0, 4), METHOD_TILES.slice(4)].map((row, ri) => (
-            <div key={ri} className="flex items-center gap-x-6">
+            <div key={ri} className="flex items-center justify-center gap-x-9">
               {row.map((tile) => {
                 const active =
                   tile.kind === 'ach' ? isAchMode : isCardMode && selectedBrand === tile.key;
@@ -308,7 +310,7 @@ const CheckoutForm = ({
                         ? setSelection('ach')
                         : (setSelection('card'), setSelectedBrand(tile.key))
                     }
-                    className={`flex items-center gap-2 transition-opacity ${active ? 'opacity-100' : 'opacity-40 hover:opacity-100'}`}
+                    className={`flex items-center gap-2 transition-opacity ${noneSelected || active ? 'opacity-100' : 'opacity-40 hover:opacity-100'}`}
                     title={tile.kind === 'ach' ? 'Bank Transfer' : tile.key}
                   >
                     {tile.kind === 'ach' ? (
