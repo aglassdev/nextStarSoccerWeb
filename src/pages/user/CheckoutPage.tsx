@@ -25,10 +25,25 @@ import {
 
 const PROCESSING_FEE_RATE = 0.03; // 3% processing fee (matches mobile app)
 
-// Card brand icons — decorative selector. Picking a brand just means "pay by
-// card"; the real brand is detected from the card entry. The functional choice
-// this array enables is Direct Debit (ACH).
-const CARD_BRANDS = ['visa', 'mastercard', 'amex', 'discover', 'jcb', 'dinersclub', 'unionpay'] as const;
+// Payment-method tiles, laid out as 2 rows of 4. Card-brand tiles are a
+// decorative selector (picking any = "pay by card"; the real brand is detected
+// from the card entry). The "bank" tile is the functional Direct Debit (ACH)
+// choice. Order: top row Amex/Discover/Visa/Mastercard, bottom row Bank
+// Transfer/JCB/Diners Club/UnionPay.
+type MethodTile =
+  | { key: string; kind: 'card' }
+  | { key: 'bank'; kind: 'ach' };
+
+const METHOD_TILES: MethodTile[] = [
+  { key: 'amex', kind: 'card' },
+  { key: 'discover', kind: 'card' },
+  { key: 'visa', kind: 'card' },
+  { key: 'mastercard', kind: 'card' },
+  { key: 'bank', kind: 'ach' },
+  { key: 'jcb', kind: 'card' },
+  { key: 'dinersclub', kind: 'card' },
+  { key: 'unionpay', kind: 'card' },
+];
 
 interface LoadedBill extends Bill {
   items: BillItem[];
@@ -207,7 +222,7 @@ const CheckoutForm = ({
   const payLabel = isAchMode ? `Pay USD ${formatMoney(total)} by bank` : `Pay USD ${formatMoney(total)}`;
 
   const brandChip = (active: boolean) =>
-    `flex items-center justify-center rounded-lg border p-2 h-11 transition-colors ${
+    `flex items-center justify-center rounded-lg border p-2 h-14 transition-colors ${
       active ? 'border-black bg-black/5' : 'border-black/15 hover:border-black/40 bg-white'
     }`;
 
@@ -275,39 +290,41 @@ const CheckoutForm = ({
           </button>
         ))}
 
-        {/* Card brand icon array (choosing any = pay by card) */}
-        <div>
-          <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
-            {CARD_BRANDS.map((brand) => (
+        {/* Payment-method tiles — 2 rows of 4, uniform icon height */}
+        <div className="grid grid-cols-4 gap-2">
+          {METHOD_TILES.map((tile) => {
+            const active =
+              tile.kind === 'ach' ? isAchMode : isCardMode && selectedBrand === tile.key;
+            return (
               <button
-                key={brand}
-                onClick={() => { setSelection('card'); setSelectedBrand(brand); }}
-                className={brandChip(isCardMode && selectedBrand === brand)}
-                title={brand}
+                key={tile.key}
+                onClick={() =>
+                  tile.kind === 'ach'
+                    ? setSelection('ach')
+                    : (setSelection('card'), setSelectedBrand(tile.key))
+                }
+                className={brandChip(active)}
+                title={tile.kind === 'ach' ? 'Bank Transfer' : tile.key}
               >
-                <img
-                  src={`/assets/icons/payment/${brand}.png`}
-                  alt={brand}
-                  className="max-h-5 max-w-full object-contain"
-                />
+                {tile.kind === 'ach' ? (
+                  <span className="flex flex-col items-center gap-1">
+                    <svg className="h-6 w-auto text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                        d="M3 21h18M4 10h16M5 10V7l7-4 7 4v3M6 10v8m4-8v8m4-8v8m4-8v8" />
+                    </svg>
+                    <span className="text-gray-900 text-[10px] font-medium leading-none">Bank Transfer</span>
+                  </span>
+                ) : (
+                  <img
+                    src={`/assets/icons/payment/${tile.key}.png`}
+                    alt={tile.key}
+                    className="h-6 w-auto object-contain"
+                  />
+                )}
               </button>
-            ))}
-          </div>
+            );
+          })}
         </div>
-
-        {/* Direct debit */}
-        <button
-          onClick={() => setSelection('ach')}
-          className={`w-full flex items-center gap-3 rounded-xl border px-4 py-3 transition-colors ${
-            isAchMode ? 'border-black bg-black/5' : 'border-black/15 hover:border-black/40'
-          }`}
-        >
-          <svg className="w-5 h-5 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-              d="M3 21h18M4 10h16M5 10V7l7-4 7 4v3M6 10v8m4-8v8m4-8v8m4-8v8" />
-          </svg>
-          <span className="text-gray-900 text-sm font-medium">Direct Debit (US Bank Account)</span>
-        </button>
 
         {/* Card entry */}
         {isCardMode && (

@@ -84,27 +84,22 @@ const BillModal = ({
               ) : items.length === 0 ? (
                 <p className="text-gray-600 text-sm text-center py-4">No session items found</p>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {items.map((item) => (
-                    <div
-                      key={item.$id}
-                      className="bg-[#0d0d0d] border border-white/10 rounded-xl px-4 py-3 flex items-start justify-between gap-3"
-                    >
+                    <div key={item.$id} className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="text-white text-sm font-medium truncate">{item.eventTitle || '—'}</p>
+                        <p className="text-white text-sm truncate">{item.eventTitle || '—'}</p>
                         {item.eventDate && <p className="text-gray-600 text-xs mt-0.5">{item.eventDate}</p>}
                       </div>
-                      <span className="text-white text-sm font-medium flex-shrink-0">
-                        {formatMoney(item.price)}
-                      </span>
+                      <span className="text-white text-sm flex-shrink-0">{formatMoney(item.price)}</span>
                     </div>
                   ))}
                 </div>
               )}
             </div>
 
-            {/* Totals */}
-            <div className="bg-[#0d0d0d] border border-white/10 rounded-xl p-4 space-y-2">
+            {/* Totals — plain rows, single white line above the total */}
+            <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-400">Subtotal</span>
                 <span className="text-white">{formatMoney(bill.totalAmount)}</span>
@@ -115,7 +110,7 @@ const BillModal = ({
                   <span className="text-red-400">{formatMoney(lateFee)}</span>
                 </div>
               )}
-              <div className="flex justify-between text-base font-semibold pt-2 border-t border-white/10">
+              <div className="flex justify-between text-base font-semibold pt-3 mt-1 border-t border-white/60">
                 <span className="text-white">Total</span>
                 <span className="text-white">USD {formatMoney(bill.totalAmount + lateFee)}</span>
               </div>
