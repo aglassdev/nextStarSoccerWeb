@@ -10,6 +10,8 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
   },
   "dependencies": {
+    "@stripe/react-stripe-js": "^6.7.0",
+    "@stripe/stripe-js": "^9.9.0",
     "@types/react-google-recaptcha": "^2.1.9",
     "@types/topojson-client": "^3.1.5",
     "@vercel/analytics": "^2.0.1",

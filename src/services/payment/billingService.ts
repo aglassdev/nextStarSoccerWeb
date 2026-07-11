@@ -1,0 +1,170 @@
+import { Query } from 'appwrite';
+import { databases, databaseId, collections } from '../appwrite';
+
+// ── Types (mirror the mobile app's billing model) ──────────────────────────────
+export interface Bill {
+  $id: string;
+  userId: string; // the player the bill is for (never the parent)
+  month?: string;
+  year?: number;
+  monthName?: string;
+  itemCount?: number;
+  totalAmount: number;
+  // "processing" = an async bank transfer (ACH) submitted but not yet settled
+  status: 'pending' | 'paid' | 'processing' | 'cancelled' | string;
+  dueDate: string;
+  paidAt?: string;
+  paymentMethod?: string;
+  coupon?: boolean;
+  couponValue?: number;
+  visibility?: boolean;
+  $createdAt?: string;
+  $updatedAt?: string;
+}
+
+export interface BillItem {
+  $id: string;
+  billId: string;
+  eventId?: string;
+  eventTitle: string;
+  eventDate?: string;
+  price: number;
+  priceId?: string;
+  calendarSource?: 'public' | 'private';
+}
+
+// ── Date helpers (America/New_York) ────────────────────────────────────────────
+const nowMs = () => Date.now();
+
+export const formatBillDate = (dateString?: string): string => {
+  if (!dateString) return '—';
+  const d = new Date(dateString);
+  if (isNaN(d.getTime())) return dateString;
+  return new Intl.DateTimeFormat('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    timeZone: 'America/New_York',
+  }).format(d);
+};
+
+export const formatAmount = (amount: number): string => `$${Number(amount || 0).toFixed(2)}`;
+
+// A bill is overdue if it's still pending (not paid/processing) and past its due date.
+export const isBillOverdue = (bill: Bill): boolean => {
+  if (bill.status === 'paid' || bill.status === 'processing' || bill.status === 'cancelled') return false;
+  const due = Date.parse(bill.dueDate);
+  return !isNaN(due) && nowMs() > due;
+};
+
+// 10% late fee on overdue bills.
+export const calculateLateFee = (bill: Bill): number => {
+  if (!isBillOverdue(bill)) return 0;
+  return bill.totalAmount * 0.1;
+};
+
+// ── Fetch all bills a user can access ───────────────────────────────────────────
+// Ports billingService.getUserBills: direct ownership + billAccess membership +
+// bills owned by any of the parent's children.
+export async function getUserBills(userId: string): Promise<Bill[]> {
+  const billMap = new Map<string, Bill>();
+
+  // 1) Bills directly owned by this user
+  try {
+    const direct = await databases.listDocuments(databaseId, collections.bills, [
+      Query.equal('userId', userId),
+      Query.limit(100),
+    ]);
+    for (const doc of direct.documents as any[]) billMap.set(doc.$id, doc as Bill);
+  } catch (e) {
+    console.error('getUserBills direct lookup failed:', e);
+  }
+
+  // 2) Bills accessible via the billAccess collection (parent viewing child's bill)
+  try {
+    const access = await databases.listDocuments(databaseId, collections.billAccess, [
+      Query.contains('userIds', userId),
+      Query.limit(100),
+    ]);
+    for (const rec of access.documents as any[]) {
+      if (!billMap.has(rec.billId)) {
+        try {
+          const bill = (await databases.getDocument(databaseId, collections.bills, rec.billId)) as any;
+          billMap.set(bill.$id, bill as Bill);
+        } catch { /* bill may have been deleted */ }
+      }
+    }
+  } catch { /* billAccess optional */ }
+
+  // 3) Bills owned by each of the user's children (family relationships)
+  try {
+    const childIds = new Set<string>();
+    const rels = await databases.listDocuments(databaseId, collections.familyRelationships001, [
+      Query.equal('parentUserId', userId),
+      Query.limit(200),
+    ]);
+    for (const rel of rels.documents as any[]) {
+      if (rel.childUserId) childIds.add(rel.childUserId);
+      if (rel.childProxyId) childIds.add(rel.childProxyId);
+    }
+    for (const childId of childIds) {
+      try {
+        const childBills = await databases.listDocuments(databaseId, collections.bills, [
+          Query.equal('userId', childId),
+          Query.limit(100),
+        ]);
+        for (const doc of childBills.documents as any[]) {
+          if (!billMap.has(doc.$id)) billMap.set(doc.$id, doc as Bill);
+        }
+      } catch { /* skip child */ }
+    }
+  } catch { /* relationships optional */ }
+
+  // Hidden bills (visibility === false) must never be shown or paid.
+  return Array.from(billMap.values()).filter((b) => (b as any).visibility !== false);
+}
+
+// ── Fetch the line items for a bill ─────────────────────────────────────────────
+export async function getBillItems(billId: string): Promise<BillItem[]> {
+  try {
+    const res = await databases.listDocuments(databaseId, collections.billItems, [
+      Query.equal('billId', billId),
+      Query.orderAsc('eventDate'),
+      Query.limit(200),
+    ]);
+    return res.documents as unknown as BillItem[];
+  } catch (e) {
+    console.error(`getBillItems failed for ${billId}:`, e);
+    return [];
+  }
+}
+
+export async function getBill(billId: string): Promise<Bill> {
+  const doc = await databases.getDocument(databaseId, collections.bills, billId);
+  return doc as unknown as Bill;
+}
+
+// ── Mark a bill as paid (applies late fee if overdue) ──────────────────────────
+export async function markBillAsPaid(billId: string, paymentMethod: string): Promise<Bill> {
+  const paidAt = new Date().toISOString();
+  const bill = await getBill(billId);
+  const lateFee = calculateLateFee(bill);
+  const finalAmount = bill.totalAmount + lateFee;
+
+  const updated = await databases.updateDocument(databaseId, collections.bills, billId, {
+    status: 'paid',
+    paidAt,
+    paymentMethod,
+    ...(lateFee > 0 ? { totalAmount: finalAmount } : {}),
+  });
+  return updated as unknown as Bill;
+}
+
+// ── Mark a bill as processing (ACH submitted, awaiting settlement) ─────────────
+export async function markBillProcessing(billId: string, paymentMethod: string): Promise<Bill> {
+  const updated = await databases.updateDocument(databaseId, collections.bills, billId, {
+    status: 'processing',
+    paymentMethod,
+  });
+  return updated as unknown as Bill;
+}

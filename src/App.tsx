@@ -33,6 +33,9 @@ import AdminLoginPage from './pages/admin/AdminLoginPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import PlayerProfile from './pages/admin/PlayerProfile';
 import ParentProfile from './pages/admin/ParentProfile';
+import UserLoginPage from './pages/user/UserLoginPage';
+import PaymentPortalPage from './pages/user/PaymentPortalPage';
+import CheckoutPage from './pages/user/CheckoutPage';
 import AppDownloadPopup from './components/common/AppDownloadPopup';
 
 // Scroll to top on every route change
@@ -55,7 +58,22 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   return <>{children}</>;
-};
+}
+
+// Protected route for the user Payment Portal — redirects to /user login
+const UserProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const { user, initialized } = useAuth();
+
+  if (!initialized) {
+    return <LoadingScreen message="Loading..." />;
+  }
+
+  if (!user) {
+    return <Navigate to="/user" replace />;
+  }
+
+  return <>{children}</>;
+};;
 
 function AppRoutes() {
   return (
@@ -99,6 +117,25 @@ function AppRoutes() {
         <Route path="billing" element={<BillingPage />} />
         <Route path="profile" element={<ProfilePage />} />
       </Route>
+
+      {/* User Payment Portal routes */}
+      <Route path="/user" element={<UserLoginPage />} />
+      <Route
+        path="/user/payments"
+        element={
+          <UserProtectedRoute>
+            <PaymentPortalPage />
+          </UserProtectedRoute>
+        }
+      />
+      <Route
+        path="/user/payments/checkout"
+        element={
+          <UserProtectedRoute>
+            <CheckoutPage />
+          </UserProtectedRoute>
+        }
+      />
 
       {/* Admin routes */}
       <Route path="/admin" element={<AdminLoginPage />} />

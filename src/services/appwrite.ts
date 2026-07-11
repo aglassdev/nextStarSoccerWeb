@@ -72,7 +72,24 @@ export const collections = {
   coachApplications: 'coach_applications',
   sessionReviews: import.meta.env.VITE_APPWRITE_SESSION_REVIEWS_COLLECTION_ID || 'session_reviews',
   sessionNotes: 'session_notes',
+  billAccess: import.meta.env.VITE_APPWRITE_BILL_ACCESS_COLLECTION_ID || 'billAccess',
+  couponUsage: import.meta.env.VITE_APPWRITE_COUPON_USAGE_COLLECTION_ID || 'coupon_usage',
+  familyRelationships001: import.meta.env.VITE_APPWRITE_FAMILY_RELATIONSHIPS_COLLECTION_ID || 'family_relationships_001',
 };
+
+// Appwrite Function IDs for Stripe/payment processing (shared with the mobile app)
+export const paymentFunctions = {
+  createPaymentIntent: import.meta.env.VITE_APPWRITE_PAYMENT_FUNCTION_ID || '',
+  createCustomer: import.meta.env.VITE_APPWRITE_CUSTOMER_FUNCTION_ID || '',
+  attachPaymentMethod: import.meta.env.VITE_APPWRITE_ATTACH_PAYMENT_FUNCTION_ID || '',
+  detachPaymentMethod: import.meta.env.VITE_APPWRITE_DETACH_PAYMENT_METHOD_FUNCTION_ID || '',
+  listPaymentMethods: import.meta.env.VITE_APPWRITE_LIST_PAYMENT_METHODS_FUNCTION_ID || '',
+  getStripePrice: import.meta.env.VITE_APPWRITE_GET_STRIPE_PRICE_FUNCTION_ID || '',
+  sendReceipt: import.meta.env.VITE_APPWRITE_SEND_RECEIPT_FUNCTION_ID || '',
+};
+
+// Stripe publishable key (safe for the client)
+export const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '';
 
 // Storage bucket IDs
 export const buckets = {
