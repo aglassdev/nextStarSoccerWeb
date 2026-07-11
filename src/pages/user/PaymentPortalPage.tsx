@@ -9,10 +9,12 @@ import {
   getBillOwnerFirstNames,
   formatMoney,
   formatBillDate,
+  formatSessionDate,
   billTitle,
   isBillOverdue,
   calculateLateFee,
 } from '../../services/payment/billingService';
+import { resolveUserStripeContext } from '../../services/payment/paymentApi';
 
 // ── Bill detail modal ──────────────────────────────────────────────────────────
 const BillModal = ({
@@ -89,7 +91,9 @@ const BillModal = ({
                     <div key={item.$id} className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="text-white text-sm truncate">{item.eventTitle || '—'}</p>
-                        {item.eventDate && <p className="text-gray-600 text-xs mt-0.5">{item.eventDate}</p>}
+                        {item.eventDate && (
+                          <p className="text-gray-600 text-xs mt-0.5">{formatSessionDate(item.eventDate)}</p>
+                        )}
                       </div>
                       <span className="text-white text-sm flex-shrink-0">{formatMoney(item.price)}</span>
                     </div>
@@ -112,7 +116,7 @@ const BillModal = ({
               )}
               <div className="flex justify-between text-base font-semibold pt-3 mt-1 border-t border-white/60">
                 <span className="text-white">Total</span>
-                <span className="text-white">USD {formatMoney(bill.totalAmount + lateFee)}</span>
+                <span className="text-white">{formatMoney(bill.totalAmount + lateFee)}</span>
               </div>
             </div>
           </div>
@@ -130,7 +134,7 @@ const BillModal = ({
                 onClick={() => onPay(bill)}
                 className="px-6 py-2 text-sm bg-white hover:bg-gray-200 text-black font-semibold rounded-lg transition-colors"
               >
-                Pay USD {formatMoney(bill.totalAmount + lateFee)}
+                Pay {formatMoney(bill.totalAmount + lateFee)}
               </button>
             )}
           </div>
@@ -146,6 +150,7 @@ const PaymentPortalPage = () => {
   const navigate = useNavigate();
   const [bills, setBills] = useState<Bill[]>([]);
   const [childNames, setChildNames] = useState<Record<string, string>>({});
+  const [displayName, setDisplayName] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
@@ -156,6 +161,11 @@ const PaymentPortalPage = () => {
       setLoading(true);
       setError('');
       try {
+        // Resolve the user's real name from their profile (firstName/lastName)
+        const ctx = await resolveUserStripeContext(user.$id);
+        const name = [ctx.profile?.firstName, ctx.profile?.lastName].filter(Boolean).join(' ').trim();
+        if (name) setDisplayName(name);
+
         const result = await getUserBills(user.$id);
         result.sort((a, b) => Date.parse(b.$createdAt || '') - Date.parse(a.$createdAt || ''));
         setBills(result);
@@ -187,7 +197,7 @@ const PaymentPortalPage = () => {
   // Greeting matches the admin dashboard: time-of-day + full name.
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-  const fullName = user?.name?.trim() || user?.email?.split('@')[0] || '';
+  const fullName = displayName;
 
   const payBills = (billIds: string[]) => {
     navigate('/user/payments/checkout', { state: { billIds } });
@@ -239,7 +249,7 @@ const PaymentPortalPage = () => {
               <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
                 <div>
                   <p className="text-gray-400 text-sm uppercase tracking-wider mb-1">Total Outstanding</p>
-                  <p className="text-4xl md:text-5xl font-bold text-white">USD {formatMoney(outstandingTotal)}</p>
+                  <p className="text-4xl md:text-5xl font-bold text-white">{formatMoney(outstandingTotal)}</p>
                 </div>
                 {pendingUnpaid.length > 1 && (
                   <button

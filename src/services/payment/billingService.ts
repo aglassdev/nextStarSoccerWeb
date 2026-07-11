@@ -50,6 +50,22 @@ export const formatBillDate = (dateString?: string): string => {
 
 export const formatAmount = (amount: number): string => `$${Number(amount || 0).toFixed(2)}`;
 
+// Format a bill item's eventDate for display. Handles both date-only
+// ("2026-04-03") and full ISO ("2026-04-03T10:00:00-04:00") strings, using the
+// date portion directly to avoid timezone day-shifts.
+export const formatSessionDate = (raw?: string): string => {
+  if (!raw) return '';
+  const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) {
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+  const d = new Date(raw);
+  return isNaN(d.getTime())
+    ? raw
+    : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+};
+
 // Money with no currency symbol (no "$" anywhere in the portal UI).
 export const formatMoney = (amount: number): string => Number(amount || 0).toFixed(2);
 

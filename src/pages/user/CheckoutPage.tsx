@@ -219,12 +219,7 @@ const CheckoutForm = ({
   const canPay =
     !!stripe && !processing && total > 0 && (isCardMode ? cardComplete : true);
 
-  const payLabel = isAchMode ? `Pay USD ${formatMoney(total)} by bank` : `Pay USD ${formatMoney(total)}`;
-
-  const brandChip = (active: boolean) =>
-    `flex items-center justify-center rounded-lg border p-2 h-14 transition-colors ${
-      active ? 'border-black bg-black/5' : 'border-black/15 hover:border-black/40 bg-white'
-    }`;
+  const payLabel = isAchMode ? `Pay ${formatMoney(total)} by bank` : `Pay ${formatMoney(total)}`;
 
   return (
     <div className="space-y-6">
@@ -265,7 +260,7 @@ const CheckoutForm = ({
           </div>
           <div className="flex justify-between text-lg font-bold pt-2 border-t border-black/10">
             <span className="text-gray-900">Total</span>
-            <span className="text-gray-900">USD {formatMoney(total)}</span>
+            <span className="text-gray-900">{formatMoney(total)}</span>
           </div>
         </div>
       </div>
@@ -290,8 +285,9 @@ const CheckoutForm = ({
           </button>
         ))}
 
-        {/* Payment-method tiles — 2 rows of 4, uniform icon height */}
-        <div className="grid grid-cols-4 gap-2">
+        {/* Payment-method icons — plain borderless array, equal spacing.
+            Card brands are decorative; Bank Transfer is the ACH choice. */}
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-4">
           {METHOD_TILES.map((tile) => {
             const active =
               tile.kind === 'ach' ? isAchMode : isCardMode && selectedBrand === tile.key;
@@ -303,17 +299,17 @@ const CheckoutForm = ({
                     ? setSelection('ach')
                     : (setSelection('card'), setSelectedBrand(tile.key))
                 }
-                className={brandChip(active)}
+                className={`flex items-center gap-2 transition-opacity ${active ? 'opacity-100' : 'opacity-40 hover:opacity-100'}`}
                 title={tile.kind === 'ach' ? 'Bank Transfer' : tile.key}
               >
                 {tile.kind === 'ach' ? (
-                  <span className="flex flex-col items-center gap-1">
+                  <>
                     <svg className="h-6 w-auto text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
                         d="M3 21h18M4 10h16M5 10V7l7-4 7 4v3M6 10v8m4-8v8m4-8v8m4-8v8" />
                     </svg>
-                    <span className="text-gray-900 text-[10px] font-medium leading-none">Bank Transfer</span>
-                  </span>
+                    <span className="text-gray-900 text-sm font-medium whitespace-nowrap">Bank Transfer</span>
+                  </>
                 ) : (
                   <img
                     src={`/assets/icons/payment/${tile.key}.png`}
