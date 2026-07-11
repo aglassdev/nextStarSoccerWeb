@@ -133,7 +133,7 @@ const CheckoutForm = ({
       existingStripeCustomerId: stripeCustomerId || undefined,
       userInfo: { userId: user.$id, email: user.email, name: user.name, userType: userType || undefined },
     });
-    const clientSecret = res.paymentIntent.client_secret;
+    const clientSecret = res.clientSecret;
     if (!clientSecret) throw new Error('Could not initialize payment.');
     return clientSecret;
   };

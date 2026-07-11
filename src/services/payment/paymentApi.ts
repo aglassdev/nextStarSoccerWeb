@@ -3,19 +3,11 @@ import { functions, databases, databaseId, collections, paymentFunctions } from 
 import { Query } from 'appwrite';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-export interface StripePaymentIntent {
-  id: string;
-  client_secret: string;
-  amount: number;
-  currency: string;
-  status: string;
-}
-
 export interface CreatePaymentIntentResult {
-  paymentIntent: StripePaymentIntent;
+  // The Stripe PaymentIntent client secret (used to confirm the payment client-side)
+  clientSecret: string;
+  customerId?: string;
   ephemeralKey?: string;
-  customer?: any;
-  metadata?: Record<string, string>;
 }
 
 export interface SavedPaymentMethod {
@@ -57,7 +49,9 @@ async function callFunction<T = any>(functionId: string, payload: Record<string,
   }
 
   const response = JSON.parse(execution.responseBody);
-  if (response.success === false) {
+  // These functions return errors as { error, details } with HTTP 200 and no
+  // `success` field, so check for an `error` too (not just success === false).
+  if (response.success === false || response.error) {
     throw new Error(response.error || 'Payment function reported failure');
   }
   return response as T;
@@ -82,11 +76,15 @@ export async function createPaymentIntent(params: {
     userInfo: params.userInfo,
   });
 
+  // The Appwrite function returns the client secret as a STRING in
+  // `paymentIntent`. Be defensive in case a future version returns an object.
+  const pi = response.paymentIntent;
+  const clientSecret = typeof pi === 'string' ? pi : pi?.client_secret;
+
   return {
-    paymentIntent: response.paymentIntent,
+    clientSecret,
+    customerId: typeof response.customer === 'string' ? response.customer : response.customer?.id,
     ephemeralKey: response.ephemeralKey,
-    customer: response.customer,
-    metadata: response.metadata,
   };
 }
 
