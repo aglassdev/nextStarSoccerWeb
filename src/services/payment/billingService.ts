@@ -50,6 +50,16 @@ export const formatBillDate = (dateString?: string): string => {
 
 export const formatAmount = (amount: number): string => `$${Number(amount || 0).toFixed(2)}`;
 
+// Money with no currency symbol (no "$" anywhere in the portal UI).
+export const formatMoney = (amount: number): string => Number(amount || 0).toFixed(2);
+
+// Build a title like "April 2026 Monthly Bill", or "Ava's April 2026 Monthly Bill"
+// when the bill belongs to a child (childFirstName provided).
+export const billTitle = (monthName: string | undefined, childFirstName?: string | null): string => {
+  const base = `${monthName || 'Monthly'} Monthly Bill`;
+  return childFirstName ? `${childFirstName}'s ${base}` : base;
+};
+
 // A bill is overdue if it's still pending (not paid/processing) and past its due date.
 export const isBillOverdue = (bill: Bill): boolean => {
   if (bill.status === 'paid' || bill.status === 'processing' || bill.status === 'cancelled') return false;
@@ -122,6 +132,70 @@ export async function getUserBills(userId: string): Promise<Bill[]> {
 
   // Hidden bills (visibility === false) must never be shown or paid.
   return Array.from(billMap.values()).filter((b) => (b as any).visibility !== false);
+}
+
+// ── Resolve first names for bills owned by someone other than the viewer ───────
+// Used so a parent sees "Ava's April 2026 Monthly Bill". Returns a map of
+// billId → child first name (only for bills whose userId !== currentUserId).
+export async function getBillOwnerFirstNames(
+  bills: Bill[],
+  currentUserId: string,
+): Promise<Record<string, string>> {
+  const result: Record<string, string> = {};
+  const idToBills = new Map<string, string[]>();
+  for (const b of bills) {
+    if (!b.userId || b.userId === currentUserId) continue;
+    if (!idToBills.has(b.userId)) idToBills.set(b.userId, []);
+    idToBills.get(b.userId)!.push(b.$id);
+  }
+  if (idToBills.size === 0) return result;
+
+  const playerCollections = [
+    collections.youthPlayers,
+    collections.collegiatePlayers,
+    collections.professionalPlayers,
+    collections.parentUsers,
+  ].filter(Boolean) as string[];
+
+  for (const ownerId of idToBills.keys()) {
+    let firstName: string | null = null;
+
+    for (const colId of playerCollections) {
+      try {
+        const res = await databases.listDocuments(databaseId, colId, [
+          Query.equal('userId', ownerId),
+          Query.limit(1),
+        ]);
+        if (res.documents.length > 0) {
+          firstName = (res.documents[0] as any).firstName || null;
+          break;
+        }
+      } catch { /* keep looking */ }
+    }
+
+    // Proxy children: bills store proxyId or $id as userId
+    if (!firstName && collections.proxyChildren) {
+      try {
+        const res = await databases.listDocuments(databaseId, collections.proxyChildren, [
+          Query.equal('proxyId', ownerId),
+          Query.limit(1),
+        ]);
+        if (res.documents.length > 0) firstName = (res.documents[0] as any).firstName || null;
+      } catch { /* ignore */ }
+      if (!firstName) {
+        try {
+          const doc = (await databases.getDocument(databaseId, collections.proxyChildren, ownerId)) as any;
+          firstName = doc?.firstName || null;
+        } catch { /* ignore */ }
+      }
+    }
+
+    if (firstName) {
+      for (const billId of idToBills.get(ownerId)!) result[billId] = firstName;
+    }
+  }
+
+  return result;
 }
 
 // ── Fetch the line items for a bill ─────────────────────────────────────────────

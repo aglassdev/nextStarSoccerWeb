@@ -6,8 +6,10 @@ import {
   BillItem,
   getUserBills,
   getBillItems,
-  formatAmount,
+  getBillOwnerFirstNames,
+  formatMoney,
   formatBillDate,
+  billTitle,
   isBillOverdue,
   calculateLateFee,
 } from '../../services/payment/billingService';
@@ -15,16 +17,17 @@ import {
 // ── Bill detail modal ──────────────────────────────────────────────────────────
 const BillModal = ({
   bill,
+  title,
   onClose,
   onPay,
 }: {
   bill: Bill;
+  title: string;
   onClose: () => void;
   onPay: (bill: Bill) => void;
 }) => {
   const [items, setItems] = useState<BillItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const overdue = isBillOverdue(bill);
   const lateFee = calculateLateFee(bill);
   const isPaid = bill.status === 'paid';
   const isProcessing = bill.status === 'processing';
@@ -37,15 +40,6 @@ const BillModal = ({
     })();
   }, [bill.$id]);
 
-  const statusPill = isPaid
-    ? 'bg-green-500/20 text-green-400 border-green-500/30'
-    : isProcessing
-    ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
-    : overdue
-    ? 'bg-red-500/20 text-red-400 border-red-500/30'
-    : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
-  const statusText = isPaid ? 'Paid' : isProcessing ? 'Processing' : overdue ? 'Overdue' : 'Outstanding';
-
   return (
     <>
       <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40" onClick={onClose} />
@@ -53,12 +47,7 @@ const BillModal = ({
         <div className="pointer-events-auto w-full max-w-lg bg-[#111] border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-            <div className="flex items-center gap-3">
-              <h3 className="text-white font-semibold text-lg">Monthly Bill</h3>
-              <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${statusPill}`}>
-                {statusText}
-              </span>
-            </div>
+            <h3 className="text-white font-semibold text-lg">{title}</h3>
             <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -69,10 +58,6 @@ const BillModal = ({
           <div className="px-6 py-5 space-y-5 max-h-[70vh] overflow-y-auto">
             {/* Meta */}
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-gray-500 text-xs uppercase tracking-wider mb-0.5">Month</p>
-                <p className="text-white text-sm">{bill.monthName || '—'}</p>
-              </div>
               <div>
                 <p className="text-gray-500 text-xs uppercase tracking-wider mb-0.5">
                   {isPaid ? 'Paid On' : 'Due Date'}
@@ -110,7 +95,7 @@ const BillModal = ({
                         {item.eventDate && <p className="text-gray-600 text-xs mt-0.5">{item.eventDate}</p>}
                       </div>
                       <span className="text-white text-sm font-medium flex-shrink-0">
-                        {formatAmount(item.price)}
+                        {formatMoney(item.price)}
                       </span>
                     </div>
                   ))}
@@ -122,17 +107,17 @@ const BillModal = ({
             <div className="bg-[#0d0d0d] border border-white/10 rounded-xl p-4 space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-400">Subtotal</span>
-                <span className="text-white">{formatAmount(bill.totalAmount)}</span>
+                <span className="text-white">{formatMoney(bill.totalAmount)}</span>
               </div>
               {lateFee > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-red-400">Late fee (10%)</span>
-                  <span className="text-red-400">{formatAmount(lateFee)}</span>
+                  <span className="text-red-400">{formatMoney(lateFee)}</span>
                 </div>
               )}
               <div className="flex justify-between text-base font-semibold pt-2 border-t border-white/10">
                 <span className="text-white">Total</span>
-                <span className="text-white">{formatAmount(bill.totalAmount + lateFee)}</span>
+                <span className="text-white">USD {formatMoney(bill.totalAmount + lateFee)}</span>
               </div>
             </div>
           </div>
@@ -150,7 +135,7 @@ const BillModal = ({
                 onClick={() => onPay(bill)}
                 className="px-6 py-2 text-sm bg-white hover:bg-gray-200 text-black font-semibold rounded-lg transition-colors"
               >
-                Pay {formatAmount(bill.totalAmount + lateFee)}
+                Pay USD {formatMoney(bill.totalAmount + lateFee)}
               </button>
             )}
           </div>
@@ -165,6 +150,7 @@ const PaymentPortalPage = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [bills, setBills] = useState<Bill[]>([]);
+  const [childNames, setChildNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
@@ -176,9 +162,9 @@ const PaymentPortalPage = () => {
       setError('');
       try {
         const result = await getUserBills(user.$id);
-        // newest first
         result.sort((a, b) => Date.parse(b.$createdAt || '') - Date.parse(a.$createdAt || ''));
         setBills(result);
+        setChildNames(await getBillOwnerFirstNames(result, user.$id));
       } catch (e: any) {
         setError(e.message || 'Failed to load bills');
       } finally {
@@ -201,11 +187,18 @@ const PaymentPortalPage = () => {
     [unpaidBills],
   );
 
-  const greetingName = (user?.name || '').split(' ')[0] || 'there';
+  const titleFor = (bill: Bill) => billTitle(bill.monthName, childNames[bill.$id]);
+
+  // Greeting matches the admin dashboard: time-of-day + full name.
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const fullName = user?.name?.trim() || user?.email?.split('@')[0] || '';
 
   const payBills = (billIds: string[]) => {
     navigate('/user/payments/checkout', { state: { billIds } });
   };
+
+  const pendingUnpaid = unpaidBills.filter((b) => b.status === 'pending');
 
   return (
     <div className="min-h-screen bg-black">
@@ -233,8 +226,9 @@ const PaymentPortalPage = () => {
       <main className="max-w-5xl mx-auto px-4 md:px-6 py-8 space-y-8">
         {/* Greeting */}
         <div>
-          <h2 className="text-2xl md:text-3xl font-bold text-white">Hi, {greetingName} 👋</h2>
-          <p className="text-gray-400 mt-1">Here's an overview of your Next Star Soccer bills.</p>
+          <h2 className="text-2xl md:text-3xl font-bold text-white">
+            {greeting}{fullName ? `, ${fullName}` : ''}
+          </h2>
         </div>
 
         {loading ? (
@@ -250,13 +244,11 @@ const PaymentPortalPage = () => {
               <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
                 <div>
                   <p className="text-gray-400 text-sm uppercase tracking-wider mb-1">Total Outstanding</p>
-                  <p className="text-4xl md:text-5xl font-bold text-white">{formatAmount(outstandingTotal)}</p>
+                  <p className="text-4xl md:text-5xl font-bold text-white">USD {formatMoney(outstandingTotal)}</p>
                 </div>
-                {unpaidBills.filter((b) => b.status === 'pending').length > 1 && (
+                {pendingUnpaid.length > 1 && (
                   <button
-                    onClick={() =>
-                      payBills(unpaidBills.filter((b) => b.status === 'pending').map((b) => b.$id))
-                    }
+                    onClick={() => payBills(pendingUnpaid.map((b) => b.$id))}
                     className="px-6 py-3 bg-white hover:bg-gray-200 text-black font-semibold rounded-lg transition-colors self-start md:self-auto"
                   >
                     Pay All
@@ -266,7 +258,7 @@ const PaymentPortalPage = () => {
 
               {unpaidBills.length === 0 ? (
                 <div className="text-center py-8">
-                  <p className="text-green-400 text-lg font-medium">🎉 You're all caught up!</p>
+                  <p className="text-green-400 text-lg font-medium">You're all caught up</p>
                   <p className="text-gray-500 text-sm mt-1">No outstanding bills.</p>
                 </div>
               ) : (
@@ -280,14 +272,9 @@ const PaymentPortalPage = () => {
                         key={bill.$id}
                         className="bg-[#111] border border-white/10 rounded-xl p-4 flex items-center justify-between gap-4 hover:border-white/25 transition-colors"
                       >
-                        <button
-                          onClick={() => setSelectedBill(bill)}
-                          className="flex-1 min-w-0 text-left"
-                        >
+                        <button onClick={() => setSelectedBill(bill)} className="flex-1 min-w-0 text-left">
                           <div className="flex items-center gap-2">
-                            <p className="text-white font-medium truncate">
-                              Monthly Bill · {bill.monthName || '—'}
-                            </p>
+                            <p className="text-white font-medium truncate">{titleFor(bill)}</p>
                             {processing ? (
                               <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-500/20 text-blue-400 border border-blue-500/30">
                                 Processing
@@ -305,7 +292,7 @@ const PaymentPortalPage = () => {
                           </p>
                         </button>
                         <div className="flex items-center gap-4 flex-shrink-0">
-                          <span className="text-white font-semibold">{formatAmount(total)}</span>
+                          <span className="text-white font-semibold">{formatMoney(total)}</span>
                           {!processing && (
                             <button
                               onClick={() => payBills([bill.$id])}
@@ -337,11 +324,11 @@ const PaymentPortalPage = () => {
                     >
                       <div className="flex items-center justify-between mb-2">
                         <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-green-500/20 text-green-400 border border-green-500/30">
-                          ✓ Paid
+                          Paid
                         </span>
-                        <span className="text-white font-semibold">{formatAmount(bill.totalAmount)}</span>
+                        <span className="text-white font-semibold">{formatMoney(bill.totalAmount)}</span>
                       </div>
-                      <p className="text-white text-sm font-medium truncate">{bill.monthName || 'Monthly Bill'}</p>
+                      <p className="text-white text-sm font-medium truncate">{titleFor(bill)}</p>
                       <p className="text-gray-500 text-xs mt-0.5">
                         {bill.paidAt ? `Paid ${formatBillDate(bill.paidAt)}` : ''}
                       </p>
@@ -357,6 +344,7 @@ const PaymentPortalPage = () => {
       {selectedBill && (
         <BillModal
           bill={selectedBill}
+          title={titleFor(selectedBill)}
           onClose={() => setSelectedBill(null)}
           onPay={(bill) => { setSelectedBill(null); payBills([bill.$id]); }}
         />
