@@ -148,7 +148,11 @@ const CheckoutForm = ({
   };
 
   const handlePay = async () => {
-    if (!stripe || !elements || !user) return;
+    if (!user) return;
+    if (!stripe || !elements) {
+      setError('Payment system is still loading. Please wait a moment and try again.');
+      return;
+    }
     setError('');
     setProcessing(true);
     try {

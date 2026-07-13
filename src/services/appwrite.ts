@@ -77,19 +77,25 @@ export const collections = {
   familyRelationships001: import.meta.env.VITE_APPWRITE_FAMILY_RELATIONSHIPS_COLLECTION_ID || 'family_relationships_001',
 };
 
-// Appwrite Function IDs for Stripe/payment processing (shared with the mobile app)
+// Appwrite Function IDs for Stripe/payment processing (shared with the mobile app).
+// These IDs are not secrets (they ship in the client bundle), so we hardcode the
+// known production values as fallbacks — this keeps the payment portal working
+// even if the VITE_* build-time env vars aren't configured in the host (Vercel).
 export const paymentFunctions = {
-  createPaymentIntent: import.meta.env.VITE_APPWRITE_PAYMENT_FUNCTION_ID || '',
-  createCustomer: import.meta.env.VITE_APPWRITE_CUSTOMER_FUNCTION_ID || '',
-  attachPaymentMethod: import.meta.env.VITE_APPWRITE_ATTACH_PAYMENT_FUNCTION_ID || '',
-  detachPaymentMethod: import.meta.env.VITE_APPWRITE_DETACH_PAYMENT_METHOD_FUNCTION_ID || '',
-  listPaymentMethods: import.meta.env.VITE_APPWRITE_LIST_PAYMENT_METHODS_FUNCTION_ID || '',
-  getStripePrice: import.meta.env.VITE_APPWRITE_GET_STRIPE_PRICE_FUNCTION_ID || '',
-  sendReceipt: import.meta.env.VITE_APPWRITE_SEND_RECEIPT_FUNCTION_ID || '',
+  createPaymentIntent: import.meta.env.VITE_APPWRITE_PAYMENT_FUNCTION_ID || '68c651320015320a1fa2',
+  createCustomer: import.meta.env.VITE_APPWRITE_CUSTOMER_FUNCTION_ID || '68c6510d000bc8250993',
+  attachPaymentMethod: import.meta.env.VITE_APPWRITE_ATTACH_PAYMENT_FUNCTION_ID || '68c7a57500119903dd04',
+  detachPaymentMethod: import.meta.env.VITE_APPWRITE_DETACH_PAYMENT_METHOD_FUNCTION_ID || '68d30b2100170817c278',
+  listPaymentMethods: import.meta.env.VITE_APPWRITE_LIST_PAYMENT_METHODS_FUNCTION_ID || '68c8f0c800245401ab25',
+  getStripePrice: import.meta.env.VITE_APPWRITE_GET_STRIPE_PRICE_FUNCTION_ID || '68d311f00003367d3a0e',
+  sendReceipt: import.meta.env.VITE_APPWRITE_SEND_RECEIPT_FUNCTION_ID || '68f325ea00311c5f5d4d',
 };
 
-// Stripe publishable key (safe for the client)
-export const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '';
+// Stripe publishable key (publishable keys are designed to be public / embedded
+// in client code, so a hardcoded fallback is safe and matches the mobile app).
+export const stripePublishableKey =
+  import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ||
+  'pk_live_51RZE2hIDlPhwXhklH4gZlNICFCjOZAgfNqsJ0VuBXoNSUNJgWLLsMEj6VOtc8DSg9zTMPcyllrge0SDqU3lOktKF00w4nkvNYf';
 
 // Storage bucket IDs
 export const buckets = {
