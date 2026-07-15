@@ -36,6 +36,7 @@ import ParentProfile from './pages/admin/ParentProfile';
 import UserLoginPage from './pages/user/UserLoginPage';
 import PaymentPortalPage from './pages/user/PaymentPortalPage';
 import CheckoutPage from './pages/user/CheckoutPage';
+import StatusPage from './pages/StatusPage';
 import AppDownloadPopup from './components/common/AppDownloadPopup';
 
 // Scroll to top on every route change
@@ -76,8 +77,21 @@ const UserProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 };;
 
 function AppRoutes() {
+  // The status page lives at status.nextstarsoccer.com — when served from that
+  // subdomain, render it for any path. It's also reachable at /status.
+  const isStatusSubdomain =
+    typeof window !== 'undefined' && window.location.hostname.split('.')[0] === 'status';
+  if (isStatusSubdomain) {
+    return (
+      <Routes>
+        <Route path="*" element={<StatusPage />} />
+      </Routes>
+    );
+  }
+
   return (
     <Routes>
+      <Route path="/status" element={<StatusPage />} />
       {/* Public landing pages */}
       <Route path="/" element={<HomePage />} />
       <Route path="/about" element={<AboutPage />} />
