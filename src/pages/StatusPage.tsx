@@ -1,74 +1,12 @@
-import { useEffect } from 'react';
-
-// ── Status model ────────────────────────────────────────────────────────────────
-type StatusKey = 'operational' | 'partial' | 'major' | 'maintenance';
-
-const STATUS_META: Record<StatusKey, { label: string; dot: string; text: string; glow: string }> = {
-  operational:  { label: 'Operational',       dot: 'bg-green-500',  text: 'text-green-400',  glow: 'shadow-[0_0_8px_2px_rgba(34,197,94,0.6)]' },
-  partial:      { label: 'Partial Outage',     dot: 'bg-orange-500', text: 'text-orange-400', glow: 'shadow-[0_0_8px_2px_rgba(249,115,22,0.6)]' },
-  major:        { label: 'Major Outage',       dot: 'bg-red-500',    text: 'text-red-400',    glow: 'shadow-[0_0_8px_2px_rgba(239,68,68,0.6)]' },
-  maintenance:  { label: 'Under Maintenance',  dot: 'bg-blue-500',   text: 'text-blue-400',   glow: 'shadow-[0_0_8px_2px_rgba(59,130,246,0.6)]' },
-};
-
-interface Service { name: string; status: StatusKey; }
-interface Section { title: string; items: Service[]; }
-
-const SECTIONS: Section[] = [
-  {
-    title: 'General',
-    items: [
-      { name: 'Database', status: 'operational' },
-      { name: 'Auth', status: 'operational' },
-      { name: 'SMTP', status: 'operational' },
-      { name: 'Functions', status: 'operational' },
-      { name: 'APIs', status: 'operational' },
-      { name: 'Storage', status: 'operational' },
-    ],
-  },
-  {
-    title: 'App',
-    items: [
-      { name: 'Main', status: 'operational' },
-      { name: 'Requests', status: 'operational' },
-      { name: 'Messaging', status: 'operational' },
-      { name: 'Account', status: 'operational' },
-      { name: 'Calendar', status: 'operational' },
-      { name: 'Contact', status: 'operational' },
-      { name: 'Account Linking', status: 'major' },
-    ],
-  },
-  {
-    title: 'Payments',
-    items: [
-      { name: 'Billing', status: 'operational' },
-      { name: 'Checkout', status: 'operational' },
-      { name: 'Credit Cards', status: 'operational' },
-      { name: 'Bank Transfer', status: 'operational' },
-      { name: 'GPay', status: 'partial' },
-      { name: 'Apple Pay', status: 'major' },
-    ],
-  },
-  {
-    title: 'Website',
-    items: [
-      { name: 'Main', status: 'operational' },
-      { name: 'Contact', status: 'operational' },
-      { name: 'Calendar', status: 'operational' },
-      { name: 'Payment Portal', status: 'operational' },
-      { name: 'Scholarship Applications', status: 'operational' },
-      { name: 'Documentation', status: 'operational' },
-    ],
-  },
-];
-
-// ── Overall banner (worst status wins) ──────────────────────────────────────────
-const overallStatus = (): { key: StatusKey; headline: string } => {
-  const all = SECTIONS.flatMap((s) => s.items.map((i) => i.status));
-  if (all.includes('major')) return { key: 'major', headline: 'Some systems are experiencing a major outage' };
-  if (all.includes('partial')) return { key: 'partial', headline: 'Some systems are experiencing a partial outage' };
-  if (all.includes('maintenance')) return { key: 'maintenance', headline: 'Some systems are under maintenance' };
-  return { key: 'operational', headline: 'All systems operational' };
-};
+import { useEffect, useState } from 'react';
+import {
+  StatusKey,
+  StatusSection,
+  STATUS_META,
+  DEFAULT_SECTIONS,
+  loadStatusSections,
+  overallStatus,
+} from '../services/statusService';
 
 const Dot = ({ status }: { status: StatusKey }) => {
   const meta = STATUS_META[status];
@@ -83,11 +21,18 @@ const Dot = ({ status }: { status: StatusKey }) => {
 };
 
 const StatusPage = () => {
+  const [sections, setSections] = useState<StatusSection[]>(DEFAULT_SECTIONS);
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
     document.title = 'Next Star Soccer — System Status';
+    (async () => {
+      setSections(await loadStatusSections());
+      setLoading(false);
+    })();
   }, []);
 
-  const overall = overallStatus();
+  const overall = overallStatus(sections);
   const overallMeta = STATUS_META[overall.key];
   const updated = new Date().toLocaleString('en-US', {
     month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
@@ -116,13 +61,15 @@ const StatusPage = () => {
           <Dot status={overall.key} />
           <div className="flex-1 min-w-0">
             <p className={`text-lg md:text-xl font-semibold ${overallMeta.text}`}>{overall.headline}</p>
-            <p className="text-white/35 text-xs mt-0.5">Last updated {updated}</p>
+            <p className="text-white/35 text-xs mt-0.5">
+              {loading ? 'Loading…' : `Last updated ${updated}`}
+            </p>
           </div>
         </div>
 
         {/* Sections */}
         <div className="space-y-8">
-          {SECTIONS.map((section) => (
+          {sections.map((section) => (
             <section key={section.title}>
               <h2 className="text-white/50 text-[11px] font-semibold tracking-[0.18em] uppercase mb-3 px-1">
                 {section.title}

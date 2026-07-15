@@ -13,6 +13,7 @@ import MessagesSection from './sections/MessagesSection';
 import InquiriesSection from './sections/InquiriesSection';
 import DevelopmentSection from './sections/DevelopmentSection';
 import AppFeedbackSection from './sections/AppFeedbackSection';
+import ServiceStatusSection from './sections/ServiceStatusSection';
 import CalendarSection from './sections/CalendarSection';
 import EventAssistantSection from './sections/EventAssistantSection';
 import AttendanceManagerSection from './sections/AttendanceManagerSection';
@@ -37,7 +38,7 @@ const REQUEST_TYPES = [
   'Player Report',
 ];
 
-type Section = 'players' | 'coaches' | 'parents' | 'bills' | 'payments' | 'messages' | 'requests' | 'calendar' | 'eventAssistant' | 'attendance' | 'coachManagement' | 'devOverview' | 'appFeedback' | 'sessionReviews' | 'scholarships';
+type Section = 'players' | 'coaches' | 'parents' | 'bills' | 'payments' | 'messages' | 'requests' | 'calendar' | 'eventAssistant' | 'attendance' | 'coachManagement' | 'devOverview' | 'appFeedback' | 'serviceStatus' | 'sessionReviews' | 'scholarships';
 
 type NavGroup = 'Directory' | 'Messages' | 'Payments' | 'Events' | 'Development';
 
@@ -46,7 +47,7 @@ const SECTION_TO_GROUP: Partial<Record<Section, NavGroup>> = {
   messages: 'Messages', requests: 'Messages',
   bills: 'Payments', payments: 'Payments', scholarships: 'Payments',
   calendar: 'Events', eventAssistant: 'Events', attendance: 'Events', sessionReviews: 'Events',
-  devOverview: 'Development', appFeedback: 'Development',
+  devOverview: 'Development', appFeedback: 'Development', serviceStatus: 'Development',
 };
 
 const SECTION_LABELS: Partial<Record<Section, string>> = {
@@ -56,6 +57,7 @@ const SECTION_LABELS: Partial<Record<Section, string>> = {
   coachManagement: 'Coach Management',
   devOverview: 'Overview',
   appFeedback: 'App Feedback',
+  serviceStatus: 'Service Status',
   sessionReviews: 'Session Reviews',
   scholarships: 'Scholarships',
 };
@@ -199,6 +201,7 @@ const SECTION_FROM_PATH: Record<string, Section> = {
   '/admin/coach-management': 'coachManagement',
   '/admin/dev': 'devOverview',
   '/admin/dev/feedback': 'appFeedback',
+  '/admin/dev/status': 'serviceStatus',
   '/admin/session-reviews': 'sessionReviews',
   '/admin/scholarships': 'scholarships',
 };
@@ -224,6 +227,7 @@ const AdminDashboard = () => {
     coachManagement: '/admin/coach-management',
     devOverview: '/admin/dev',
     appFeedback: '/admin/dev/feedback',
+    serviceStatus: '/admin/dev/status',
     sessionReviews: '/admin/session-reviews',
     scholarships: '/admin/scholarships',
   };
@@ -428,6 +432,7 @@ const AdminDashboard = () => {
     calendar: <CalendarSection />,
     devOverview: <DevelopmentSection />,
     appFeedback: <AppFeedbackSection />,
+    serviceStatus: <ServiceStatusSection />,
     eventAssistant: <EventAssistantSection />,
     attendance: <AttendanceManagerSection />,
     coachManagement: <CoachManagementSection />,
@@ -556,6 +561,8 @@ const AdminDashboard = () => {
               icon={<svg className="w-[13px] h-[13px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>} />
             <NavChild section="appFeedback" label="App Feedback" active={activeSection === 'appFeedback'} onSelect={setActiveSection}
               icon={<svg className="w-[13px] h-[13px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" /></svg>} />
+            <NavChild section="serviceStatus" label="Service Status" active={activeSection === 'serviceStatus'} onSelect={setActiveSection}
+              icon={<svg className="w-[13px] h-[13px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} />
           </NavGroupItem>
         </div>
 

@@ -170,6 +170,7 @@ function AppRoutes() {
       <Route path="/admin/attendance/:calType/:eventId" element={<AdminDashboard />} />
       <Route path="/admin/dev" element={<AdminDashboard />} />
       <Route path="/admin/dev/feedback" element={<AdminDashboard />} />
+      <Route path="/admin/dev/status" element={<AdminDashboard />} />
       <Route path="/admin/session-reviews" element={<AdminDashboard />} />
       <Route path="/admin/scholarships" element={<AdminDashboard />} />
 

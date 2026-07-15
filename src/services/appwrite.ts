@@ -75,6 +75,7 @@ export const collections = {
   billAccess: import.meta.env.VITE_APPWRITE_BILL_ACCESS_COLLECTION_ID || 'billAccess',
   couponUsage: import.meta.env.VITE_APPWRITE_COUPON_USAGE_COLLECTION_ID || 'coupon_usage',
   familyRelationships001: import.meta.env.VITE_APPWRITE_FAMILY_RELATIONSHIPS_COLLECTION_ID || 'family_relationships_001',
+  serviceStatus: import.meta.env.VITE_APPWRITE_SERVICE_STATUS_COLLECTION_ID || 'service_status',
 };
 
 // Appwrite Function IDs for Stripe/payment processing (shared with the mobile app).
