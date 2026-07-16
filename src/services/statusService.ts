@@ -86,6 +86,22 @@ function normalize(raw: any): StatusSection[] | null {
   return out;
 }
 
+// Public loader for the status page. Reads via the same-origin /api/status
+// proxy first — this works on any domain (e.g. the status.* subdomain, which
+// isn't a registered Appwrite web platform and would be CORS-blocked by a
+// direct browser read). Falls back to a direct SDK read, then to defaults.
+export async function loadStatusSectionsPublic(): Promise<StatusSection[]> {
+  try {
+    const r = await fetch('/api/status', { cache: 'no-store' });
+    if (r.ok) {
+      const json = await r.json();
+      const parsed = normalize(json);
+      if (parsed && parsed.length) return parsed;
+    }
+  } catch { /* fall through to SDK */ }
+  return loadStatusSections();
+}
+
 // Load the current status config. Falls back to DEFAULT_SECTIONS on any error.
 export async function loadStatusSections(): Promise<StatusSection[]> {
   try {

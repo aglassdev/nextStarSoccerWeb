@@ -4,7 +4,7 @@ import {
   StatusSection,
   STATUS_META,
   DEFAULT_SECTIONS,
-  loadStatusSections,
+  loadStatusSectionsPublic,
   overallStatus,
 } from '../services/statusService';
 
@@ -27,7 +27,7 @@ const StatusPage = () => {
   useEffect(() => {
     document.title = 'Next Star Soccer — System Status';
     (async () => {
-      setSections(await loadStatusSections());
+      setSections(await loadStatusSectionsPublic());
       setLoading(false);
     })();
   }, []);
