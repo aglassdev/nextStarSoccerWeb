@@ -36,6 +36,38 @@ const deriveBillStatus = (b: BillRecord): BillStatus => {
   return 'outstanding';
 };
 
+// ── Eastern-time helpers ───────────────────────────────────────────────────────
+// Bills are stored/displayed in America/New_York. A due date is saved at noon
+// Eastern with the correct DST offset (e.g. 2026-05-07T12:00:00.000-04:00). Noon is
+// used (rather than midnight) so it's safely clear of the 2 AM DST transitions,
+// keeping the stored instant on the intended Eastern calendar day year-round.
+const nthSundayOfMonth = (year: number, month1to12: number, n: number): Date => {
+  const first = new Date(year, month1to12 - 1, 1);
+  const firstSunday = 1 + ((7 - first.getDay()) % 7);
+  return new Date(year, month1to12 - 1, firstSunday + (n - 1) * 7);
+};
+// EDT (-04:00) from the 2nd Sunday of March to the 1st Sunday of November, else EST (-05:00)
+const easternOffset = (dateStr: string): string => {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const day = new Date(y, m - 1, d);
+  const dstStart = nthSundayOfMonth(y, 3, 2);
+  const dstEnd = nthSundayOfMonth(y, 11, 1);
+  return day >= dstStart && day < dstEnd ? '-04:00' : '-05:00';
+};
+const easternDueISO = (dateStr: string): string => `${dateStr}T12:00:00.000${easternOffset(dateStr)}`;
+// Format any stored date on its Eastern calendar day, regardless of the admin's timezone
+const fmtDateEST = (v?: string): string =>
+  v ? new Date(v).toLocaleDateString('en-US', { timeZone: 'America/New_York' }) : '—';
+// Extract the Eastern calendar day (YYYY-MM-DD) from a stored ISO string for a date input
+const easternDayInput = (v?: string): string => {
+  if (!v) return '';
+  const m = v.match(/^(\d{4}-\d{2}-\d{2})T[^Z]*$/); // offset-form ISO: date portion is already Eastern
+  if (m) return m[1];
+  // UTC-form (e.g. ...Z) or anything else: derive the Eastern day
+  const d = new Date(v);
+  return isNaN(d.getTime()) ? '' : new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(d);
+};
+
 const statusBadgeClass = (tab: BillStatus) => {
   if (tab === 'settled') return 'bg-green-500/20 text-green-400 border border-green-500/30';
   if (tab === 'overdue') return 'bg-red-500/20 text-red-400 border border-red-500/30';
@@ -97,8 +129,8 @@ const BillModal = ({
   const [editTotalVal, setEditTotalVal] = useState(String(bill.totalAmount ?? ''));
   const [savingTotal, setSavingTotal] = useState(false);
 
-  // Due date editing (input uses YYYY-MM-DD; stored as noon-UTC ISO to avoid day-shift)
-  const dueDateInput = (bill.dueDate || '').match(/^\d{4}-\d{2}-\d{2}/)?.[0] || '';
+  // Due date editing — input is the Eastern calendar day; saved as midnight-EST ISO
+  const dueDateInput = easternDayInput(bill.dueDate);
   const [editingDue, setEditingDue] = useState(false);
   const [editDueVal, setEditDueVal] = useState(dueDateInput);
   const [savingDue, setSavingDue] = useState(false);
@@ -153,8 +185,8 @@ const BillModal = ({
     setSavingDue(true);
     setError('');
     try {
-      // Store at noon UTC so it renders on the intended calendar day in US timezones
-      const iso = `${editDueVal}T12:00:00.000Z`;
+      // Store at noon Eastern with the correct DST offset (stays on the intended day)
+      const iso = easternDueISO(editDueVal);
       await databases.updateDocument(databaseId, collections.bills, bill.$id, { dueDate: iso });
       bill.dueDate = iso;
       setEditingDue(false);
@@ -267,14 +299,12 @@ const BillModal = ({
                     </button>
                   </div>
                 ) : (
-                  <p className="text-white text-sm">
-                    {bill.dueDate ? new Date(bill.dueDate).toLocaleDateString() : '—'}
-                  </p>
+                  <p className="text-white text-sm">{fmtDateEST(bill.dueDate)}</p>
                 )}
               </div>
 
-              {bill.paidAt && <Field label="Paid At" value={new Date(bill.paidAt).toLocaleDateString()} />}
-              <Field label="Created" value={bill.$createdAt ? new Date(bill.$createdAt).toLocaleDateString() : undefined} />
+              {bill.paidAt && <Field label="Paid At" value={fmtDateEST(bill.paidAt)} />}
+              <Field label="Created" value={bill.$createdAt ? fmtDateEST(bill.$createdAt) : undefined} />
             </div>
 
             {/* Total amount — editable */}
@@ -609,7 +639,7 @@ const BillsSection = () => {
                     <td className="px-4 py-3 text-white">{bill.monthName || '—'}</td>
                     <td className="px-4 py-3 text-gray-300">{getName(bill)}</td>
                     <td className="px-4 py-3 text-gray-400">
-                      {bill.dueDate ? new Date(bill.dueDate).toLocaleDateString() : '—'}
+                      {fmtDateEST(bill.dueDate)}
                     </td>
                     <td className="px-4 py-3 text-white">
                       {bill.totalAmount != null ? `$${Number(bill.totalAmount).toFixed(2)}` : '—'}
