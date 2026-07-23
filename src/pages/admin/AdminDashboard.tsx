@@ -71,25 +71,27 @@ interface CalEvent {
 const BarChart = ({ data }: { data: { label: string; value: number; highlight?: boolean }[] }) => {
   const max = Math.max(...data.map(d => d.value), 1);
   const chartH = 72;
+  const topPad = 14;   // headroom so the value label above the tallest bar isn't clipped
   const barW = 28;
   const gap = 14;
   const svgW = data.length * (barW + gap) - gap;
+  const baseline = topPad + chartH; // y of the bar baseline (bottom of the plot area)
 
   return (
-    <svg viewBox={`0 0 ${svgW} ${chartH + 22}`} className="w-full" preserveAspectRatio="none">
+    <svg viewBox={`0 0 ${svgW} ${baseline + 22}`} className="w-full" preserveAspectRatio="none">
       {[0.5, 1].map(pct => (
-        <line key={pct} x1={0} y1={chartH - pct * chartH} x2={svgW} y2={chartH - pct * chartH}
+        <line key={pct} x1={0} y1={baseline - pct * chartH} x2={svgW} y2={baseline - pct * chartH}
           stroke="rgba(255,255,255,0.06)" strokeWidth={1} />
       ))}
       {data.map((d, i) => {
         const barH = Math.max((d.value / max) * chartH, 2);
         const x = i * (barW + gap);
-        const y = chartH - barH;
+        const y = baseline - barH;
         return (
           <g key={i}>
             <rect x={x} y={y} width={barW} height={barH} rx={2}
               fill="white" fillOpacity={d.highlight ? 0.75 : 0.18} />
-            <text x={x + barW / 2} y={chartH + 15} textAnchor="middle"
+            <text x={x + barW / 2} y={baseline + 15} textAnchor="middle"
               fill="rgba(255,255,255,0.35)" fontSize={9} fontFamily="system-ui">{d.label}</text>
             {d.value > 0 && (
               <text x={x + barW / 2} y={y - 4} textAnchor="middle"
