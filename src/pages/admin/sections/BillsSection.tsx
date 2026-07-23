@@ -97,6 +97,12 @@ const BillModal = ({
   const [editTotalVal, setEditTotalVal] = useState(String(bill.totalAmount ?? ''));
   const [savingTotal, setSavingTotal] = useState(false);
 
+  // Due date editing (input uses YYYY-MM-DD; stored as noon-UTC ISO to avoid day-shift)
+  const dueDateInput = (bill.dueDate || '').match(/^\d{4}-\d{2}-\d{2}/)?.[0] || '';
+  const [editingDue, setEditingDue] = useState(false);
+  const [editDueVal, setEditDueVal] = useState(dueDateInput);
+  const [savingDue, setSavingDue] = useState(false);
+
   // Per-item editing
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editItemVal, setEditItemVal] = useState('');
@@ -139,6 +145,24 @@ const BillModal = ({
       setError(e.message || 'Failed to update');
     } finally {
       setSavingTotal(false);
+    }
+  };
+
+  const handleSaveDue = async () => {
+    if (!editDueVal || !/^\d{4}-\d{2}-\d{2}$/.test(editDueVal)) { setError('Invalid date'); return; }
+    setSavingDue(true);
+    setError('');
+    try {
+      // Store at noon UTC so it renders on the intended calendar day in US timezones
+      const iso = `${editDueVal}T12:00:00.000Z`;
+      await databases.updateDocument(databaseId, collections.bills, bill.$id, { dueDate: iso });
+      bill.dueDate = iso;
+      setEditingDue(false);
+      onBillUpdated();
+    } catch (e: any) {
+      setError(e.message || 'Failed to update due date');
+    } finally {
+      setSavingDue(false);
     }
   };
 
@@ -204,7 +228,51 @@ const BillModal = ({
             <div className="grid grid-cols-2 gap-4">
               <Field label="Account" value={getName(bill)} />
               <Field label="Month" value={bill.monthName} />
-              <Field label="Due Date" value={bill.dueDate ? new Date(bill.dueDate).toLocaleDateString() : undefined} />
+
+              {/* Due Date — editable */}
+              <div>
+                <div className="flex items-center gap-2 mb-0.5">
+                  <p className="text-gray-600 text-xs uppercase tracking-wider">Due Date</p>
+                  {!editingDue && (
+                    <button
+                      onClick={() => { setEditDueVal(dueDateInput); setEditingDue(true); }}
+                      className="text-gray-600 hover:text-blue-400 transition-colors"
+                      title="Edit due date"
+                    >
+                      <PencilIcon />
+                    </button>
+                  )}
+                </div>
+                {editingDue ? (
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="date"
+                      value={editDueVal}
+                      onChange={e => setEditDueVal(e.target.value)}
+                      className="flex-1 min-w-0 bg-[#1a1a1a] border border-gray-700 rounded-lg px-2 py-1 text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 [color-scheme:dark]"
+                      autoFocus
+                    />
+                    <button
+                      onClick={handleSaveDue}
+                      disabled={savingDue}
+                      className="p-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      <CheckIcon />
+                    </button>
+                    <button
+                      onClick={() => setEditingDue(false)}
+                      className="p-1.5 text-gray-500 hover:text-white transition-colors"
+                    >
+                      <XIcon />
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-white text-sm">
+                    {bill.dueDate ? new Date(bill.dueDate).toLocaleDateString() : '—'}
+                  </p>
+                )}
+              </div>
+
               {bill.paidAt && <Field label="Paid At" value={new Date(bill.paidAt).toLocaleDateString()} />}
               <Field label="Created" value={bill.$createdAt ? new Date(bill.$createdAt).toLocaleDateString() : undefined} />
             </div>
