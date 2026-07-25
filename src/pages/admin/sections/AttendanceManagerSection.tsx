@@ -157,6 +157,8 @@ function SessionNotesPanel({ eventId, eventDate, eventTime, currentUserId, curre
 function EventDetailView({
   event,
   calType,
+  allEvents,
+  onSelectEvent,
   onBack,
   onFeedback,
   currentUserId,
@@ -164,6 +166,8 @@ function EventDetailView({
 }: {
   event: CalendarEvent;
   calType: CalType;
+  allEvents: CalendarEvent[];
+  onSelectEvent: (ev: CalendarEvent) => void;
   onBack: () => void;
   onFeedback: (msg: string, isError?: boolean) => void;
   currentUserId?: string;
@@ -373,6 +377,40 @@ function EventDetailView({
     ? checkins.filter(c => `${c.firstName ?? ''} ${c.lastName ?? ''}`.toLowerCase().includes(lq))
     : checkins;
 
+  // Nearby sessions in the same calendar — a handful before (Earlier, closest
+  // first) and after (Later) the current event, for quick hop-to navigation.
+  const { earlier, later } = useMemo(() => {
+    const idx = allEvents.findIndex(e => e.id === event.id);
+    if (idx === -1) return { earlier: [] as CalendarEvent[], later: [] as CalendarEvent[] };
+    return {
+      earlier: allEvents.slice(0, idx).reverse().slice(0, 8),
+      later: allEvents.slice(idx + 1).slice(0, 8),
+    };
+  }, [allEvents, event.id]);
+
+  const currentDay = event.startDateTime.slice(0, 10);
+  const NearbyChip = ({ ev }: { ev: CalendarEvent }) => {
+    const sameDay = ev.startDateTime.slice(0, 10) === currentDay;
+    return (
+      <button
+        onClick={() => onSelectEvent(ev)}
+        className="w-full text-left px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.06] hover:border-white/25 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <p className="text-white text-sm truncate flex-1">{ev.title}</p>
+          {sameDay && (
+            <span className="text-[9px] uppercase tracking-wider text-green-400/80 bg-green-500/10 border border-green-500/20 rounded px-1.5 py-0.5 flex-shrink-0">
+              Same day
+            </span>
+          )}
+        </div>
+        <p className="text-gray-500 text-xs mt-0.5">
+          {formatDate(ev.startDateTime)} · {formatTime(ev.startDateTime, ev.dateOnly)}
+        </p>
+      </button>
+    );
+  };
+
   return (
     <div>
       <button
@@ -562,6 +600,35 @@ function EventDetailView({
           currentUserId={currentUserId}
           currentUserName={currentUserName}
         />
+
+        {/* Nearby sessions — quick hop to events close to this one */}
+        {(earlier.length > 0 || later.length > 0) && (
+          <div className="bg-[#1d1c21] border border-white/[0.08] rounded-xl p-5">
+            <p className="text-white/50 text-[11px] font-medium tracking-widest uppercase mb-4">Nearby Sessions</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-white/35 text-[10px] uppercase tracking-wider mb-2">← Earlier</p>
+                {earlier.length === 0 ? (
+                  <p className="text-white/25 text-xs py-2">No earlier sessions.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {earlier.map(ev => <NearbyChip key={ev.id} ev={ev} />)}
+                  </div>
+                )}
+              </div>
+              <div>
+                <p className="text-white/35 text-[10px] uppercase tracking-wider mb-2 text-right">Later →</p>
+                {later.length === 0 ? (
+                  <p className="text-white/25 text-xs py-2 text-right">No later sessions.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {later.map(ev => <NearbyChip key={ev.id} ev={ev} />)}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -576,6 +643,12 @@ const AttendanceManagerSection = () => {
   const [privateEvents, setPrivateEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<{ event: CalendarEvent; calType: CalType } | null>(null);
+
+  // Find-by-date
+  const easternToday = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+  const [showDateModal, setShowDateModal] = useState(false);
+  const [jumpDate, setJumpDate] = useState(easternToday);
+  const [highlightIds, setHighlightIds] = useState<string[]>([]);
 
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
@@ -663,9 +736,43 @@ const AttendanceManagerSection = () => {
     });
   }, [loading, selected, firstUpcomingPublicId, firstUpcomingPrivateId]);
 
+  // Scroll both columns to the first session on/after the chosen date, and
+  // briefly highlight the landed-on events.
+  const jumpToDate = (dateStr: string) => {
+    if (!dateStr) return;
+    const scrollList = (list: HTMLDivElement | null, events: CalendarEvent[]): string | null => {
+      if (!list) return null;
+      const target = events.find(e => e.startDateTime.slice(0, 10) >= dateStr);
+      if (!target) { list.scrollTop = list.scrollHeight; return null; }
+      const el = list.querySelector<HTMLElement>(`[data-eid="${CSS.escape(target.id)}"]`);
+      if (el) list.scrollTop = el.offsetTop - list.offsetTop;
+      return target.id;
+    };
+    const ids = [
+      scrollList(publicListRef.current, publicEvents),
+      scrollList(privateListRef.current, privateEvents),
+    ].filter(Boolean) as string[];
+    setHighlightIds(ids);
+    setShowDateModal(false);
+    window.setTimeout(() => setHighlightIds([]), 2800);
+  };
+
   return (
     <div className="p-6">
-      <h2 className="text-2xl font-bold text-white mb-6">Attendance Manager</h2>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold text-white">Attendance Manager</h2>
+        {!selected && !loading && (
+          <button
+            onClick={() => { setJumpDate(easternToday); setShowDateModal(true); }}
+            className="flex items-center gap-2 px-4 py-2 bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 rounded-lg text-white text-sm transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            Jump to date
+          </button>
+        )}
+      </div>
 
       {successMsg && (
         <div className="mb-4 px-4 py-3 bg-green-500/10 border border-green-500/20 rounded-lg text-green-400 text-sm">{successMsg}</div>
@@ -678,6 +785,11 @@ const AttendanceManagerSection = () => {
         <EventDetailView
           event={selected.event}
           calType={selected.calType}
+          allEvents={selected.calType === 'public' ? publicEvents : privateEvents}
+          onSelectEvent={(ev) => {
+            setSelected({ event: ev, calType: selected.calType });
+            navigate(`/admin/attendance/${selected.calType}/${ev.id}`);
+          }}
           onBack={() => { setSelected(null); navigate('/admin/attendance'); }}
           onFeedback={showFeedback}
           currentUserId={user?.$id}
@@ -701,13 +813,17 @@ const AttendanceManagerSection = () => {
                 <p className="text-white/25 text-sm text-center py-6">No public sessions found.</p>
               ) : publicEvents.map(ev => {
                 const isFirstUpcoming = ev.id === firstUpcomingPublicId;
+                const isHighlighted = highlightIds.includes(ev.id);
                 return (
                   <button
                     key={ev.id}
+                    data-eid={ev.id}
                     ref={isFirstUpcoming ? publicTodayRef : undefined}
                     onClick={() => { setSelected({ event: ev, calType: 'public' }); navigate(`/admin/attendance/public/${ev.id}`); }}
                     className={`w-full text-left bg-[#0e0e0e] border rounded-xl px-4 py-3 transition-colors ${
-                      isFirstUpcoming
+                      isHighlighted
+                        ? 'border-green-400 ring-2 ring-green-400/60'
+                        : isFirstUpcoming
                         ? 'border-white/30'
                         : 'border-[#1c1c1c] hover:border-white/20'
                     }`}
@@ -734,13 +850,17 @@ const AttendanceManagerSection = () => {
                 <p className="text-white/25 text-sm text-center py-6">No private sessions found.</p>
               ) : privateEvents.map(ev => {
                 const isFirstUpcoming = ev.id === firstUpcomingPrivateId;
+                const isHighlighted = highlightIds.includes(ev.id);
                 return (
                   <button
                     key={ev.id}
+                    data-eid={ev.id}
                     ref={isFirstUpcoming ? privateTodayRef : undefined}
                     onClick={() => { setSelected({ event: ev, calType: 'private' }); navigate(`/admin/attendance/private/${ev.id}`); }}
                     className={`w-full text-left bg-[#0e0e0e] border rounded-xl px-4 py-3 transition-colors ${
-                      isFirstUpcoming
+                      isHighlighted
+                        ? 'border-green-400 ring-2 ring-green-400/60'
+                        : isFirstUpcoming
                         ? 'border-white/30'
                         : 'border-[#1c1c1c] hover:border-white/20'
                     }`}
@@ -757,6 +877,51 @@ const AttendanceManagerSection = () => {
           </section>
 
         </div>
+      )}
+
+      {/* Find-by-date modal */}
+      {showDateModal && (
+        <>
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40" onClick={() => setShowDateModal(false)} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+            <div className="pointer-events-auto w-full max-w-sm bg-[#111] border border-white/10 rounded-2xl p-6 shadow-2xl">
+              <h3 className="text-white font-semibold text-lg mb-1">Jump to date</h3>
+              <p className="text-white/40 text-xs mb-4">
+                Scrolls both columns to the first session on or after the chosen date.
+              </p>
+              <input
+                type="date"
+                value={jumpDate}
+                onChange={e => setJumpDate(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') jumpToDate(jumpDate); }}
+                autoFocus
+                className="w-full px-3 py-2 bg-[#1a1a1a] border border-white/15 rounded-lg text-white text-sm [color-scheme:dark] focus:outline-none focus:border-white/40 mb-4"
+              />
+              <div className="flex items-center justify-between gap-2">
+                <button
+                  onClick={() => { setJumpDate(easternToday); jumpToDate(easternToday); }}
+                  className="px-3 py-2 text-sm text-white/60 hover:text-white border border-white/10 hover:border-white/25 rounded-lg transition-colors"
+                >
+                  Today
+                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowDateModal(false)}
+                    className="px-4 py-2 text-sm text-white/60 hover:text-white transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => jumpToDate(jumpDate)}
+                    className="px-5 py-2 text-sm bg-white hover:bg-gray-200 text-black font-semibold rounded-lg transition-colors"
+                  >
+                    Go
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
