@@ -783,12 +783,14 @@ const AttendanceManagerSection = () => {
 
       {selected ? (
         <EventDetailView
+          key={selected.event.id}
           event={selected.event}
           calType={selected.calType}
           allEvents={selected.calType === 'public' ? publicEvents : privateEvents}
           onSelectEvent={(ev) => {
             setSelected({ event: ev, calType: selected.calType });
             navigate(`/admin/attendance/${selected.calType}/${ev.id}`);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
           onBack={() => { setSelected(null); navigate('/admin/attendance'); }}
           onFeedback={showFeedback}
