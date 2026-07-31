@@ -21,9 +21,20 @@ interface AttendeeDoc {
   userId?: string;
   firstName?: string;
   lastName?: string;
+  onBehalfOfUserId?: string | null;
+  onBehalfOfProxyId?: string | null;
+  isProxySignup?: boolean;
+  isProxyCheckin?: boolean;
   checkinTime?: string;
   $createdAt?: string;
 }
+
+// Uniquely identifies the actual player a signup/check-in is FOR. Siblings signed
+// up by one parent share the parent's userId and are distinguished only by
+// onBehalfOfProxyId (proxy child) or onBehalfOfUserId (linked child) — so key off
+// those first, falling back to userId for direct (self) signups.
+const attendeeIdentity = (d: { userId?: string; onBehalfOfUserId?: string | null; onBehalfOfProxyId?: string | null }): string =>
+  d.onBehalfOfProxyId || d.onBehalfOfUserId || d.userId || '';
 
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -251,8 +262,8 @@ function EventDetailView({
     [signups],
   );
 
-  const checkedInUserIds = useMemo(
-    () => new Set(checkins.map(c => c.userId).filter(Boolean) as string[]),
+  const checkedInKeys = useMemo(
+    () => new Set(checkins.map(attendeeIdentity).filter(Boolean)),
     [checkins],
   );
 
@@ -326,7 +337,7 @@ function EventDetailView({
   };
 
   const handleCheckinFromSignup = async (s: AttendeeDoc) => {
-    if (!s.userId || checkedInUserIds.has(s.userId)) return;
+    if (!s.userId || checkedInKeys.has(attendeeIdentity(s))) return;
     setCheckingIn(s.$id);
     try {
       if (collections.checkins) {
@@ -337,6 +348,11 @@ function EventDetailView({
           userId: s.userId,
           firstName: s.firstName ?? '',
           lastName: s.lastName ?? '',
+          // Carry the sibling-distinguishing identity so this check-in matches
+          // only THIS player, not every signup sharing the parent's userId.
+          onBehalfOfUserId: s.onBehalfOfUserId ?? null,
+          onBehalfOfProxyId: s.onBehalfOfProxyId ?? null,
+          isProxyCheckin: s.isProxySignup === true,
           type: 'bill',
           calendarSource: calType,
         });
@@ -514,7 +530,7 @@ function EventDetailView({
               <div className="space-y-1 max-h-[400px] overflow-y-auto">
                 {filteredSignups.map(s => {
                   const name = `${s.firstName ?? ''} ${s.lastName ?? ''}`.trim() || s.userId || 'Unknown';
-                  const alreadyCheckedIn = s.userId ? checkedInUserIds.has(s.userId) : false;
+                  const alreadyCheckedIn = checkedInKeys.has(attendeeIdentity(s));
                   const isCheckingIn = checkingIn === s.$id;
                   return (
                     <div key={s.$id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.05]">
@@ -634,6 +650,251 @@ function EventDetailView({
   );
 }
 
+// ── Week view ──────────────────────────────────────────────────────────────────
+interface WeekEvent extends CalendarEvent { calType: CalType; }
+
+const pad2 = (n: number) => String(n).padStart(2, '0');
+const easternDay = (iso: string) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date(iso));
+const addDaysStr = (dayStr: string, n: number) => {
+  const [y, m, d] = dayStr.split('-').map(Number);
+  const dt = new Date(y, m - 1, d + n);
+  return `${dt.getFullYear()}-${pad2(dt.getMonth() + 1)}-${pad2(dt.getDate())}`;
+};
+const sundayOf = (dayStr: string) => {
+  const [y, m, d] = dayStr.split('-').map(Number);
+  return addDaysStr(dayStr, -new Date(y, m - 1, d).getDay());
+};
+const dayParts = (dayStr: string) => {
+  const [y, m, d] = dayStr.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  return {
+    weekday: dt.toLocaleDateString('en-US', { weekday: 'short' }),
+    date: dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+  };
+};
+
+function WeekView({
+  publicEvents,
+  privateEvents,
+  allPlayers,
+  onFeedback,
+}: {
+  publicEvents: CalendarEvent[];
+  privateEvents: CalendarEvent[];
+  allPlayers: PlayerSearchResult[];
+  onFeedback: (msg: string, isError?: boolean) => void;
+}) {
+  const todayStr = easternDay(new Date().toISOString());
+  const [weekStart, setWeekStart] = useState(() => sundayOf(todayStr));
+  const [checkinsByEvent, setCheckinsByEvent] = useState<Record<string, AttendeeDoc[]>>({});
+  const [loading, setLoading] = useState(true);
+  const [addFor, setAddFor] = useState<string | null>(null);
+  const [addSearch, setAddSearch] = useState('');
+
+  const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDaysStr(weekStart, i)), [weekStart]);
+
+  const eventsByDay = useMemo(() => {
+    const daySet = new Set(days);
+    const map: Record<string, WeekEvent[]> = {};
+    for (const d of days) map[d] = [];
+    const all: WeekEvent[] = [
+      ...publicEvents.map(e => ({ ...e, calType: 'public' as const })),
+      ...privateEvents.map(e => ({ ...e, calType: 'private' as const })),
+    ];
+    for (const ev of all) {
+      const d = easternDay(ev.startDateTime);
+      if (daySet.has(d)) map[d].push(ev);
+    }
+    for (const d of days) map[d].sort((a, b) => Date.parse(a.startDateTime) - Date.parse(b.startDateTime));
+    return map;
+  }, [publicEvents, privateEvents, days]);
+
+  const weekEventIds = useMemo(() => days.flatMap(d => eventsByDay[d].map(e => e.id)), [days, eventsByDay]);
+  const weekKey = weekEventIds.join(',');
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        if (!collections.checkins || weekEventIds.length === 0) { if (!cancelled) setCheckinsByEvent({}); return; }
+        const entries = await Promise.all(weekEventIds.map(async (id) => {
+          try {
+            const res = await databases.listDocuments(databaseId, collections.checkins!, [Query.equal('eventID', id), Query.limit(500)]);
+            return [id, res.documents as any] as const;
+          } catch { return [id, [] as AttendeeDoc[]] as const; }
+        }));
+        if (!cancelled) setCheckinsByEvent(Object.fromEntries(entries));
+      } finally { if (!cancelled) setLoading(false); }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weekKey]);
+
+  const addCheckin = async (ev: WeekEvent, p: PlayerSearchResult) => {
+    try {
+      if (!collections.checkins) return;
+      const doc = await databases.createDocument(databaseId, collections.checkins, ID.unique(), {
+        eventID: ev.id, eventTitle: ev.title, eventDate: ev.startDateTime,
+        userId: p.userId, firstName: p.firstName, lastName: p.lastName,
+        type: 'bill', calendarSource: ev.calType, isProxyCheckin: p.isProxy === true,
+      });
+      setCheckinsByEvent(prev => ({ ...prev, [ev.id]: [...(prev[ev.id] || []), doc as any] }));
+      setAddSearch(''); setAddFor(null);
+      onFeedback(`${p.firstName} ${p.lastName} checked in.`);
+    } catch (e: any) { onFeedback(e.message || 'Failed to check in', true); }
+  };
+
+  const removeCheckin = async (evId: string, c: AttendeeDoc) => {
+    try {
+      if (collections.checkins) await databases.deleteDocument(databaseId, collections.checkins, c.$id);
+      setCheckinsByEvent(prev => ({ ...prev, [evId]: (prev[evId] || []).filter(x => x.$id !== c.$id) }));
+    } catch (e: any) { onFeedback(e.message || 'Failed to remove', true); }
+  };
+
+  const weekLabel = `${dayParts(days[0]).date} – ${dayParts(days[6]).date}`;
+  const totalCheckins = weekEventIds.reduce((s, id) => s + (checkinsByEvent[id]?.length || 0), 0);
+
+  return (
+    <div>
+      {/* Week nav */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setWeekStart(w => addDaysStr(w, -7))}
+            className="p-2 text-white/50 hover:text-white border border-white/10 hover:border-white/25 rounded-lg transition-colors"
+            title="Previous week"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" /></svg>
+          </button>
+          <button
+            onClick={() => setWeekStart(sundayOf(todayStr))}
+            className="px-3 py-2 text-sm text-white/60 hover:text-white border border-white/10 hover:border-white/25 rounded-lg transition-colors"
+          >
+            This week
+          </button>
+          <button
+            onClick={() => setWeekStart(w => addDaysStr(w, 7))}
+            className="p-2 text-white/50 hover:text-white border border-white/10 hover:border-white/25 rounded-lg transition-colors"
+            title="Next week"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" /></svg>
+          </button>
+        </div>
+        <div className="text-right">
+          <p className="text-white text-sm font-medium">{weekLabel}</p>
+          <p className="text-white/30 text-xs">{totalCheckins} check-ins this week</p>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center h-40">
+          <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+        </div>
+      ) : (
+        <div className="flex gap-3 overflow-x-auto pb-3">
+          {days.map(dayStr => {
+            const { weekday, date } = dayParts(dayStr);
+            const isToday = dayStr === todayStr;
+            const dayEvents = eventsByDay[dayStr];
+            return (
+              <div key={dayStr} className="flex-shrink-0 w-[240px]">
+                <div className={`px-3 py-2 rounded-lg mb-2 border ${isToday ? 'bg-white/[0.08] border-white/30' : 'bg-[#0e0e0e] border-[#1c1c1c]'}`}>
+                  <p className="text-white text-sm font-semibold">{weekday}</p>
+                  <p className="text-white/40 text-xs">{date}</p>
+                </div>
+                <div className="space-y-2">
+                  {dayEvents.length === 0 ? (
+                    <p className="text-white/20 text-xs text-center py-4">No sessions</p>
+                  ) : dayEvents.map(ev => {
+                    const checkins = checkinsByEvent[ev.id] || [];
+                    const isAdding = addFor === ev.id;
+                    const q = addSearch.trim().toLowerCase();
+                    const checkedKeys = new Set(checkins.map(attendeeIdentity));
+                    const results = isAdding && q.length >= 2
+                      ? allPlayers
+                          .filter(p => `${p.firstName} ${p.lastName}`.toLowerCase().includes(q))
+                          .filter(p => !checkedKeys.has(attendeeIdentity(p as any)))
+                          .slice(0, 8)
+                      : [];
+                    return (
+                      <div key={ev.id} className="bg-[#1d1c21] border border-white/[0.08] rounded-xl p-3">
+                        <div className="flex items-start gap-1.5">
+                          <span className={`mt-1 w-1.5 h-1.5 rounded-full flex-shrink-0 ${ev.calType === 'private' ? 'bg-purple-400' : 'bg-sky-400'}`} title={ev.calType} />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-white text-xs font-medium leading-snug">{ev.title}</p>
+                            <p className="text-white/40 text-[10px] mt-0.5">{formatTime(ev.startDateTime, ev.dateOnly)}</p>
+                          </div>
+                        </div>
+
+                        <div className="mt-2 flex items-center justify-between">
+                          <span className="text-white/40 text-[10px] uppercase tracking-wider">Checked in · {checkins.length}</span>
+                          <button
+                            onClick={() => { setAddFor(isAdding ? null : ev.id); setAddSearch(''); }}
+                            className="text-[11px] text-white/50 hover:text-green-400 transition-colors"
+                          >
+                            {isAdding ? 'Close' : '+ Add'}
+                          </button>
+                        </div>
+
+                        {isAdding && (
+                          <div className="mt-2 relative">
+                            <input
+                              autoFocus
+                              value={addSearch}
+                              onChange={e => setAddSearch(e.target.value)}
+                              placeholder="Search player…"
+                              className="w-full px-2 py-1.5 bg-white/[0.05] border border-white/15 rounded-lg text-white text-xs placeholder-white/25 focus:outline-none focus:border-white/35"
+                            />
+                            {results.length > 0 && (
+                              <div className="absolute z-20 left-0 right-0 mt-1 bg-[#111] border border-white/15 rounded-lg shadow-xl max-h-48 overflow-y-auto divide-y divide-white/[0.05]">
+                                {results.map(p => (
+                                  <button
+                                    key={p.$id}
+                                    onClick={() => addCheckin(ev, p)}
+                                    className="w-full text-left px-2.5 py-1.5 text-xs text-white hover:bg-white/[0.06] transition-colors"
+                                  >
+                                    {p.firstName} {p.lastName}
+                                    {p.isProxy && <span className="text-white/30"> · Proxy</span>}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {checkins.length > 0 && (
+                          <div className="mt-2 space-y-1 max-h-56 overflow-y-auto">
+                            {checkins.map(c => {
+                              const name = `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim() || c.userId || 'Unknown';
+                              return (
+                                <div key={c.$id} className="flex items-center justify-between gap-1.5 px-2 py-1 rounded-md bg-white/[0.03] border border-white/[0.05]">
+                                  <span className="text-white/85 text-xs truncate">{name}</span>
+                                  <button
+                                    onClick={() => removeCheckin(ev.id, c)}
+                                    className="p-0.5 text-white/25 hover:text-red-400 transition-colors flex-shrink-0"
+                                    title="Remove check-in"
+                                  >
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main section ─────────────────────────────────────────────────────────────
 const AttendanceManagerSection = () => {
   const { user } = useAuth();
@@ -649,6 +910,10 @@ const AttendanceManagerSection = () => {
   const [showDateModal, setShowDateModal] = useState(false);
   const [jumpDate, setJumpDate] = useState(easternToday);
   const [highlightIds, setHighlightIds] = useState<string[]>([]);
+
+  // List vs Week view, plus a shared player list for the week view's add search
+  const [viewMode, setViewMode] = useState<'list' | 'week'>('list');
+  const [allPlayers, setAllPlayers] = useState<PlayerSearchResult[]>([]);
 
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
@@ -696,6 +961,26 @@ const AttendanceManagerSection = () => {
           if (found) setSelected({ event: found, calType });
         }
       } finally { setLoading(false); }
+    })();
+  }, []);
+
+  // Load the player roster once (shared with the week view's add-check-in search)
+  useEffect(() => {
+    (async () => {
+      try {
+        const [yRes, cRes, pRes, proxyRes] = await Promise.all([
+          collections.youthPlayers ? databases.listDocuments(databaseId, collections.youthPlayers, [Query.limit(2000)]).catch(() => ({ documents: [] })) : { documents: [] },
+          collections.collegiatePlayers ? databases.listDocuments(databaseId, collections.collegiatePlayers, [Query.limit(2000)]).catch(() => ({ documents: [] })) : { documents: [] },
+          collections.professionalPlayers ? databases.listDocuments(databaseId, collections.professionalPlayers, [Query.limit(2000)]).catch(() => ({ documents: [] })) : { documents: [] },
+          collections.proxyChildren ? databases.listDocuments(databaseId, collections.proxyChildren, [Query.limit(2000)]).catch(() => ({ documents: [] })) : { documents: [] },
+        ]);
+        setAllPlayers([
+          ...((yRes as any).documents).map((d: any) => ({ $id: d.$id, userId: d.userId || d.$id, firstName: d.firstName || '', lastName: d.lastName || '', type: 'Youth' as const })),
+          ...((cRes as any).documents).map((d: any) => ({ $id: d.$id, userId: d.userId || d.$id, firstName: d.firstName || '', lastName: d.lastName || '', type: 'Collegiate' as const })),
+          ...((pRes as any).documents).map((d: any) => ({ $id: d.$id, userId: d.userId || d.$id, firstName: d.firstName || '', lastName: d.lastName || '', type: 'Professional' as const })),
+          ...((proxyRes as any).documents).map((d: any) => ({ $id: d.$id, userId: d.$id, firstName: d.firstName || '', lastName: d.lastName || '', type: 'Youth' as const, isProxy: true })),
+        ]);
+      } catch { /* ignore */ }
     })();
   }, []);
 
@@ -762,15 +1047,33 @@ const AttendanceManagerSection = () => {
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-white">Attendance Manager</h2>
         {!selected && !loading && (
-          <button
-            onClick={() => { setJumpDate(easternToday); setShowDateModal(true); }}
-            className="flex items-center gap-2 px-4 py-2 bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 rounded-lg text-white text-sm transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            Jump to date
-          </button>
+          <div className="flex items-center gap-2">
+            {/* List / Week toggle */}
+            <div className="flex bg-white/[0.04] border border-white/10 rounded-lg p-0.5">
+              {(['list', 'week'] as const).map(mode => (
+                <button
+                  key={mode}
+                  onClick={() => setViewMode(mode)}
+                  className={`px-3 py-1.5 text-sm rounded-md transition-colors capitalize ${
+                    viewMode === mode ? 'bg-white text-black font-medium' : 'text-white/60 hover:text-white'
+                  }`}
+                >
+                  {mode}
+                </button>
+              ))}
+            </div>
+            {viewMode === 'list' && (
+              <button
+                onClick={() => { setJumpDate(easternToday); setShowDateModal(true); }}
+                className="flex items-center gap-2 px-4 py-2 bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 rounded-lg text-white text-sm transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                Jump to date
+              </button>
+            )}
+          </div>
         )}
       </div>
 
@@ -801,6 +1104,13 @@ const AttendanceManagerSection = () => {
         <div className="flex items-center justify-center h-40">
           <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" />
         </div>
+      ) : viewMode === 'week' ? (
+        <WeekView
+          publicEvents={publicEvents}
+          privateEvents={privateEvents}
+          allPlayers={allPlayers}
+          onFeedback={showFeedback}
+        />
       ) : (
         <div className="grid grid-cols-2 gap-4 h-[calc(100vh-180px)] min-h-0">
 
