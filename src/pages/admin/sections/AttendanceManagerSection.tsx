@@ -686,6 +686,7 @@ function WeekView({
 }) {
   const todayStr = easternDay(new Date().toISOString());
   const [weekStart, setWeekStart] = useState(() => sundayOf(todayStr));
+  const [calFilter, setCalFilter] = useState<'all' | 'public' | 'private'>('all');
   const [checkinsByEvent, setCheckinsByEvent] = useState<Record<string, AttendeeDoc[]>>({});
   const [loading, setLoading] = useState(true);
   const [addFor, setAddFor] = useState<string | null>(null);
@@ -698,8 +699,8 @@ function WeekView({
     const map: Record<string, WeekEvent[]> = {};
     for (const d of days) map[d] = [];
     const all: WeekEvent[] = [
-      ...publicEvents.map(e => ({ ...e, calType: 'public' as const })),
-      ...privateEvents.map(e => ({ ...e, calType: 'private' as const })),
+      ...(calFilter !== 'private' ? publicEvents.map(e => ({ ...e, calType: 'public' as const })) : []),
+      ...(calFilter !== 'public' ? privateEvents.map(e => ({ ...e, calType: 'private' as const })) : []),
     ];
     for (const ev of all) {
       const d = easternDay(ev.startDateTime);
@@ -707,7 +708,7 @@ function WeekView({
     }
     for (const d of days) map[d].sort((a, b) => Date.parse(a.startDateTime) - Date.parse(b.startDateTime));
     return map;
-  }, [publicEvents, privateEvents, days]);
+  }, [publicEvents, privateEvents, days, calFilter]);
 
   const weekEventIds = useMemo(() => days.flatMap(d => eventsByDay[d].map(e => e.id)), [days, eventsByDay]);
   const weekKey = weekEventIds.join(',');
@@ -780,6 +781,21 @@ function WeekView({
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" /></svg>
           </button>
+
+          {/* Public / Private filter */}
+          <div className="flex bg-white/[0.04] border border-white/10 rounded-lg p-0.5 ml-2">
+            {(['all', 'public', 'private'] as const).map(f => (
+              <button
+                key={f}
+                onClick={() => setCalFilter(f)}
+                className={`px-3 py-1.5 text-sm rounded-md transition-colors capitalize ${
+                  calFilter === f ? 'bg-white text-black font-medium' : 'text-white/60 hover:text-white'
+                }`}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="text-right">
           <p className="text-white text-sm font-medium">{weekLabel}</p>
