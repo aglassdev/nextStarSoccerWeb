@@ -273,6 +273,8 @@ function EventDetailView({
     return allPlayers
       .filter(p => `${p.firstName} ${p.lastName}`.toLowerCase().includes(q))
       .filter(p => !signedUpUserIds.has(p.userId))
+      // Hide anyone already checked in (identity covers proxy siblings too)
+      .filter(p => !checkedInKeys.has(p.userId))
       .sort((a, b) => {
         const an = `${a.firstName} ${a.lastName}`.toLowerCase();
         const bn = `${b.firstName} ${b.lastName}`.toLowerCase();
@@ -282,7 +284,7 @@ function EventDetailView({
         return an.localeCompare(bn);
       })
       .slice(0, 12);
-  }, [allPlayers, search, signedUpUserIds]);
+  }, [allPlayers, search, signedUpUserIds, checkedInKeys]);
 
   const handleAddPlayer = async (p: PlayerSearchResult) => {
     setAdding(p.$id);
