@@ -193,6 +193,32 @@ function EventDetailView({
   const [listSearch, setListSearch] = useState('');
   const [adding, setAdding] = useState<string | null>(null);
   const [checkingIn, setCheckingIn] = useState<string | null>(null);
+  const [coachNames, setCoachNames] = useState<string[]>([]);
+
+  const reloadCoaches = async () => {
+    try {
+      if (!collections.coachSignups) { setCoachNames([]); return; }
+      const res = await databases.listDocuments(databaseId, collections.coachSignups, [
+        Query.equal('eventID', event.id), Query.limit(50),
+      ]);
+      const ids = new Set<string>();
+      for (const d of res.documents as any[]) {
+        if (d.coachUserId) ids.add(d.coachUserId);
+        if (Array.isArray(d.coaches)) for (const c of d.coaches) { const t = String(c).trim(); if (t) ids.add(t); }
+      }
+      if (ids.size === 0 || !collections.coaches) { setCoachNames([]); return; }
+      const coachesRes = await databases.listDocuments(databaseId, collections.coaches, [Query.limit(500)]);
+      const nameById: Record<string, string> = {};
+      for (const c of coachesRes.documents as any[]) {
+        const full = `${c.firstName || ''} ${c.lastName || ''}`.trim();
+        if (!full) continue;
+        if (c.userId) nameById[c.userId] = full;
+        if (c.$id) nameById[c.$id] = full;
+      }
+      const names = [...ids].map(id => nameById[id]).filter(Boolean);
+      setCoachNames([...new Set(names)]);
+    } catch { setCoachNames([]); }
+  };
 
   const reloadSignups = async () => {
     setLoadingSignups(true);
@@ -221,6 +247,7 @@ function EventDetailView({
   useEffect(() => {
     reloadSignups();
     reloadCheckins();
+    reloadCoaches();
     (async () => {
       try {
         const [yRes, cRes, pRes, proxyRes] = await Promise.all([
@@ -470,6 +497,14 @@ function EventDetailView({
               <p className="text-white/40 text-[10px] uppercase tracking-wider mb-0.5">Calendar</p>
               <p className="text-white text-sm capitalize">{calType}</p>
             </div>
+            {coachNames.length > 0 && (
+              <div>
+                <p className="text-white/40 text-[10px] uppercase tracking-wider mb-0.5">
+                  {coachNames.length > 1 ? 'Coaches' : 'Coach'}
+                </p>
+                <p className="text-white text-sm">{coachNames.join(', ')}</p>
+              </div>
+            )}
           </div>
         </div>
 
