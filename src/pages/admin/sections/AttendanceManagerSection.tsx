@@ -197,14 +197,20 @@ function EventDetailView({
 
   const reloadCoaches = async () => {
     try {
-      if (!collections.coachSignups) { setCoachNames([]); return; }
-      const res = await databases.listDocuments(databaseId, collections.coachSignups, [
-        Query.equal('eventID', event.id), Query.limit(50),
-      ]);
       const ids = new Set<string>();
-      for (const d of res.documents as any[]) {
-        if (d.coachUserId) ids.add(d.coachUserId);
-        if (Array.isArray(d.coaches)) for (const c of d.coaches) { const t = String(c).trim(); if (t) ids.add(t); }
+      const collect = (docs: any[]) => {
+        for (const d of docs) {
+          if (d.coachUserId) ids.add(d.coachUserId);
+          if (Array.isArray(d.coaches)) for (const c of d.coaches) { const t = String(c).trim(); if (t) ids.add(t); }
+        }
+      };
+      const q = [Query.equal('eventID', event.id), Query.limit(50)];
+      // A coach "coaches" a session if they signed up for it OR checked in to it.
+      if (collections.coachSignups) {
+        try { collect((await databases.listDocuments(databaseId, collections.coachSignups, q)).documents as any[]); } catch { /* ignore */ }
+      }
+      if (collections.coachCheckins) {
+        try { collect((await databases.listDocuments(databaseId, collections.coachCheckins, q)).documents as any[]); } catch { /* ignore */ }
       }
       if (ids.size === 0 || !collections.coaches) { setCoachNames([]); return; }
       const coachesRes = await databases.listDocuments(databaseId, collections.coaches, [Query.limit(500)]);
