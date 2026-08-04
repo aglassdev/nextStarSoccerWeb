@@ -99,11 +99,24 @@ function SessionNotesPanel({ eventId, eventDate, eventTime, currentUserId, curre
   }, [eventId]);
 
   const handleSave = async () => {
-    if (!content.trim()) return;
+    const trimmed = content.trim();
     setSaving(true);
     try {
+      if (!collections.sessionNotes) return;
+      // Blank entry clears the note: the `content` attribute is required, so we
+      // can't store an empty string — remove the note doc instead (if any).
+      if (!trimmed) {
+        if (note) {
+          await databases.deleteDocument(databaseId, collections.sessionNotes, note.$id);
+          setNote(null);
+        }
+        setContent('');
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2500);
+        return;
+      }
       const payload = {
-        content: content.trim(),
+        content: trimmed,
         eventID: eventId,
         sessionDate: eventDate,
         sessionTime: eventTime,
@@ -112,9 +125,9 @@ function SessionNotesPanel({ eventId, eventDate, eventTime, currentUserId, curre
       };
       let updated: any;
       if (note) {
-        updated = await databases.updateDocument(databaseId, collections.sessionNotes!, note.$id, payload);
+        updated = await databases.updateDocument(databaseId, collections.sessionNotes, note.$id, payload);
       } else {
-        updated = await databases.createDocument(databaseId, collections.sessionNotes!, ID.unique(), payload);
+        updated = await databases.createDocument(databaseId, collections.sessionNotes, ID.unique(), payload);
       }
       setNote(updated as SessionNoteDoc);
       setSaved(true);
@@ -152,10 +165,10 @@ function SessionNotesPanel({ eventId, eventDate, eventTime, currentUserId, curre
           <div className="flex justify-end">
             <button
               onClick={handleSave}
-              disabled={saving || !content.trim()}
+              disabled={saving}
               className="px-4 py-1.5 bg-white/[0.08] hover:bg-white/[0.13] disabled:opacity-40 disabled:cursor-not-allowed rounded-lg text-white text-sm transition-colors"
             >
-              {saving ? 'Saving…' : note ? 'Update Notes' : 'Save Notes'}
+              {saving ? 'Saving…' : (!content.trim() && note) ? 'Clear Notes' : note ? 'Update Notes' : 'Save Notes'}
             </button>
           </div>
         </div>
