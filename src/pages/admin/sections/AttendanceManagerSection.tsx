@@ -36,6 +36,13 @@ interface AttendeeDoc {
 const attendeeIdentity = (d: { userId?: string; onBehalfOfUserId?: string | null; onBehalfOfProxyId?: string | null }): string =>
   d.onBehalfOfProxyId || d.onBehalfOfUserId || d.userId || '';
 
+// Normalized full name — a secondary match key so a signup pairs with its
+// check-in even when legacy check-ins stored the parent's userId (and no proxy
+// id) instead of the child's identity. Siblings have distinct names, so this
+// never collapses them together.
+const normName = (d: { firstName?: string; lastName?: string }): string =>
+  `${d.firstName ?? ''} ${d.lastName ?? ''}`.trim().toLowerCase().replace(/\s+/g, ' ');
+
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function formatTime(dt: string, dateOnly?: boolean) {
@@ -308,10 +315,22 @@ function EventDetailView({
     [signups],
   );
 
-  const checkedInKeys = useMemo(
-    () => new Set(checkins.map(attendeeIdentity).filter(Boolean)),
-    [checkins],
-  );
+  // Set of check-in match keys: both identity (id:) and normalized name (name:).
+  const checkedInKeys = useMemo(() => {
+    const set = new Set<string>();
+    for (const c of checkins) {
+      const id = attendeeIdentity(c); if (id) set.add('id:' + id);
+      const n = normName(c); if (n) set.add('name:' + n);
+    }
+    return set;
+  }, [checkins]);
+
+  // A signup/player counts as checked in if its identity OR its name matches a check-in.
+  const isCheckedIn = (d: { userId?: string; firstName?: string; lastName?: string; onBehalfOfUserId?: string | null; onBehalfOfProxyId?: string | null }): boolean => {
+    const id = attendeeIdentity(d);
+    const n = normName(d);
+    return (!!id && checkedInKeys.has('id:' + id)) || (!!n && checkedInKeys.has('name:' + n));
+  };
 
   const filteredPlayers = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -319,8 +338,8 @@ function EventDetailView({
     return allPlayers
       .filter(p => `${p.firstName} ${p.lastName}`.toLowerCase().includes(q))
       .filter(p => !signedUpUserIds.has(p.userId))
-      // Hide anyone already checked in (identity covers proxy siblings too)
-      .filter(p => !checkedInKeys.has(p.userId))
+      // Hide anyone already checked in (identity or name match)
+      .filter(p => !isCheckedIn(p))
       .sort((a, b) => {
         const an = `${a.firstName} ${a.lastName}`.toLowerCase();
         const bn = `${b.firstName} ${b.lastName}`.toLowerCase();
@@ -385,7 +404,7 @@ function EventDetailView({
   };
 
   const handleCheckinFromSignup = async (s: AttendeeDoc) => {
-    if (!s.userId || checkedInKeys.has(attendeeIdentity(s))) return;
+    if (!s.userId || isCheckedIn(s)) return;
     setCheckingIn(s.$id);
     try {
       if (collections.checkins) {
@@ -586,7 +605,7 @@ function EventDetailView({
               <div className="space-y-1 max-h-[400px] overflow-y-auto">
                 {filteredSignups.map(s => {
                   const name = `${s.firstName ?? ''} ${s.lastName ?? ''}`.trim() || s.userId || 'Unknown';
-                  const alreadyCheckedIn = checkedInKeys.has(attendeeIdentity(s));
+                  const alreadyCheckedIn = isCheckedIn(s);
                   const isCheckingIn = checkingIn === s.$id;
                   return (
                     <div key={s.$id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.05]">
@@ -882,11 +901,15 @@ function WeekView({
                     const checkins = checkinsByEvent[ev.id] || [];
                     const isAdding = addFor === ev.id;
                     const q = addSearch.trim().toLowerCase();
-                    const checkedKeys = new Set(checkins.map(attendeeIdentity));
+                    const checkedKeys = new Set<string>();
+                    for (const c of checkins) {
+                      const cid = attendeeIdentity(c); if (cid) checkedKeys.add('id:' + cid);
+                      const cn = normName(c); if (cn) checkedKeys.add('name:' + cn);
+                    }
                     const results = isAdding && q.length >= 2
                       ? allPlayers
                           .filter(p => `${p.firstName} ${p.lastName}`.toLowerCase().includes(q))
-                          .filter(p => !checkedKeys.has(attendeeIdentity(p as any)))
+                          .filter(p => !(checkedKeys.has('id:' + attendeeIdentity(p as any)) || checkedKeys.has('name:' + normName(p))))
                           .slice(0, 8)
                       : [];
                     return (
