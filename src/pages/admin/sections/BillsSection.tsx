@@ -558,9 +558,46 @@ const BillsSection = () => {
   // Re-sync a bill record after edits (refresh from state)
   const handleBillUpdated = () => fetchBills();
 
+  // Dollar totals + bill counts per section, plus an overall total.
+  const fmtMoney = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const stats = (() => {
+    const acc: Record<BillStatus, { count: number; amount: number }> = {
+      outstanding: { count: 0, amount: 0 },
+      settled: { count: 0, amount: 0 },
+      overdue: { count: 0, amount: 0 },
+    };
+    for (const b of bills) {
+      const s = deriveBillStatus(b);
+      acc[s].count += 1;
+      acc[s].amount += b.totalAmount ?? 0;
+    }
+    const total = {
+      count: bills.length,
+      amount: acc.outstanding.amount + acc.settled.amount + acc.overdue.amount,
+    };
+    return { ...acc, total };
+  })();
+  const statCards = [
+    { label: 'Outstanding', s: stats.outstanding, color: 'text-yellow-400' },
+    { label: 'Settled', s: stats.settled, color: 'text-green-400' },
+    { label: 'Overdue', s: stats.overdue, color: 'text-red-400' },
+    { label: 'Total', s: stats.total, color: 'text-white' },
+  ];
+
   return (
     <div className="p-6">
       <h2 className="text-2xl font-bold text-white mb-6">Bills</h2>
+
+      {/* Stats — dollar total per section + overall */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        {statCards.map(({ label, s, color }) => (
+          <div key={label} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+            <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">{label}</p>
+            <p className={`text-2xl font-bold ${color}`}>{fmtMoney(s.amount)}</p>
+            <p className="text-gray-500 text-xs mt-0.5">{s.count} bill{s.count === 1 ? '' : 's'}</p>
+          </div>
+        ))}
+      </div>
 
       {/* Tabs */}
       <div className="flex gap-1 mb-6 bg-gray-900 rounded-lg p-1 w-fit border border-gray-800">
