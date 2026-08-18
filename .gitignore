@@ -177,3 +177,7 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+.vercel
+
+# Local review drafts (not meant to be committed)
+*-draft.html
