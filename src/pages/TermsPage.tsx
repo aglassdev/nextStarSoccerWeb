@@ -24,7 +24,7 @@ footer.contact{font-size:14.5px;line-height:1.7;}
 </style></head><body><div class="doc">
 
 <h1 class="title">NEXT STAR SOCCER LLC TERMS OF SERVICE</h1>
-<div class="updated"><strong>Last updated August 26, 2026</strong></div>
+<div class="updated"><strong>Last updated August 24, 2026</strong></div>
 
 <h2 style="border:none;">Table of Contents</h2>
 <ol class="toc">
