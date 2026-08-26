@@ -24,7 +24,7 @@ footer.contact{font-size:14.5px;line-height:1.7;}
 </style></head><body><div class="doc">
 
 <h1 class="title">NEXT STAR SOCCER LLC TERMS OF SERVICE</h1>
-<div class="updated"><strong>Last updated August 24, 2026</strong></div>
+<div class="updated"><strong>Last updated August 26, 2026</strong></div>
 
 <h2 style="border:none;">Table of Contents</h2>
 <ol class="toc">
@@ -156,13 +156,14 @@ footer.contact{font-size:14.5px;line-height:1.7;}
 
 <h2 id="s18"><span class="num">18.</span>Purchases and Payment</h2>
 <p>We accept the following forms of payment: Visa, Mastercard, American Express, Diners Club, JCB, UnionPay, Apple Pay, Google Pay, ACH direct debit, and bank transfer.</p>
-<p>You agree to provide current, complete, and accurate purchase and account information for all purchases made via the Services. All payments shall be in US dollars.</p>
+<p>You agree to provide current, complete, and accurate purchase and account information for all purchases made via the Services, and you authorize the Company to charge your payment method on file for Services you book and for any other amount you owe under these Legal Terms. All payments shall be in US dollars.</p>
 <p>Unless otherwise stated at checkout, invoices are due within ten (10) days of issuance. If you are experiencing a billing discrepancy or financial hardship, contact us at info@nextstarsoccer.com before the due date and we will work with you on an extension; extensions requested after the due date has passed are granted at the Company's discretion.</p>
 <p>Purchased session packages or credits are non-transferable between families and expire twelve (12) months after purchase unless otherwise stated at checkout.</p>
 
 <h2 id="s19"><span class="num">19.</span>Late Payments and Suspension for Non-Payment</h2>
 <p>A bill not paid by its due date (or extended due date under Section 18) is overdue. Overdue balances accrue a one-time late fee equal to 10% of the overdue amount.</p>
 <p>While a balance is overdue, the Participant may attend one (1) additional complimentary session. After that session, the Participant may not attend any further session or use any other Service until the full outstanding balance, including any late fee, is paid in full. The Company may also suspend or terminate the account under Section 21.</p>
+<p>If a balance remains overdue for thirty (30) or more days past its due date, you authorize the Company to automatically charge the credit card, debit card, or digital wallet (such as Apple Pay or Google Pay) on file for the full overdue balance, including any late fee under this Section, without requiring a separate authorization for that specific charge. The Company will send notice to the email address or phone number on your account before doing so. This authorization does not extend to payments made by ACH direct debit or bank transfer; for clients using those payment methods, the Company will contact you directly to arrange payment of an overdue balance.</p>
 
 <h2 id="s20"><span class="num">20.</span>Refunds and Credits</h2>
 <p>Refunds and credits are issued at the Company's discretion and may include: charges made in error or duplicate; sessions the Company cancels and does not make up; or other circumstances the Company determines warrant one. To request a refund or credit, contact info@nextstarsoccer.com. Approved refunds may be issued to your original payment method or as account credit, at the Company's discretion, unless applicable law requires otherwise.</p>
