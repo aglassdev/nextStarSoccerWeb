@@ -55,6 +55,7 @@ export const icons = {
   user: '/assets/icons/user.svg',
   menu: '/assets/icons/menu.svg',
   close: '/assets/icons/close.svg',
+  coach: '/assets/icons/coachIcon.png',
 
   // Team & school icons for coach pages
   bethesda: '/assets/icons/bethesda.png',

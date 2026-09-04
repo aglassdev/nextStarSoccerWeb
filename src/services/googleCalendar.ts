@@ -1,4 +1,7 @@
-import { functions } from "./appwrite";
+import { Query } from "appwrite";
+import { functions, databases, collections } from "./appwrite";
+
+const databaseId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
 
 export interface CalendarEvent {
   id: string;
@@ -23,16 +26,147 @@ const isCancelLine = (line: string): boolean => {
   return lower.split(/\s+/).some(w => w === "cancel" || w === "cancelled" || w === "canceled" || w === "cancellation");
 };
 
-// Returns the coach name from the event description, or null.
-// The description may just be a raw name ("John Smith") or a name alongside
-// a cancellation note. Strips any cancelled-variant lines and returns the rest.
-export const getEventCoach = (event: CalendarEvent): string | null => {
-  if (!event.description) return null;
-  const coachLines = event.description
-    .split('\n')
+// Operational notes that live in the description but are not coach names.
+const NON_COACH_NOTES = new Set(["backfilled session", "backfilled"]);
+
+const isNonCoachLine = (line: string): boolean => {
+  const lower = line.toLowerCase();
+  if (NON_COACH_NOTES.has(lower)) return true;
+  // Stray punctuation-only entries (e.g. a lone backslash) are not names.
+  return !/[a-z]/i.test(line);
+};
+
+// Splits a description into candidate entries on the delimiters actually used
+// (commas and newlines), dropping cancellation markers and operational notes.
+const descriptionChunks = (description?: string): string[] => {
+  if (!description) return [];
+  return description
+    .split(/[\n,]+/)
     .map(l => l.trim())
-    .filter(l => l.length > 0 && !isCancelLine(l));
-  return coachLines.length > 0 ? coachLines[0] : null;
+    .filter(l => l.length > 0 && !isCancelLine(l) && !isNonCoachLine(l));
+};
+
+const wordCount = (s: string) => s.split(/\s+/).filter(Boolean).length;
+const normalize = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
+
+// Coaches are entered inconsistently: comma-separated, newline-separated, or
+// several names run together with only spaces ("Phillip Gyau Paul Torres").
+// Splitting the last form needs a vocabulary of real names, and the coach
+// roster alone is not enough — some regulars have no coach account. So we also
+// learn names from the entries that are unambiguous on their own.
+export const buildCoachNameVocabulary = (
+  events: CalendarEvent[],
+  roster: string[] = []
+): string[] => {
+  const vocab = new Map<string, string>();
+  const add = (name: string) => {
+    const key = normalize(name);
+    if (key && !vocab.has(key)) vocab.set(key, name.trim());
+  };
+  roster.forEach(add);
+  for (const event of events) {
+    for (const chunk of descriptionChunks(event.description)) {
+      if (wordCount(chunk) === 2) add(chunk);
+    }
+  }
+  return Array.from(vocab.values());
+};
+
+// Pulls the coach names out of one description. `vocab` should come from
+// buildCoachNameVocabulary so run-together entries can be separated.
+export const getEventCoachesFromDescription = (
+  event: CalendarEvent,
+  vocab: string[] = []
+): string[] => {
+  const byLength = [...vocab].sort((a, b) => b.length - a.length);
+  const lastNames = new Map<string, string[]>();
+  for (const name of vocab) {
+    const parts = name.split(/\s+/);
+    if (parts.length < 2) continue;
+    const last = normalize(parts[parts.length - 1]);
+    lastNames.set(last, [...(lastNames.get(last) ?? []), name]);
+  }
+
+  const out: string[] = [];
+  const push = (name: string) => {
+    const trimmed = name.trim();
+    if (trimmed && !out.some(n => normalize(n) === normalize(trimmed))) out.push(trimmed);
+  };
+
+  for (const chunk of descriptionChunks(event.description)) {
+    if (wordCount(chunk) <= 2) { push(chunk); continue; }
+
+    let rest = chunk;
+    let guard = 0;
+    while (rest.length > 0 && guard++ < 12) {
+      const match = byLength.find(name => normalize(rest).startsWith(normalize(name)));
+      if (match) {
+        push(rest.slice(0, match.length));
+        rest = rest.slice(match.length).trim();
+        continue;
+      }
+      // No known name here: peel one token off and try to resolve a bare
+      // surname ("Gyau") back to the full name when it is unambiguous.
+      const [token, ...remaining] = rest.split(/\s+/);
+      const candidates = lastNames.get(normalize(token));
+      push(candidates?.length === 1 ? candidates[0] : token);
+      rest = remaining.join(" ");
+    }
+  }
+  return out;
+};
+
+// Resolves the coaches for each event, keyed by event id.
+// Coach signups are authoritative; the Google Calendar description is only a
+// fallback for events nobody has signed up to coach yet.
+export const resolveEventCoaches = async (
+  events: CalendarEvent[]
+): Promise<Record<string, string[]>> => {
+  if (events.length === 0) return {};
+
+  const nameByUserId = new Map<string, string>();
+  try {
+    const res = await databases.listDocuments(databaseId, collections.coaches, [
+      Query.limit(500),
+    ]);
+    for (const doc of res.documents as any[]) {
+      const name = `${doc.firstName ?? ""} ${doc.lastName ?? ""}`.trim();
+      if (doc.userId && name) nameByUserId.set(doc.userId, name);
+    }
+  } catch (error) {
+    console.error("Failed to load coaches:", error);
+  }
+
+  const signedUpByEvent = new Map<string, string[]>();
+  const eventIds = events.map(e => e.id);
+  for (let i = 0; i < eventIds.length; i += 25) {
+    const batch = eventIds.slice(i, i + 25);
+    try {
+      const res = await databases.listDocuments(databaseId, collections.coachSignups, [
+        Query.equal("eventID", batch),
+        Query.limit(200),
+      ]);
+      for (const doc of res.documents as any[]) {
+        const name = nameByUserId.get(doc.coachUserId);
+        if (!name) continue;
+        const existing = signedUpByEvent.get(doc.eventID) ?? [];
+        if (!existing.includes(name)) existing.push(name);
+        signedUpByEvent.set(doc.eventID, existing);
+      }
+    } catch (error) {
+      console.error("Failed to load coach signups:", error);
+    }
+  }
+
+  const vocab = buildCoachNameVocabulary(events, [...nameByUserId.values()]);
+  const result: Record<string, string[]> = {};
+  for (const event of events) {
+    const signedUp = signedUpByEvent.get(event.id);
+    result[event.id] = signedUp?.length
+      ? signedUp
+      : getEventCoachesFromDescription(event, vocab);
+  }
+  return result;
 };
 
 export const isEventCancelled = (event: CalendarEvent): boolean => {

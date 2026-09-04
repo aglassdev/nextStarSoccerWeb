@@ -6,8 +6,19 @@ import {
   googleCalendarService,
   CalendarEvent,
   isEventCancelled,
-  getEventCoach,
+  resolveEventCoaches,
 } from "../services/googleCalendar";
+import { icons } from "../constants/images";
+
+const CoachLine = ({ coaches, className }: { coaches: string[]; className: string }) => {
+  if (coaches.length === 0) return null;
+  return (
+    <p className={`flex items-center gap-1.5 ${className}`}>
+      <img src={icons.coach} alt="" className="w-3.5 h-3.5 flex-shrink-0 opacity-80" />
+      <span>{coaches.join(", ")}</span>
+    </p>
+  );
+};
 
 const BUTTON_WIDTH = 140;
 
@@ -29,6 +40,7 @@ const CalendarPage = () => {
   const [filterVisible, setFilterVisible] = useState(false);
   const [currentMonthIndex, setCurrentMonthIndex] = useState(0);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [coachesByEvent, setCoachesByEvent] = useState<Record<string, string[]>>({});
   const [filterOptions, setFilterOptions] = useState<FilterOption[]>([
     { id: "patrick-mullins", label: "Patrick Mullins", color: "#FFB300", selected: true },
     { id: "attacking-focus", label: "Attacking Focus", color: "#FF00FF", selected: true },
@@ -137,6 +149,19 @@ const CalendarPage = () => {
   useEffect(() => {
     fetchEvents(true);
   }, []);
+
+  useEffect(() => {
+    const allEvents = [...events, ...todaysEvents];
+    if (allEvents.length === 0) {
+      setCoachesByEvent({});
+      return;
+    }
+    let cancelled = false;
+    resolveEventCoaches(allEvents).then(resolved => {
+      if (!cancelled) setCoachesByEvent(resolved);
+    });
+    return () => { cancelled = true; };
+  }, [events, todaysEvents]);
 
   useEffect(() => {
     const filtered = events.filter((event) => {
@@ -339,7 +364,7 @@ const CalendarPage = () => {
                   );
                   const isCancelled = isEventCancelled(event);
                   const eventColor = getEventColor(event.title);
-                  const coach = getEventCoach(event);
+                  const coaches = coachesByEvent[event.id] ?? [];
 
                   return (
                     <button
@@ -359,9 +384,7 @@ const CalendarPage = () => {
                             {event.location && (
                               <p className="text-white/70 text-xs mt-0.5">{getLocationName(event.location)}</p>
                             )}
-                            {coach && (
-                              <p className="text-white/60 text-xs mt-0.5">🎽 {coach}</p>
-                            )}
+                            <CoachLine coaches={coaches} className="text-white/60 text-xs mt-0.5" />
                           </div>
                         </div>
                         {isCancelled && (
@@ -487,6 +510,10 @@ const CalendarPage = () => {
                                 {event.location && (
                                   <p className="text-gray-500 text-xs mt-0.5">{getLocationName(event.location)}</p>
                                 )}
+                                <CoachLine
+                                  coaches={coachesByEvent[event.id] ?? []}
+                                  className="text-gray-500 text-xs mt-0.5"
+                                />
                               </div>
                             </button>
                           );
@@ -618,11 +645,15 @@ const CalendarPage = () => {
                           CANCELLED
                         </span>
                       )}
-                      {getEventCoach(selectedEvent) && (
-                        <span className="inline-block bg-white/10 text-white/90 text-xs font-medium px-3 py-1 rounded-full">
-                          Coach: {getEventCoach(selectedEvent)}
+                      {(coachesByEvent[selectedEvent.id] ?? []).map((coach) => (
+                        <span
+                          key={coach}
+                          className="inline-flex items-center gap-1.5 bg-white/10 text-white/90 text-xs font-medium px-3 py-1 rounded-full"
+                        >
+                          <img src={icons.coach} alt="" className="w-3.5 h-3.5 opacity-80" />
+                          {coach}
                         </span>
-                      )}
+                      ))}
                     </div>
                   </div>
                 </div>
@@ -664,12 +695,6 @@ const CalendarPage = () => {
                     </div>
                   )}
 
-                  {selectedEvent.description && (
-                    <div>
-                      <h3 className="text-sm font-semibold text-gray-400 mb-1">Description</h3>
-                      <p className="text-white whitespace-pre-wrap">{selectedEvent.description}</p>
-                    </div>
-                  )}
                 </div>
 
                 {/* Map */}

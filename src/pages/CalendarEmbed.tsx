@@ -573,12 +573,6 @@ const CalendarEmbed = () => {
                       <p className="text-white">{getLocationName(selectedEvent.location)}</p>
                     </div>
                   )}
-                  {selectedEvent.description && (
-                    <div>
-                      <h3 className="text-sm font-semibold text-gray-400 mb-1">Description</h3>
-                      <p className="text-white whitespace-pre-wrap">{selectedEvent.description}</p>
-                    </div>
-                  )}
                 </div>
 
                 {selectedEvent.location && (
