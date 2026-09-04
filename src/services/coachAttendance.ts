@@ -52,6 +52,23 @@ export interface CoachAttendanceData {
 export const normalizeName = (name: string): string =>
   name.trim().toLowerCase().replace(/\s+/g, " ");
 
+// Test/internal accounts kept out of attendance and payout reporting.
+const HIDDEN_COACHES = new Set(["coach testing"]);
+
+// The same person entered under different names, mostly in calendar
+// descriptions. Keys are normalized; values are the name to merge into.
+const COACH_ALIASES: Record<string, string> = {
+  "coach kareem": "Karim Metwalli",
+  "kareem metwalli": "Karim Metwalli",
+};
+
+export const isHiddenCoach = (name: string): boolean =>
+  HIDDEN_COACHES.has(normalizeName(name));
+
+// Resolves a name to the single identity it should be counted under.
+export const canonicalCoachName = (name: string): string =>
+  COACH_ALIASES[normalizeName(name)] ?? name.trim();
+
 async function listAll(collectionId: string): Promise<any[]> {
   const out: any[] = [];
   let cursor: string | null = null;
@@ -112,7 +129,8 @@ export async function buildCoachAttendance(): Promise<CoachAttendanceData> {
   const nameByUserId = new Map<string, string>();
   const coachRows = new Map<string, CoachRow>();
 
-  const ensureRow = (name: string, userId?: string, inRoster = false): CoachRow => {
+  const ensureRow = (rawName: string, userId?: string, inRoster = false): CoachRow => {
+    const name = canonicalCoachName(rawName);
     const key = normalizeName(name);
     let row = coachRows.get(key);
     if (!row) {
@@ -126,7 +144,7 @@ export async function buildCoachAttendance(): Promise<CoachAttendanceData> {
 
   for (const doc of coachDocs) {
     const name = `${doc.firstName ?? ""} ${doc.lastName ?? ""}`.trim();
-    if (!name) continue;
+    if (!name || isHiddenCoach(name)) continue;
     if (doc.userId) nameByUserId.set(doc.userId, name);
     ensureRow(name, doc.userId, true);
   }
@@ -140,7 +158,7 @@ export async function buildCoachAttendance(): Promise<CoachAttendanceData> {
   const creditedPairs = new Set<string>();
   const credit = (doc: any, via: AttendanceVia) => {
     const name = nameByUserId.get(doc.coachUserId);
-    if (!name || !doc.eventID) return;
+    if (!name || !doc.eventID || isHiddenCoach(name)) return;
     const pair = `${doc.eventID}::${doc.coachUserId}`;
     if (creditedPairs.has(pair)) return;
     creditedPairs.add(pair);
@@ -167,13 +185,14 @@ export async function buildCoachAttendance(): Promise<CoachAttendanceData> {
   // Calendar-description coaches, tracked as a separate statistic.
   const roster = coachDocs
     .map((d: any) => `${d.firstName ?? ""} ${d.lastName ?? ""}`.trim())
-    .filter(Boolean);
+    .filter((n: string) => n && !isHiddenCoach(n));
   const vocab = buildCoachNameVocabulary(events, roster);
   for (const ev of events) {
     const names = getEventCoachesFromDescription(ev, vocab);
     if (names.length === 0) continue;
     const slot = ensureEvent(ev.id);
     for (const rawName of names) {
+      if (isHiddenCoach(rawName)) continue;
       const row = ensureRow(rawName);
       if (row.calendar.some(s => s.eventId === ev.id)) continue;
       row.calendar.push({

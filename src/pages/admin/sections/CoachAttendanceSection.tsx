@@ -276,15 +276,15 @@ const CoachAttendanceSection = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="flex items-center justify-center h-64 p-6">
         <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" />
       </div>
     );
   }
-  if (!data) return <p className="text-white/40 text-sm">Could not load coach attendance.</p>;
+  if (!data) return <p className="text-white/40 text-sm p-6">Could not load coach attendance.</p>;
 
   return (
-    <div>
+    <div className="p-6 max-w-6xl">
       <div className="flex flex-wrap items-start justify-between gap-4 mb-5">
         <div>
           <h1 className="text-white text-xl font-semibold">Coach Attendance</h1>

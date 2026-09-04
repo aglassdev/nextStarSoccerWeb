@@ -16,7 +16,9 @@ const GYAU_ABSENT_SHARE = 0.3;   // 30% of revenue on qualifying sessions he mis
 const NOT_CALCULATED = ['paul torres', 'patrick mullins'];
 const GYAU = 'phillip gyau';
 
-const CACHE_KEY = 'nss.coachPayouts.v1';
+// Bumped when the payout rules or coach identity handling change, so stale
+// cached figures are not shown after a rule change.
+const CACHE_KEY = 'nss.coachPayouts.v2';
 
 const has = (title: string, ...needles: string[]) => {
   const t = title.toLowerCase();
@@ -227,7 +229,7 @@ const CoachPaymentsSection = () => {
   );
 
   return (
-    <div>
+    <div className="p-6 max-w-5xl">
       <div className="flex flex-wrap items-start justify-between gap-4 mb-5">
         <div>
           <h1 className="text-white text-xl font-semibold">Coach Payments</h1>
