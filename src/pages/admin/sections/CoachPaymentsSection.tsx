@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   buildCoachAttendance,
   CoachAttendanceData,
@@ -199,29 +199,34 @@ const CoachPaymentsSection = () => {
   const [calculating, setCalculating] = useState(false);
   const [error, setError] = useState('');
 
-  // Cached results only. Recalculation is explicit — opening or reloading the
-  // page never refetches, so the numbers stay stable until you ask for new ones.
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(CACHE_KEY);
-      if (raw) setResult(JSON.parse(raw));
-    } catch { /* ignore malformed cache */ }
-  }, []);
-
-  const recalculate = async () => {
+  const recalculate = useCallback(async (isCancelled: () => boolean = () => false) => {
     setCalculating(true);
     setError('');
     try {
       const data = await buildCoachAttendance();
       const computed = computePayouts(data);
+      if (isCancelled()) return;
       setResult(computed);
       try { localStorage.setItem(CACHE_KEY, JSON.stringify(computed)); } catch { /* quota */ }
     } catch (e: any) {
-      setError(e?.message || 'Failed to calculate payouts');
+      if (!isCancelled()) setError(e?.message || 'Failed to calculate payouts');
     } finally {
-      setCalculating(false);
+      if (!isCancelled()) setCalculating(false);
     }
-  };
+  }, []);
+
+  // Recalculates every time the page is opened. The last figures are cached and
+  // shown straight away so the page is never blank while the refresh runs, and
+  // they stay on screen if the refresh fails.
+  useEffect(() => {
+    let cancelled = false;
+    try {
+      const raw = localStorage.getItem(CACHE_KEY);
+      if (raw) setResult(JSON.parse(raw));
+    } catch { /* ignore malformed cache */ }
+    recalculate(() => cancelled);
+    return () => { cancelled = true; };
+  }, [recalculate]);
 
   const lastRun = useMemo(
     () => result ? new Date(result.builtAt).toLocaleString('en-US', { timeZone: 'America/New_York' }) : null,
@@ -234,11 +239,15 @@ const CoachPaymentsSection = () => {
         <div>
           <h1 className="text-white text-xl font-semibold">Coach Payments</h1>
           <p className="text-white/40 text-[13px] mt-1">
-            {lastRun ? `Last calculated ${lastRun}` : 'Not calculated yet'}
+            {calculating
+              ? 'Recalculating…'
+              : lastRun
+              ? `Recalculated on open · ${lastRun}`
+              : 'Calculating…'}
           </p>
         </div>
         <button
-          onClick={recalculate}
+          onClick={() => recalculate()}
           disabled={calculating}
           className="flex items-center gap-2 px-4 py-2 bg-white text-black text-sm font-medium rounded-lg hover:bg-white/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
@@ -249,7 +258,7 @@ const CoachPaymentsSection = () => {
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
-              {result ? 'Recalculate' : 'Calculate'}
+              Recalculate
             </>
           )}
         </button>
@@ -261,10 +270,8 @@ const CoachPaymentsSection = () => {
 
       {!result ? (
         <div className="bg-[#0e0e0e] border border-[#1c1c1c] rounded-xl px-6 py-12 text-center">
-          <p className="text-white/50 text-sm">No payout figures yet.</p>
-          <p className="text-white/25 text-[12px] mt-1">
-            Press Calculate to pull attendance and session revenue. Results are cached, so reopening this page won't recalculate.
-          </p>
+          <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin mx-auto" />
+          <p className="text-white/50 text-sm mt-3">Pulling attendance and session revenue…</p>
         </div>
       ) : (
         <>

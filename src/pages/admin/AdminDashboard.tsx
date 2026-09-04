@@ -42,11 +42,11 @@ const REQUEST_TYPES = [
 
 type Section = 'players' | 'coaches' | 'parents' | 'bills' | 'payments' | 'messages' | 'requests' | 'calendar' | 'eventAssistant' | 'attendance' | 'coachManagement' | 'coachAttendance' | 'coachPayments' | 'devOverview' | 'appFeedback' | 'serviceStatus' | 'sessionReviews' | 'scholarships';
 
-type NavGroup = 'Directory' | 'Coach Management' | 'Messages' | 'Payments' | 'Events' | 'Development';
+type NavGroup = 'Directory' | 'Coaches' | 'Messages' | 'Payments' | 'Events' | 'Development';
 
 const SECTION_TO_GROUP: Partial<Record<Section, NavGroup>> = {
   players: 'Directory', coaches: 'Directory', parents: 'Directory',
-  coachManagement: 'Coach Management', coachAttendance: 'Coach Management', coachPayments: 'Coach Management',
+  coachManagement: 'Coaches', coachAttendance: 'Coaches', coachPayments: 'Coaches',
   messages: 'Messages', requests: 'Messages',
   bills: 'Payments', payments: 'Payments', scholarships: 'Payments',
   calendar: 'Events', eventAssistant: 'Events', attendance: 'Events', sessionReviews: 'Events',
@@ -511,8 +511,8 @@ const AdminDashboard = () => {
               icon={<svg className="w-[13px] h-[13px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>} />
           </NavGroupItem>
 
-          {/* Coach Management */}
-          <NavGroupItem label="Coach Management" open={openGroups.has('Coach Management')} onToggle={() => toggleGroup('Coach Management')}
+          {/* Coaches */}
+          <NavGroupItem label="Coaches" open={openGroups.has('Coaches')} onToggle={() => toggleGroup('Coaches')}
             collapsed={sidebarCollapsed} onExpand={() => setSidebarCollapsed(false)}
             icon={<svg className="w-[15px] h-[15px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>}>
             <NavChild section="coachManagement" label="Coaches" active={activeSection === 'coachManagement'} onSelect={setActiveSection}

@@ -35,24 +35,49 @@ const fmtTime = (iso: string, dateOnly?: boolean) =>
     timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit',
   });
 
-const VIA_LABEL: Record<AttendanceVia, string> = {
-  checkin: 'Check-in',
-  signup: 'Signup (attendance taken)',
-  calendar: 'Calendar description',
+const VIA_TAG: Record<AttendanceVia, string> = {
+  checkin: 'APP',
+  signup: 'APP*',
+  calendar: 'CAL',
 };
 
-const ViaBadge = ({ via }: { via: AttendanceVia }) => {
-  const styles: Record<AttendanceVia, string> = {
-    checkin: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30',
-    signup: 'bg-sky-500/10 text-sky-300 border-sky-500/30',
-    calendar: 'bg-amber-500/10 text-amber-300 border-amber-500/30',
-  };
-  return (
-    <span className={`px-1.5 py-0.5 rounded border text-[10px] font-medium ${styles[via]}`} title={VIA_LABEL[via]}>
-      {via === 'checkin' ? 'CHK' : via === 'signup' ? 'SGN' : 'CAL'}
-    </span>
-  );
+const VIA_LABEL: Record<AttendanceVia, string> = {
+  checkin: 'Checked in through the app',
+  signup: 'Signed up in the app; credited because attendance was taken that day but no check-in was recorded',
+  calendar: 'Named in the Google Calendar description',
 };
+
+const VIA_STYLE: Record<AttendanceVia, string> = {
+  checkin: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30',
+  signup: 'bg-sky-500/10 text-sky-300 border-sky-500/30',
+  calendar: 'bg-amber-500/10 text-amber-300 border-amber-500/30',
+};
+
+const ViaBadge = ({ via }: { via: AttendanceVia }) => (
+  <span
+    className={`px-1.5 py-0.5 rounded border text-[10px] font-medium ${VIA_STYLE[via]}`}
+    title={VIA_LABEL[via]}
+  >
+    {VIA_TAG[via]}
+  </span>
+);
+
+const Legend = () => (
+  <div className="flex flex-wrap items-center gap-x-5 gap-y-2 bg-[#0e0e0e] border border-[#1c1c1c] rounded-xl px-4 py-2.5 mb-4">
+    {(['checkin', 'signup', 'calendar'] as AttendanceVia[]).map(via => (
+      <div key={via} className="flex items-center gap-2" title={VIA_LABEL[via]}>
+        <ViaBadge via={via} />
+        <span className="text-white/45 text-[11px]">
+          {via === 'checkin'
+            ? 'Checked in on the app'
+            : via === 'signup'
+            ? 'Signed up, attendance taken (no check-in recorded)'
+            : 'From the calendar description'}
+        </span>
+      </div>
+    ))}
+  </div>
+);
 
 // ── By-coach view ─────────────────────────────────────────────────────────────
 // One column per coach, mirroring the day columns in the player attendance
@@ -311,6 +336,8 @@ const CoachAttendanceSection = () => {
           <p className="text-white/35 text-[11px] uppercase tracking-wider mt-1.5">Coaches</p>
         </div>
       </div>
+
+      <Legend />
 
       {view === 'coach' ? (
         <>
