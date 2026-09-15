@@ -1,0 +1,294 @@
+import { CoachAttendanceData, normalizeName } from "./coachAttendance";
+import { CalendarEvent } from "./googleCalendar";
+
+// ── Rates ─────────────────────────────────────────────────────────────────────
+
+// Hourly rate for coaches without a specific arrangement below. Paid on exact
+// elapsed time, so 1.5h pays 1.5 × the rate.
+export const DEFAULT_HOURLY = 24;
+
+// Ryan Machado is hourly but at his own rates, higher for group sessions than
+// for camps.
+export const MACHADO_GROUP_HOURLY = 50;
+export const MACHADO_CAMP_HOURLY = 25;
+
+// Patrick Mullins is a flat rate per session.
+export const MULLINS_PER_SESSION = 75;
+
+// Phillip Gyau takes a share of what the session nets after facility hire and
+// the other coaches on the session have been paid.
+export const GYAU_ATTENDED_SHARE = 0.5;
+export const GYAU_ABSENT_SHARE = 0.3;
+
+// Facilities we pay to hire. Matched on the start of the calendar location, so
+// the full postal address still resolves. Everything not listed is free.
+export const FACILITY_COSTS: { match: string; label: string; flat: number }[] = [
+  { match: "sofive", label: "Sofive Rockville", flat: 150 },
+  { match: "bethesda soccer club", label: "Bethesda Soccer Club", flat: 150 },
+];
+
+const PAUL_TORRES = "paul torres";
+const MACHADO = "ryan machado";
+const MULLINS = "patrick mullins";
+const GYAU = "phillip gyau";
+
+// ── Session classification ────────────────────────────────────────────────────
+
+const lower = (s: string) => (s || "").toLowerCase();
+
+export const isCamp = (title: string) => lower(title).includes("camp");
+export const isNikeCamp = (title: string) =>
+  lower(title).includes("nike") && isCamp(title);
+
+// Privates, semi-privates and analysis work never feed Gyau's share.
+export const isPrivateOrAnalysis = (title: string) => {
+  const t = lower(title);
+  return [
+    "private session",
+    "individual session",
+    "two-person",
+    "two person",
+    "small group",
+    "game analysis",
+    "player report",
+    "parent consultation",
+  ].some(p => t.includes(p));
+};
+
+// Based on when the session actually starts rather than its name: several
+// Sunday 3pm sessions are titled "Evening Group Training".
+export const isWeekendAfternoon = (event: CalendarEvent): boolean => {
+  if (event.dateOnly) return false;
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    weekday: "short",
+    hour: "numeric",
+    hour12: false,
+  }).formatToParts(new Date(event.startDateTime));
+  const weekday = parts.find(p => p.type === "weekday")?.value ?? "";
+  const hour = Number(parts.find(p => p.type === "hour")?.value ?? "0");
+  return (weekday === "Sat" || weekday === "Sun") && hour >= 12;
+};
+
+export const isMullinsInAlexandria = (event: CalendarEvent): boolean =>
+  lower(event.title).includes("mullins") && lower(event.location || "").includes("alexandria");
+
+// Camps and group sessions are the only revenue Gyau shares in.
+export const gyauEligible = (event: CalendarEvent): boolean => {
+  if (isPrivateOrAnalysis(event.title)) return false;
+  if (isWeekendAfternoon(event)) return false;
+  if (isMullinsInAlexandria(event)) return false;
+  return isCamp(event.title) || lower(event.title).includes("group");
+};
+
+export const facilityLabel = (location?: string): string => {
+  if (!location) return "—";
+  return location.split(",")[0].trim();
+};
+
+// Nike camps are excluded from facility hire; Nike evening groups are not.
+export const facilityCostFor = (event: CalendarEvent): number => {
+  if (isNikeCamp(event.title)) return 0;
+  const loc = lower(event.location || "");
+  const hit = FACILITY_COSTS.find(f => loc.includes(f.match));
+  return hit ? hit.flat : 0;
+};
+
+const durationHours = (event: CalendarEvent): number => {
+  const h = (Date.parse(event.endDateTime) - Date.parse(event.startDateTime)) / 3_600_000;
+  return Number.isFinite(h) && h > 0 ? h : 0;
+};
+
+// ── Per-coach pay for one session ─────────────────────────────────────────────
+
+export interface CoachRate {
+  amount: number | null; // null when pay is settled outside this calculation
+  basis: string;
+}
+
+export const rateForCoach = (coachName: string, event: CalendarEvent): CoachRate => {
+  const key = normalizeName(coachName);
+  const hours = durationHours(event);
+  const hoursLabel = hours ? `${hours % 1 ? hours.toFixed(1) : hours}h` : "duration unknown";
+
+  if (key === PAUL_TORRES) return { amount: null, basis: "Not calculated" };
+  if (key === MULLINS) return { amount: MULLINS_PER_SESSION, basis: "Flat per session" };
+
+  if (key === MACHADO) {
+    const rate = isCamp(event.title) ? MACHADO_CAMP_HOURLY : MACHADO_GROUP_HOURLY;
+    return {
+      amount: hours ? hours * rate : rate,
+      basis: `${hoursLabel} × $${rate}${isCamp(event.title) ? " (camp)" : ""}`,
+    };
+  }
+
+  return {
+    amount: hours ? hours * DEFAULT_HOURLY : DEFAULT_HOURLY,
+    basis: `${hoursLabel} × $${DEFAULT_HOURLY}`,
+  };
+};
+
+// ── Rows ──────────────────────────────────────────────────────────────────────
+
+export interface PayoutRow {
+  id: string;
+  coach: string;
+  sessionTitle: string;
+  startDateTime: string;
+  dateOnly?: boolean;
+  facility: string;
+  facilityCost: number;
+  supportCoaches: string[];
+  supportCost: number;
+  revenue: number;
+  payment: number | null;
+  basis: string;
+  attended: boolean;
+}
+
+export interface PayoutTable {
+  rows: PayoutRow[];
+  builtAt: string;
+  totalsByCoach: { coach: string; total: number | null; sessions: number }[];
+  grandTotal: number;
+}
+
+export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
+  // Everyone credited to a session, from tracked attendance or the calendar
+  // description, since Gyau only ever appears in descriptions.
+  const attendeesByEvent = new Map<string, string[]>();
+  for (const [eventId, slot] of Object.entries(data.coachesByEvent)) {
+    const names: string[] = [];
+    for (const t of slot.tracked) if (!names.some(n => normalizeName(n) === normalizeName(t.name))) names.push(t.name);
+    for (const c of slot.calendar) if (!names.some(n => normalizeName(n) === normalizeName(c))) names.push(c);
+    attendeesByEvent.set(eventId, names);
+  }
+
+  const rows: PayoutRow[] = [];
+
+  for (const event of data.events) {
+    const attendees = attendeesByEvent.get(event.id) ?? [];
+    if (attendees.length === 0) continue;
+
+    const facility = facilityLabel(event.location);
+    const facilityCost = facilityCostFor(event);
+    const revenue = data.revenueByEvent[event.id] || 0;
+
+    // Support coaching cost is what the session pays out to coaches other than
+    // Paul Torres, and other than Gyau whose share is derived from it.
+    const supportCoaches = attendees.filter(n => {
+      const k = normalizeName(n);
+      return k !== PAUL_TORRES && k !== GYAU;
+    });
+    const supportCost = supportCoaches.reduce(
+      (sum, n) => sum + (rateForCoach(n, event).amount ?? 0),
+      0
+    );
+
+    for (const coach of attendees) {
+      const key = normalizeName(coach);
+
+      if (key === GYAU) {
+        if (!gyauEligible(event)) continue;
+        const net = Math.max(0, revenue - facilityCost - supportCost);
+        rows.push({
+          id: `${event.id}::${key}`,
+          coach,
+          sessionTitle: event.title,
+          startDateTime: event.startDateTime,
+          dateOnly: event.dateOnly,
+          facility,
+          facilityCost,
+          supportCoaches,
+          supportCost,
+          revenue,
+          payment: net * GYAU_ATTENDED_SHARE,
+          basis: `50% of $${net.toFixed(2)} net (attended)`,
+          attended: true,
+        });
+        continue;
+      }
+
+      const rate = rateForCoach(coach, event);
+      rows.push({
+        id: `${event.id}::${key}`,
+        coach,
+        sessionTitle: event.title,
+        startDateTime: event.startDateTime,
+        dateOnly: event.dateOnly,
+        facility,
+        facilityCost,
+        supportCoaches: supportCoaches.filter(n => normalizeName(n) !== key),
+        supportCost,
+        revenue,
+        payment: rate.amount,
+        basis: rate.basis,
+        attended: true,
+      });
+    }
+  }
+
+  // Gyau also shares in eligible sessions he did not coach.
+  const gyauAttended = new Set(
+    rows.filter(r => normalizeName(r.coach) === GYAU).map(r => r.id.split("::")[0])
+  );
+  const gyauDisplayName =
+    data.coaches.find(c => c.key === GYAU)?.name ?? "Phillip Gyau";
+
+  for (const event of data.events) {
+    if (gyauAttended.has(event.id)) continue;
+    if (!gyauEligible(event)) continue;
+    const revenue = data.revenueByEvent[event.id] || 0;
+    if (revenue <= 0) continue;
+
+    const attendees = attendeesByEvent.get(event.id) ?? [];
+    const supportCoaches = attendees.filter(n => {
+      const k = normalizeName(n);
+      return k !== PAUL_TORRES && k !== GYAU;
+    });
+    const supportCost = supportCoaches.reduce(
+      (sum, n) => sum + (rateForCoach(n, event).amount ?? 0),
+      0
+    );
+    const facilityCost = facilityCostFor(event);
+    const net = Math.max(0, revenue - facilityCost - supportCost);
+
+    rows.push({
+      id: `${event.id}::${GYAU}`,
+      coach: gyauDisplayName,
+      sessionTitle: event.title,
+      startDateTime: event.startDateTime,
+      dateOnly: event.dateOnly,
+      facility: facilityLabel(event.location),
+      facilityCost,
+      supportCoaches,
+      supportCost,
+      revenue,
+      payment: net * GYAU_ABSENT_SHARE,
+      basis: `30% of $${net.toFixed(2)} net (did not attend)`,
+      attended: false,
+    });
+  }
+
+  rows.sort((a, b) => Date.parse(b.startDateTime) - Date.parse(a.startDateTime));
+
+  const byCoach = new Map<string, { coach: string; total: number | null; sessions: number }>();
+  for (const row of rows) {
+    const key = normalizeName(row.coach);
+    const entry = byCoach.get(key) ?? { coach: row.coach, total: 0 as number | null, sessions: 0 };
+    entry.sessions += 1;
+    if (row.payment === null) entry.total = null;
+    else if (entry.total !== null) entry.total += row.payment;
+    byCoach.set(key, entry);
+  }
+  const totalsByCoach = Array.from(byCoach.values()).sort(
+    (a, b) => (b.total ?? -1) - (a.total ?? -1) || a.coach.localeCompare(b.coach)
+  );
+
+  return {
+    rows,
+    builtAt: data.builtAt,
+    totalsByCoach,
+    grandTotal: rows.reduce((s, r) => s + (r.payment ?? 0), 0),
+  };
+}

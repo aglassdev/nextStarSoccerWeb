@@ -1,212 +1,93 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  buildCoachAttendance,
-  CoachAttendanceData,
-  CoachSession,
-  normalizeName,
-} from '../../../services/coachAttendance';
+import { buildCoachAttendance } from '../../../services/coachAttendance';
+import { computePayoutTable, PayoutRow, PayoutTable } from '../../../services/coachPayouts';
 
-// ── Payout rules ──────────────────────────────────────────────────────────────
-const HOURLY_RATE = 25;          // $25 per hour, part-hours paid as a full hour
-const CAMP_FLAT_RATE = 25;       // camps pay a flat rate regardless of length
-const GYAU_ATTENDED_SHARE = 0.5; // 50% of session revenue when he coached it
-const GYAU_ABSENT_SHARE = 0.3;   // 30% of revenue on qualifying sessions he missed
-
-// Coaches whose pay is settled outside this calculation.
-const NOT_CALCULATED = ['paul torres', 'patrick mullins'];
-const GYAU = 'phillip gyau';
-
-// Bumped when the payout rules or coach identity handling change, so stale
-// cached figures are not shown after a rule change.
-const CACHE_KEY = 'nss.coachPayouts.v2';
-
-const has = (title: string, ...needles: string[]) => {
-  const t = title.toLowerCase();
-  return needles.every(n => t.includes(n));
-};
-const isCamp = (title: string) => has(title, 'camp');
-const isPrivate = (title: string) => {
-  const t = title.toLowerCase();
-  return ['private session', 'individual session', 'two-person', 'small group', 'game analysis', 'parent consultation']
-    .some(p => t.includes(p));
-};
-const isAfternoon = (title: string) => has(title, 'afternoon');
-
-// Sessions Gyau earns a revenue share on even when he did not attend.
-const gyauQualifiesWhenAbsent = (title: string) => {
-  if (isPrivate(title) || isAfternoon(title)) return false;
-  return has(title, 'morning group') || has(title, 'evening group') || isCamp(title);
-};
-
-const standardPayout = (s: CoachSession): number => {
-  if (isCamp(s.title)) return CAMP_FLAT_RATE;
-  const hours = (Date.parse(s.endDateTime) - Date.parse(s.startDateTime)) / 3_600_000;
-  if (!Number.isFinite(hours) || hours <= 0) return HOURLY_RATE;
-  return Math.ceil(hours) * HOURLY_RATE;
-};
-
-interface PayoutLine {
-  eventId: string;
-  title: string;
-  startDateTime: string;
-  basis: string;
-  amount: number;
-}
-interface CoachPayout {
-  key: string;
-  name: string;
-  calculated: boolean;
-  note?: string;
-  sessionCount: number;
-  total: number;
-  lines: PayoutLine[];
-}
-interface PayoutResult {
-  builtAt: string;
-  coaches: CoachPayout[];
-  grandTotal: number;
-}
+const CACHE_KEY = 'nss.coachPayouts.v3';
 
 const fmtMoney = (n: number) =>
   n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 });
-const fmtDate = (iso: string) =>
-  new Date(iso).toLocaleDateString('en-US', {
+const fmtDateTime = (iso: string, dateOnly?: boolean) => {
+  const d = new Date(iso);
+  const date = d.toLocaleDateString('en-US', {
     timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric',
   });
-
-function computePayouts(data: CoachAttendanceData): PayoutResult {
-  const coaches: CoachPayout[] = [];
-
-  for (const coach of data.coaches) {
-    const key = normalizeName(coach.name);
-
-    // Attendance for pay = tracked sessions, plus calendar-only sessions for
-    // coaches who have no account (Gyau) and therefore no tracked record.
-    const attended = new Map<string, CoachSession>();
-    for (const s of coach.tracked) attended.set(s.eventId, s);
-    for (const s of coach.calendar) if (!attended.has(s.eventId)) attended.set(s.eventId, s);
-    const sessions = Array.from(attended.values());
-
-    if (NOT_CALCULATED.includes(key)) {
-      coaches.push({
-        key, name: coach.name, calculated: false,
-        note: 'Settled separately — not calculated here',
-        sessionCount: sessions.length, total: 0, lines: [],
-      });
-      continue;
-    }
-
-    const lines: PayoutLine[] = [];
-
-    if (key === GYAU) {
-      const attendedIds = new Set(sessions.map(s => s.eventId));
-      for (const s of sessions) {
-        const revenue = data.revenueByEvent[s.eventId] || 0;
-        if (revenue <= 0) continue;
-        lines.push({
-          eventId: s.eventId, title: s.title, startDateTime: s.startDateTime,
-          basis: `50% of ${fmtMoney(revenue)} (attended)`,
-          amount: revenue * GYAU_ATTENDED_SHARE,
-        });
-      }
-      for (const ev of data.events) {
-        if (attendedIds.has(ev.id)) continue;
-        if (!gyauQualifiesWhenAbsent(ev.title)) continue;
-        const revenue = data.revenueByEvent[ev.id] || 0;
-        if (revenue <= 0) continue;
-        lines.push({
-          eventId: ev.id, title: ev.title, startDateTime: ev.startDateTime,
-          basis: `30% of ${fmtMoney(revenue)} (did not attend)`,
-          amount: revenue * GYAU_ABSENT_SHARE,
-        });
-      }
-    } else {
-      for (const s of sessions) {
-        const amount = standardPayout(s);
-        const hours = (Date.parse(s.endDateTime) - Date.parse(s.startDateTime)) / 3_600_000;
-        lines.push({
-          eventId: s.eventId, title: s.title, startDateTime: s.startDateTime,
-          basis: isCamp(s.title)
-            ? 'Camp flat rate'
-            : `${Number.isFinite(hours) && hours > 0 ? hours.toFixed(hours % 1 ? 1 : 0) : '?'}h → ${Math.round(amount / HOURLY_RATE)} × $${HOURLY_RATE}`,
-          amount,
-        });
-      }
-    }
-
-    lines.sort((a, b) => Date.parse(b.startDateTime) - Date.parse(a.startDateTime));
-    coaches.push({
-      key, name: coach.name, calculated: true,
-      sessionCount: key === GYAU ? lines.length : sessions.length,
-      total: lines.reduce((s, l) => s + l.amount, 0),
-      lines,
-    });
-  }
-
-  coaches.sort((a, b) => Number(b.calculated) - Number(a.calculated) || b.total - a.total || a.name.localeCompare(b.name));
-  return {
-    builtAt: data.builtAt,
-    coaches,
-    grandTotal: coaches.reduce((s, c) => s + c.total, 0),
-  };
-}
-
-const PayoutCard = ({ payout }: { payout: CoachPayout }) => {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="bg-[#0e0e0e] border border-[#1c1c1c] rounded-xl overflow-hidden">
-      <button onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/[0.03] transition-colors text-left">
-        <div className="min-w-0">
-          <p className="text-white text-[13px] font-medium truncate">{payout.name}</p>
-          <p className="text-white/30 text-[11px]">
-            {payout.note ?? `${payout.sessionCount} session${payout.sessionCount === 1 ? '' : 's'}`}
-          </p>
-        </div>
-        <div className="flex items-center gap-4 flex-shrink-0">
-          <p className={`text-[15px] font-semibold ${payout.calculated ? 'text-emerald-300' : 'text-white/25'}`}>
-            {payout.calculated ? fmtMoney(payout.total) : '—'}
-          </p>
-          <svg className={`w-4 h-4 text-white/30 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 9l-7 7-7-7" />
-          </svg>
-        </div>
-      </button>
-      {open && (
-        <div className="px-4 pb-4 border-t border-white/[0.06] pt-3">
-          {payout.lines.length === 0 ? (
-            <p className="text-white/25 text-xs">{payout.note ?? 'No payable sessions'}</p>
-          ) : (
-            <div className="space-y-1">
-              {payout.lines.map(l => (
-                <div key={`${l.eventId}-${l.basis}`} className="flex items-center justify-between gap-3 py-1.5 border-b border-white/[0.05] last:border-0">
-                  <div className="min-w-0">
-                    <p className="text-white/90 text-[12px] truncate">{l.title}</p>
-                    <p className="text-white/35 text-[11px]">{fmtDate(l.startDateTime)} · {l.basis}</p>
-                  </div>
-                  <p className="text-white text-[12px] font-medium flex-shrink-0">{fmtMoney(l.amount)}</p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
+  if (dateOnly) return `${date} · All day`;
+  const time = d.toLocaleTimeString('en-US', {
+    timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit',
+  });
+  return `${date} · ${time}`;
 };
 
+type SortKey = 'coach' | 'sessionTitle' | 'startDateTime' | 'facility' | 'supportCoaches' | 'supportCost' | 'payment';
+type SortDir = 'asc' | 'desc';
+
+interface Filters {
+  coach: string;
+  sessionTitle: string;
+  facility: string;
+  supportCoaches: string;
+  attendance: 'all' | 'attended' | 'absent';
+}
+
+const EMPTY_FILTERS: Filters = {
+  coach: '', sessionTitle: '', facility: '', supportCoaches: '', attendance: 'all',
+};
+
+const SortArrow = ({ active, dir }: { active: boolean; dir: SortDir }) => (
+  <span className={`inline-block ml-1 text-[9px] leading-none ${active ? 'text-white' : 'text-white/20'}`}>
+    {active ? (dir === 'asc' ? '▲' : '▼') : '↕'}
+  </span>
+);
+
+// Header cell with click-to-sort and an inline filter control underneath.
+const Th = ({
+  label, sortKey, sort, onSort, align = 'left', children,
+}: {
+  label: string;
+  sortKey: SortKey;
+  sort: { key: SortKey; dir: SortDir };
+  onSort: (k: SortKey) => void;
+  align?: 'left' | 'right';
+  children?: React.ReactNode;
+}) => (
+  <th className={`px-3 py-2 align-top ${align === 'right' ? 'text-right' : 'text-left'}`}>
+    <button
+      onClick={() => onSort(sortKey)}
+      className="text-white/60 hover:text-white text-[10px] uppercase tracking-wider font-semibold whitespace-nowrap transition-colors"
+    >
+      {label}
+      <SortArrow active={sort.key === sortKey} dir={sort.dir} />
+    </button>
+    {children && <div className="mt-1.5">{children}</div>}
+  </th>
+);
+
+const FilterInput = ({ value, onChange, placeholder }: {
+  value: string; onChange: (v: string) => void; placeholder: string;
+}) => (
+  <input
+    value={value}
+    onChange={e => onChange(e.target.value)}
+    placeholder={placeholder}
+    className="w-full min-w-[90px] bg-[#0b0b0b] border border-[#242424] focus:border-white/30 rounded px-1.5 py-1 text-[11px] text-white placeholder-white/20 outline-none font-normal normal-case tracking-normal"
+  />
+);
+
 const CoachPaymentsSection = () => {
-  const [result, setResult] = useState<PayoutResult | null>(null);
+  const [table, setTable] = useState<PayoutTable | null>(null);
   const [calculating, setCalculating] = useState(false);
   const [error, setError] = useState('');
+  const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
+  const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'startDateTime', dir: 'desc' });
 
   const recalculate = useCallback(async (isCancelled: () => boolean = () => false) => {
     setCalculating(true);
     setError('');
     try {
       const data = await buildCoachAttendance();
-      const computed = computePayouts(data);
+      const computed = computePayoutTable(data);
       if (isCancelled()) return;
-      setResult(computed);
+      setTable(computed);
       try { localStorage.setItem(CACHE_KEY, JSON.stringify(computed)); } catch { /* quota */ }
     } catch (e: any) {
       if (!isCancelled()) setError(e?.message || 'Failed to calculate payouts');
@@ -215,35 +96,73 @@ const CoachPaymentsSection = () => {
     }
   }, []);
 
-  // Recalculates every time the page is opened. The last figures are cached and
-  // shown straight away so the page is never blank while the refresh runs, and
-  // they stay on screen if the refresh fails.
+  // Recalculates on every open. The last figures are cached and drawn straight
+  // away so the table is never blank while the refresh runs.
   useEffect(() => {
     let cancelled = false;
     try {
       const raw = localStorage.getItem(CACHE_KEY);
-      if (raw) setResult(JSON.parse(raw));
+      if (raw) setTable(JSON.parse(raw));
     } catch { /* ignore malformed cache */ }
     recalculate(() => cancelled);
     return () => { cancelled = true; };
   }, [recalculate]);
 
-  const lastRun = useMemo(
-    () => result ? new Date(result.builtAt).toLocaleString('en-US', { timeZone: 'America/New_York' }) : null,
-    [result]
+  const toggleSort = (key: SortKey) =>
+    setSort(s => (s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: key === 'startDateTime' || key === 'payment' || key === 'supportCost' ? 'desc' : 'asc' }));
+
+  const facilities = useMemo(
+    () => Array.from(new Set((table?.rows ?? []).map(r => r.facility))).sort(),
+    [table]
   );
 
+  const visibleRows = useMemo(() => {
+    let rows = table?.rows ?? [];
+    const has = (hay: string, needle: string) => hay.toLowerCase().includes(needle.trim().toLowerCase());
+    if (filters.coach) rows = rows.filter(r => has(r.coach, filters.coach));
+    if (filters.sessionTitle) rows = rows.filter(r => has(r.sessionTitle, filters.sessionTitle));
+    if (filters.facility) rows = rows.filter(r => r.facility === filters.facility);
+    if (filters.supportCoaches) rows = rows.filter(r => has(r.supportCoaches.join(', '), filters.supportCoaches));
+    if (filters.attendance !== 'all') {
+      rows = rows.filter(r => (filters.attendance === 'attended' ? r.attended : !r.attended));
+    }
+
+    const dir = sort.dir === 'asc' ? 1 : -1;
+    const val = (r: PayoutRow) => {
+      switch (sort.key) {
+        case 'coach': return r.coach.toLowerCase();
+        case 'sessionTitle': return r.sessionTitle.toLowerCase();
+        case 'startDateTime': return Date.parse(r.startDateTime);
+        case 'facility': return r.facility.toLowerCase();
+        case 'supportCoaches': return r.supportCoaches.length;
+        case 'supportCost': return r.supportCost;
+        case 'payment': return r.payment ?? -1;
+      }
+    };
+    return [...rows].sort((a, b) => {
+      const av = val(a), bv = val(b);
+      if (av === bv) return Date.parse(b.startDateTime) - Date.parse(a.startDateTime);
+      return av > bv ? dir : -dir;
+    });
+  }, [table, filters, sort]);
+
+  const visibleTotal = useMemo(
+    () => visibleRows.reduce((s, r) => s + (r.payment ?? 0), 0),
+    [visibleRows]
+  );
+
+  const lastRun = table
+    ? new Date(table.builtAt).toLocaleString('en-US', { timeZone: 'America/New_York' })
+    : null;
+  const filtersActive = JSON.stringify(filters) !== JSON.stringify(EMPTY_FILTERS);
+
   return (
-    <div className="p-6 max-w-5xl">
+    <div className="px-5 py-5">
       <div className="flex flex-wrap items-start justify-between gap-4 mb-5">
         <div>
           <h1 className="text-white text-xl font-semibold">Coach Payments</h1>
           <p className="text-white/40 text-[13px] mt-1">
-            {calculating
-              ? 'Recalculating…'
-              : lastRun
-              ? `Recalculated on open · ${lastRun}`
-              : 'Calculating…'}
+            {calculating ? 'Recalculating…' : lastRun ? `Recalculated on open · ${lastRun}` : 'Calculating…'}
           </p>
         </div>
         <button
@@ -252,7 +171,7 @@ const CoachPaymentsSection = () => {
           className="flex items-center gap-2 px-4 py-2 bg-white text-black text-sm font-medium rounded-lg hover:bg-white/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {calculating ? (
-            <><span className="w-3.5 h-3.5 border-2 border-black/30 border-t-black rounded-full animate-spin" />Calculating…</>
+            <><span className="w-3.5 h-3.5 border-2 border-black/30 border-t-black rounded-full animate-spin" />Recalculating…</>
           ) : (
             <>
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -268,26 +187,132 @@ const CoachPaymentsSection = () => {
         <div className="bg-red-500/10 border border-red-500/30 text-red-300 text-sm rounded-lg px-4 py-2.5 mb-4">{error}</div>
       )}
 
-      {!result ? (
+      {!table ? (
         <div className="bg-[#0e0e0e] border border-[#1c1c1c] rounded-xl px-6 py-12 text-center">
           <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin mx-auto" />
-          <p className="text-white/50 text-sm mt-3">Pulling attendance and session revenue…</p>
+          <p className="text-white/50 text-sm mt-3">Pulling attendance, facilities and session revenue…</p>
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-3 mb-5">
-            <div className="bg-[#0e0e0e] border border-[#1c1c1c] rounded-xl px-4 py-3">
-              <p className="text-emerald-300 text-xl font-semibold leading-none">{fmtMoney(result.grandTotal)}</p>
-              <p className="text-white/35 text-[11px] uppercase tracking-wider mt-1.5">Total payable</p>
-            </div>
-            <div className="bg-[#0e0e0e] border border-[#1c1c1c] rounded-xl px-4 py-3">
-              <p className="text-white text-xl font-semibold leading-none">{result.coaches.filter(c => c.calculated).length}</p>
-              <p className="text-white/35 text-[11px] uppercase tracking-wider mt-1.5">Coaches calculated</p>
-            </div>
+          {/* Per-coach totals */}
+          <div className="flex flex-wrap gap-2 mb-4">
+            {table.totalsByCoach.map(t => (
+              <button
+                key={t.coach}
+                onClick={() => setFilters(f => ({ ...f, coach: f.coach === t.coach ? '' : t.coach }))}
+                className={`text-left px-3 py-2 rounded-lg border transition-colors ${
+                  filters.coach === t.coach
+                    ? 'bg-white/[0.10] border-white/30'
+                    : 'bg-[#0e0e0e] border-[#1c1c1c] hover:border-white/20'
+                }`}
+              >
+                <p className="text-white text-[12px] font-medium">{t.coach}</p>
+                <p className={`text-[13px] font-semibold ${t.total === null ? 'text-white/25' : 'text-emerald-300'}`}>
+                  {t.total === null ? '—' : fmtMoney(t.total)}
+                </p>
+                <p className="text-white/30 text-[10px]">{t.sessions} session{t.sessions === 1 ? '' : 's'}</p>
+              </button>
+            ))}
           </div>
 
-          <div className="space-y-2">
-            {result.coaches.map(c => <PayoutCard key={c.key} payout={c} />)}
+          {/* Summary bar */}
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+            <div className="flex items-center gap-2">
+              <div className="flex bg-white/[0.04] border border-white/10 rounded-lg p-0.5">
+                {(['all', 'attended', 'absent'] as const).map(a => (
+                  <button
+                    key={a}
+                    onClick={() => setFilters(f => ({ ...f, attendance: a }))}
+                    className={`px-3 py-1.5 text-[12px] rounded-md capitalize transition-colors ${
+                      filters.attendance === a ? 'bg-white text-black font-medium' : 'text-white/60 hover:text-white'
+                    }`}
+                  >
+                    {a === 'absent' ? 'Did not attend' : a}
+                  </button>
+                ))}
+              </div>
+              {filtersActive && (
+                <button
+                  onClick={() => setFilters(EMPTY_FILTERS)}
+                  className="px-3 py-1.5 text-[12px] text-white/60 hover:text-white border border-white/10 hover:border-white/25 rounded-lg transition-colors"
+                >
+                  Clear filters
+                </button>
+              )}
+            </div>
+            <p className="text-white/40 text-[12px]">
+              {visibleRows.length} of {table.rows.length} rows ·{' '}
+              <span className="text-emerald-300 font-medium">{fmtMoney(visibleTotal)}</span>
+              {filtersActive ? ' shown' : ' total'}
+            </p>
+          </div>
+
+          <div className="bg-[#0e0e0e] border border-[#1c1c1c] rounded-xl overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[1080px] border-collapse">
+                <thead className="bg-white/[0.03] border-b border-white/[0.08]">
+                  <tr>
+                    <Th label="Coach" sortKey="coach" sort={sort} onSort={toggleSort}>
+                      <FilterInput value={filters.coach} onChange={v => setFilters(f => ({ ...f, coach: v }))} placeholder="Filter" />
+                    </Th>
+                    <Th label="Session" sortKey="sessionTitle" sort={sort} onSort={toggleSort}>
+                      <FilterInput value={filters.sessionTitle} onChange={v => setFilters(f => ({ ...f, sessionTitle: v }))} placeholder="Filter" />
+                    </Th>
+                    <Th label="Date / time" sortKey="startDateTime" sort={sort} onSort={toggleSort} />
+                    <Th label="Facility" sortKey="facility" sort={sort} onSort={toggleSort}>
+                      <select
+                        value={filters.facility}
+                        onChange={e => setFilters(f => ({ ...f, facility: e.target.value }))}
+                        className="w-full min-w-[110px] bg-[#0b0b0b] border border-[#242424] focus:border-white/30 rounded px-1 py-1 text-[11px] text-white outline-none font-normal normal-case tracking-normal"
+                      >
+                        <option value="">All</option>
+                        {facilities.map(f => <option key={f} value={f}>{f}</option>)}
+                      </select>
+                    </Th>
+                    <Th label="Support coaches" sortKey="supportCoaches" sort={sort} onSort={toggleSort}>
+                      <FilterInput value={filters.supportCoaches} onChange={v => setFilters(f => ({ ...f, supportCoaches: v }))} placeholder="Filter" />
+                    </Th>
+                    <Th label="Support cost" sortKey="supportCost" sort={sort} onSort={toggleSort} align="right" />
+                    <Th label="Payment" sortKey="payment" sort={sort} onSort={toggleSort} align="right" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleRows.length === 0 ? (
+                    <tr><td colSpan={7} className="px-3 py-8 text-center text-white/30 text-sm">No rows match these filters.</td></tr>
+                  ) : visibleRows.map(r => (
+                    <tr key={r.id} className="border-b border-white/[0.04] last:border-0 hover:bg-white/[0.02]">
+                      <td className="px-3 py-2 text-white text-[12px] whitespace-nowrap">
+                        {r.coach}
+                        {!r.attended && (
+                          <span className="ml-1.5 text-amber-300/80 text-[9px] border border-amber-500/30 bg-amber-500/10 px-1 py-0.5 rounded align-middle">
+                            ABS
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-white/80 text-[12px]">{r.sessionTitle}</td>
+                      <td className="px-3 py-2 text-white/50 text-[12px] whitespace-nowrap">{fmtDateTime(r.startDateTime, r.dateOnly)}</td>
+                      <td className="px-3 py-2 text-white/60 text-[12px] whitespace-nowrap">
+                        {r.facility}
+                        {r.facilityCost > 0 && (
+                          <span className="ml-1.5 text-rose-300/80 text-[10px]">−{fmtMoney(r.facilityCost)}</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-white/55 text-[12px]">
+                        {r.supportCoaches.length === 0 ? <span className="text-white/20">—</span> : r.supportCoaches.join(', ')}
+                      </td>
+                      <td className="px-3 py-2 text-right text-white/55 text-[12px] whitespace-nowrap">
+                        {r.supportCost > 0 ? fmtMoney(r.supportCost) : <span className="text-white/20">—</span>}
+                      </td>
+                      <td className="px-3 py-2 text-right whitespace-nowrap" title={r.basis}>
+                        {r.payment === null
+                          ? <span className="text-white/25 text-[12px]">—</span>
+                          : <span className="text-emerald-300 text-[12px] font-medium">{fmtMoney(r.payment)}</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </>
       )}
