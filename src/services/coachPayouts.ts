@@ -23,6 +23,13 @@ export const MACHADO_CAMP_HOURLY = 25;
 // Patrick Mullins is a flat rate per session.
 export const MULLINS_PER_SESSION = 75;
 
+// Guests booked as a session expense rather than on an hourly rate. They are
+// recorded as attendance like any other coach, so the figure flows into the
+// session's support cost and comes out of Gyau's net.
+export const SESSION_EXPENSE_PER_SESSION: Record<string, number> = {
+  peabo: 250,
+};
+
 // Phillip Gyau takes a share of what the session nets after facility hire and
 // the other coaches on the session have been paid.
 export const GYAU_ATTENDED_SHARE = 0.5;
@@ -121,6 +128,9 @@ export const rateForCoach = (coachName: string, event: CalendarEvent): CoachRate
 
   if (key === PAUL_TORRES) return { amount: null, basis: "Not calculated" };
   if (key === MULLINS) return { amount: MULLINS_PER_SESSION, basis: "Flat per session" };
+
+  const expense = SESSION_EXPENSE_PER_SESSION[key];
+  if (expense !== undefined) return { amount: expense, basis: "Session expense" };
 
   if (key === MACHADO) {
     const rate = isCamp(event.title) ? MACHADO_CAMP_HOURLY : MACHADO_GROUP_HOURLY;
