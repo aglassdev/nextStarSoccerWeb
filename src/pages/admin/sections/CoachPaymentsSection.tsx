@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { buildCoachAttendance } from '../../../services/coachAttendance';
-import { computePayoutTable, PayoutRow, PayoutTable } from '../../../services/coachPayouts';
+import { computePayoutTable, PayoutRow, PayoutTable, PAYOUT_START } from '../../../services/coachPayouts';
 
 const CACHE_KEY = 'nss.coachPayouts.v3';
 
@@ -122,7 +122,7 @@ const CoachPaymentsSection = () => {
     if (filters.coach) rows = rows.filter(r => has(r.coach, filters.coach));
     if (filters.sessionTitle) rows = rows.filter(r => has(r.sessionTitle, filters.sessionTitle));
     if (filters.facility) rows = rows.filter(r => r.facility === filters.facility);
-    if (filters.supportCoaches) rows = rows.filter(r => has(r.supportCoaches.join(', '), filters.supportCoaches));
+    if (filters.supportCoaches) rows = rows.filter(r => has((r.supportCoaches ?? []).join(', '), filters.supportCoaches));
     if (filters.attendance !== 'all') {
       rows = rows.filter(r => (filters.attendance === 'attended' ? r.attended : !r.attended));
     }
@@ -134,8 +134,8 @@ const CoachPaymentsSection = () => {
         case 'sessionTitle': return r.sessionTitle.toLowerCase();
         case 'startDateTime': return Date.parse(r.startDateTime);
         case 'facility': return r.facility.toLowerCase();
-        case 'supportCoaches': return r.supportCoaches.length;
-        case 'supportCost': return r.supportCost;
+        case 'supportCoaches': return r.supportCoaches?.length ?? -1;
+        case 'supportCost': return r.supportCost ?? -1;
         case 'payment': return r.payment ?? -1;
       }
     };
@@ -151,6 +151,9 @@ const CoachPaymentsSection = () => {
     [visibleRows]
   );
 
+  const payoutStartLabel = new Date(PAYOUT_START).toLocaleDateString('en-US', {
+    timeZone: 'America/New_York', month: 'long', day: 'numeric', year: 'numeric',
+  });
   const lastRun = table
     ? new Date(table.builtAt).toLocaleString('en-US', { timeZone: 'America/New_York' })
     : null;
@@ -162,7 +165,8 @@ const CoachPaymentsSection = () => {
         <div>
           <h1 className="text-white text-xl font-semibold">Coach Payments</h1>
           <p className="text-white/40 text-[13px] mt-1">
-            {calculating ? 'Recalculating…' : lastRun ? `Recalculated on open · ${lastRun}` : 'Calculating…'}
+            Sessions from {payoutStartLabel} onward ·{' '}
+            {calculating ? 'recalculating…' : lastRun ? `recalculated on open, ${lastRun}` : 'calculating…'}
           </p>
         </div>
         <button
@@ -298,10 +302,14 @@ const CoachPaymentsSection = () => {
                         )}
                       </td>
                       <td className="px-3 py-2 text-white/55 text-[12px]">
-                        {r.supportCoaches.length === 0 ? <span className="text-white/20">—</span> : r.supportCoaches.join(', ')}
+                        {r.supportCoaches && r.supportCoaches.length > 0
+                          ? r.supportCoaches.join(', ')
+                          : <span className="text-white/20">—</span>}
                       </td>
                       <td className="px-3 py-2 text-right text-white/55 text-[12px] whitespace-nowrap">
-                        {r.supportCost > 0 ? fmtMoney(r.supportCost) : <span className="text-white/20">—</span>}
+                        {r.supportCost && r.supportCost > 0
+                          ? fmtMoney(r.supportCost)
+                          : <span className="text-white/20">—</span>}
                       </td>
                       <td className="px-3 py-2 text-right whitespace-nowrap" title={r.basis}>
                         {r.payment === null

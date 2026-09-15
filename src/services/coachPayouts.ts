@@ -1,11 +1,19 @@
 import { CoachAttendanceData, normalizeName } from "./coachAttendance";
 import { CalendarEvent } from "./googleCalendar";
 
+// Payouts only cover sessions from this date onward; anything earlier is
+// already settled. Anchored to Eastern time, where the season is scheduled.
+export const PAYOUT_START = "2026-05-01T00:00:00-04:00";
+const PAYOUT_START_MS = Date.parse(PAYOUT_START);
+
+export const isWithinPayoutWindow = (event: CalendarEvent): boolean =>
+  Date.parse(event.startDateTime) >= PAYOUT_START_MS;
+
 // ── Rates ─────────────────────────────────────────────────────────────────────
 
-// Hourly rate for coaches without a specific arrangement below. Paid on exact
-// elapsed time, so 1.5h pays 1.5 × the rate.
-export const DEFAULT_HOURLY = 24;
+// Hourly rate for the assistant coaches, i.e. anyone without a specific
+// arrangement below. Paid on exact elapsed time, so 3h pays 3 × the rate.
+export const DEFAULT_HOURLY = 25;
 
 // Ryan Machado is hourly but at his own rates, higher for group sessions than
 // for camps.
@@ -138,8 +146,10 @@ export interface PayoutRow {
   dateOnly?: boolean;
   facility: string;
   facilityCost: number;
-  supportCoaches: string[];
-  supportCost: number;
+  // Only populated for Gyau and Paul Torres. Assistant coaches carry no
+  // support cost of their own, so these stay null on their rows.
+  supportCoaches: string[] | null;
+  supportCost: number | null;
   revenue: number;
   payment: number | null;
   basis: string;
@@ -154,6 +164,8 @@ export interface PayoutTable {
 }
 
 export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
+  const events = data.events.filter(isWithinPayoutWindow);
+
   // Everyone credited to a session, from tracked attendance or the calendar
   // description, since Gyau only ever appears in descriptions.
   const attendeesByEvent = new Map<string, string[]>();
@@ -166,7 +178,7 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
 
   const rows: PayoutRow[] = [];
 
-  for (const event of data.events) {
+  for (const event of events) {
     const attendees = attendeesByEvent.get(event.id) ?? [];
     if (attendees.length === 0) continue;
 
@@ -210,6 +222,7 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
       }
 
       const rate = rateForCoach(coach, event);
+      const showsSupport = key === PAUL_TORRES;
       rows.push({
         id: `${event.id}::${key}`,
         coach,
@@ -218,8 +231,8 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
         dateOnly: event.dateOnly,
         facility,
         facilityCost,
-        supportCoaches: supportCoaches.filter(n => normalizeName(n) !== key),
-        supportCost,
+        supportCoaches: showsSupport ? supportCoaches : null,
+        supportCost: showsSupport ? supportCost : null,
         revenue,
         payment: rate.amount,
         basis: rate.basis,
@@ -235,7 +248,7 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
   const gyauDisplayName =
     data.coaches.find(c => c.key === GYAU)?.name ?? "Phillip Gyau";
 
-  for (const event of data.events) {
+  for (const event of events) {
     if (gyauAttended.has(event.id)) continue;
     if (!gyauEligible(event)) continue;
     const revenue = data.revenueByEvent[event.id] || 0;
