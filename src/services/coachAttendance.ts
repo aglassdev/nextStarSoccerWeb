@@ -86,12 +86,15 @@ async function listAll(collectionId: string): Promise<any[]> {
 const safeList = (collectionId?: string): Promise<any[]> =>
   collectionId ? listAll(collectionId).catch(() => []) : Promise.resolve([]);
 
-// Pulls both calendars across a ±12 month window, matching the player
-// attendance manager's range.
+// Pulls both calendars for the trailing 12 months up to today. Sessions that
+// have not started yet are left out: attendance and payouts only describe
+// sessions that have actually happened, and future recurring events otherwise
+// arrive pre-filled with coach names from their calendar descriptions.
 async function loadEvents(): Promise<CalendarEvent[]> {
   const now = new Date();
+  const nowMs = now.getTime();
   const ranges: { y: number; m: number }[] = [];
-  for (let offset = -12; offset <= 12; offset++) {
+  for (let offset = -12; offset <= 0; offset++) {
     const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
     ranges.push({ y: d.getFullYear(), m: d.getMonth() });
   }
@@ -102,7 +105,11 @@ async function loadEvents(): Promise<CalendarEvent[]> {
 
   const [pub, priv] = await Promise.all([fetchAll("public"), fetchAll("private")]);
   const map = new Map<string, CalendarEvent>();
-  for (const e of [...pub, ...priv]) if (!isEventCancelled(e)) map.set(e.id, e);
+  for (const e of [...pub, ...priv]) {
+    if (isEventCancelled(e)) continue;
+    if (Date.parse(e.startDateTime) > nowMs) continue;
+    map.set(e.id, e);
+  }
   return Array.from(map.values()).sort(
     (a, b) => Date.parse(a.startDateTime) - Date.parse(b.startDateTime)
   );
