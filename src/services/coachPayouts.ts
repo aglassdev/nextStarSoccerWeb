@@ -228,15 +228,33 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
 
   const events: CalendarEvent[] = [];
   const memberIds = new Map<string, string[]>();
+  const memberEvents = new Map<string, CalendarEvent[]>();
   for (const [key, group] of groups) {
     const merged = group.length === 1 ? group[0] : mergeSessionEvents(group);
     events.push({ ...merged, id: key });
     memberIds.set(key, group.map(e => e.id));
+    memberEvents.set(key, group);
   }
   events.sort((a, b) => Date.parse(a.startDateTime) - Date.parse(b.startDateTime));
 
   const revenueFor = (key: string) =>
     (memberIds.get(key) ?? [key]).reduce((sum, id) => sum + (data.revenueByEvent[id] || 0), 0);
+  // Within a combined camp day a coach may only have worked the half day, so
+  // pay them for the longest event they are actually credited on rather than
+  // the full span of the day.
+  const payableEventFor = (key: string, coach: string, merged: CalendarEvent): CalendarEvent => {
+    const credited = (memberEvents.get(key) ?? []).filter(e =>
+      (attendeesByEvent.get(e.id) ?? []).some(n => normalizeName(n) === normalizeName(coach))
+    );
+    if (credited.length === 0) return merged;
+    return credited.reduce((longest, e) =>
+      Date.parse(e.endDateTime) - Date.parse(e.startDateTime) >
+      Date.parse(longest.endDateTime) - Date.parse(longest.startDateTime)
+        ? e
+        : longest
+    );
+  };
+
   const attendeesFor = (key: string) => {
     const names: string[] = [];
     for (const id of memberIds.get(key) ?? [key]) {
@@ -265,7 +283,7 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
       return k !== PAUL_TORRES && k !== GYAU;
     });
     const supportCost = supportCoaches.reduce(
-      (sum, n) => sum + (rateForCoach(n, event).amount ?? 0),
+      (sum, n) => sum + (rateForCoach(n, payableEventFor(event.id, n, event)).amount ?? 0),
       0
     );
 
@@ -294,7 +312,7 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
         continue;
       }
 
-      const rate = rateForCoach(coach, event);
+      const rate = rateForCoach(coach, payableEventFor(event.id, coach, event));
       const showsSupport = key === PAUL_TORRES;
       rows.push({
         id: `${event.id}::${key}`,
@@ -330,7 +348,7 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
       return k !== PAUL_TORRES && k !== GYAU;
     });
     const supportCost = supportCoaches.reduce(
-      (sum, n) => sum + (rateForCoach(n, event).amount ?? 0),
+      (sum, n) => sum + (rateForCoach(n, payableEventFor(event.id, n, event)).amount ?? 0),
       0
     );
     const facilityCost = facilityCostFor(event);
