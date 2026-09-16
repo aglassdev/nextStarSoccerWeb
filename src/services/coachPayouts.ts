@@ -91,15 +91,17 @@ export const isWeekendAfternoon = (event: CalendarEvent): boolean => {
   return (weekday === "Sat" || weekday === "Sun") && hour >= 12;
 };
 
-export const isMullinsInAlexandria = (event: CalendarEvent): boolean =>
-  lower(event.title).includes("mullins") && lower(event.location || "").includes("alexandria");
+// Patrick Mullins runs sessions in Alexandria under his own name. Those are
+// his business rather than ours, so they are left out of this page entirely.
+// He is still paid as a support coach when he works one of our sessions.
+export const isMullinsOwnSession = (event: CalendarEvent): boolean =>
+  lower(event.title).includes("mullins");
 
 // Camps and group sessions are the only revenue Gyau shares in. Weekend
 // afternoons and privates are excluded whether or not he was there.
 export const gyauEligible = (event: CalendarEvent): boolean => {
   if (isPrivateOrAnalysis(event.title)) return false;
   if (isWeekendAfternoon(event)) return false;
-  if (isMullinsInAlexandria(event)) return false;
   return isCamp(event.title) || lower(event.title).includes("group");
 };
 
@@ -248,7 +250,9 @@ export interface PayoutTable {
 }
 
 export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
-  const inWindow = data.events.filter(isWithinPayoutWindow);
+  const inWindow = data.events.filter(
+    e => isWithinPayoutWindow(e) && !isMullinsOwnSession(e)
+  );
 
   // Everyone credited to a calendar event, from tracked attendance or the
   // calendar description.
