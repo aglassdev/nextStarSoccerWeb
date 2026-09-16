@@ -36,6 +36,8 @@ interface EventFormData {
   selectedCoaches: CoachRecord[];
   isRecurring: boolean;
   recurringWeeks: string;
+  isMultiDate: boolean;
+  multiDates: string[];  // YYYY-MM-DD, one event created per date
 }
 
 // Returns today's date as YYYY-MM-DD in local time (used as default for the date field)
@@ -51,6 +53,8 @@ const EMPTY_FORM_BASE: Omit<EventFormData, 'date'> = {
   selectedCoaches: [],
   isRecurring: false,
   recurringWeeks: '',
+  isMultiDate: false,
+  multiDates: [],
 };
 // Always call this to get a fresh form — date stamps today
 const makeEmptyForm = (): EventFormData => ({ ...EMPTY_FORM_BASE, date: todayStr() });
@@ -64,19 +68,66 @@ const PUBLIC_EVENT_TYPES = [
 ];
 const PRIVATE_EVENT_TYPES = ['Private Session'];
 const ANALYSIS_EVENT_TYPES = ['Game Analysis', 'Parent Consultation'];
-const ALL_EVENT_TYPES = [...PUBLIC_EVENT_TYPES, ...PRIVATE_EVENT_TYPES, ...ANALYSIS_EVENT_TYPES];
+// Private Session leads the list — it is by far the most frequently created type.
+const ALL_EVENT_TYPES = [...PRIVATE_EVENT_TYPES, ...PUBLIC_EVENT_TYPES, ...ANALYSIS_EVENT_TYPES];
 
+// Every address is the Google Places formatted address and is prefixed with the
+// venue name. Both matter downstream: coachPayouts matches facility hire on
+// substrings of the location ("sofive", "bethesda soccer club") and derives the
+// facility label from everything before the first comma.
 const PRESET_VENUES: { label: string; address: string }[] = [
-  { label: 'Whitman HS', address: 'Walt Whitman High School, 7100 Whittier Blvd, Bethesda, MD 20817' },
   { label: 'Lewinsville Park', address: 'Lewinsville Park, 1659 Chain Bridge Rd, McLean, VA 22101' },
+  { label: 'Whitman HS', address: 'Walt Whitman High School, 7100 Whittier Blvd, Bethesda, MD 20817' },
   { label: 'Somerset ES', address: 'Somerset Elementary School, 5811 Warwick Pl, Chevy Chase, MD 20815' },
-  { label: 'Washington Episcopal', address: 'Washington Episcopal School, 5600 Little Falls Pkwy, Bethesda, MD 20816' },
-  { label: 'Palisades Rec', address: 'Palisades Recreation Center, 5200 Sherier Pl NW, Washington, DC 20016' },
-  { label: 'Bethesda Soccer Club', address: '8717 Grovemont Cir, Gaithersburg, MD 20877' },
+  { label: 'Murch ES', address: 'Ben Murch Elementary School, 4810 36th St NW, Washington, DC 20008' },
+  { label: 'Sofive Rockville', address: 'Sofive Soccer Centers Rockville, 1008 Westmore Ave, Rockville, MD 20850' },
+  { label: 'Bethesda SC', address: 'Bethesda Soccer Club, 8717 Grovemont Cir, Gaithersburg, MD 20877' },
+  { label: 'Howard University', address: 'Howard University, 2400 6th St NW, Washington, DC 20059' },
+  { label: 'Wootton HS', address: 'Thomas S. Wootton High School, 2100 Wootton Pkwy, Rockville, MD 20850' },
 ];
+
+// ── Coach picker roster ──────────────────────────────────────────────────────
+const normalizeCoachName = (name: string) => name.trim().toLowerCase().replace(/\s+/g, ' ');
+
+// Surfaced at the top of the picker, in this order. Everyone else follows
+// alphabetically.
+const COACH_PRIORITY = [
+  'paul torres',
+  'phillip gyau',
+  'ryan machado',
+  'noah satriano',
+  'jake steinman',
+];
+
+// Test accounts and people who are not coaches, kept out of the picker.
+const HIDDEN_COACH_NAMES = new Set([
+  'coach testing',
+  'mike kin',
+  'peabo',
+  'rolando aguilar',
+]);
+
+const coachFullName = (c: CoachRecord) =>
+  `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim();
+
+// The head coach privates default to.
+const DEFAULT_PRIVATE_COACH = 'paul torres';
 
 // Red asterisk for required field labels
 const Req = () => <span className="text-red-400 ml-0.5">*</span>;
+
+// White box with a black check — matches the white button treatment.
+const Check = ({ checked }: { checked: boolean }) => (
+  <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
+    checked ? 'bg-white border-white' : 'border-gray-600'
+  }`}>
+    {checked && (
+      <svg className="w-2.5 h-2.5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+      </svg>
+    )}
+  </div>
+);
 
 // 15-min interval slots between two 24-hour bounds (inclusive)
 function generateTimeRange(startHour24: number, endHour24: number): string[] {
@@ -92,9 +143,9 @@ function generateTimeRange(startHour24: number, endHour24: number): string[] {
   return out;
 }
 
-// Start: 7:00 AM – 7:00 PM ; End: 8:00 AM – 8:00 PM
-const START_TIME_OPTIONS = generateTimeRange(7, 19);
-const END_TIME_OPTIONS = generateTimeRange(8, 20);
+// Start: 6:00 AM – 7:00 PM ; End: 7:00 AM – 8:00 PM
+const START_TIME_OPTIONS = generateTimeRange(6, 19);
+const END_TIME_OPTIONS = generateTimeRange(7, 20);
 
 // Calendar-type derivation matches mobile logic
 function calendarTypeFor(eventType: string): 'public' | 'private' | 'analysis' {
@@ -163,7 +214,10 @@ function LocationPickerModal({
     if (input.trim().length < 2) { setSuggestions([]); return; }
     setLoading(true);
     try {
-      const out = await GooglePlacesService.getAutocompleteSuggestions(input, 'establishment', {
+      // No `types` filter: restricting to 'establishment' makes Google return
+      // ZERO_RESULTS for plain street addresses, so both are requested here and
+      // the venue/address mix comes back ranked by relevance.
+      const out = await GooglePlacesService.getAutocompleteSuggestions(input, '', {
         componentRestrictions: { country: 'us' },
       });
       setSuggestions(out);
@@ -180,10 +234,13 @@ function LocationPickerModal({
     let location = s.description;
     try {
       const details = await GooglePlacesService.getPlaceDetails(s.place_id);
-      if (details?.name && details?.formatted_address) {
-        location = `${details.name}, ${details.formatted_address}`;
-      } else if (details?.formatted_address) {
-        location = details.formatted_address;
+      const address = details?.formatted_address;
+      const name = details?.name?.trim();
+      if (address) {
+        // A street address comes back with its house number as the `name`, so
+        // prefixing it would read "7100, 7100 Whittier Blvd". Only venues get
+        // the name prepended.
+        location = name && !address.startsWith(name) ? `${name}, ${address}` : address;
       }
     } catch { /* fall back */ }
     setPreview(location);
@@ -227,7 +284,7 @@ function LocationPickerModal({
                   onClick={() => setPreview(v.address)}
                   className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
                     preview === v.address
-                      ? 'bg-white/[0.10] border-white/40 text-white'
+                      ? 'bg-white border-white text-black'
                       : 'bg-white/[0.03] border-white/[0.10] text-white/55 hover:text-white hover:border-white/25'
                   }`}
                 >
@@ -304,10 +361,186 @@ function LocationPickerModal({
           <button
             onClick={() => preview && onSelect(preview)}
             disabled={!preview}
-            className="px-4 py-2 text-sm font-medium bg-white/[0.10] hover:bg-white/[0.15] text-white border border-white/20 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="px-4 py-2 text-sm font-medium bg-white hover:bg-gray-200 text-black rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Use This Location
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Multi-date picker modal ──────────────────────────────────────────────────
+const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+// YYYY-MM-DD for a local-time y/m/d triple, avoiding UTC shifts from toISOString
+const dateKey = (y: number, m: number, d: number) =>
+  `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+
+// "Mon, Sep 21" from a YYYY-MM-DD key
+const prettyDate = (key: string) => {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', {
+    weekday: 'short', month: 'short', day: 'numeric',
+  });
+};
+
+function MultiDatePickerModal({
+  open, selected, onClose, onSave,
+}: {
+  open: boolean;
+  selected: string[];
+  onClose: () => void;
+  onSave: (dates: string[]) => void;
+}) {
+  const [picked, setPicked] = useState<string[]>(selected);
+  // Month currently on screen, as a first-of-month date
+  const [month, setMonth] = useState(() => {
+    const first = [...selected].sort()[0];
+    if (first) {
+      const [y, m] = first.split('-').map(Number);
+      return new Date(y, m - 1, 1);
+    }
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
+
+  useEffect(() => { if (open) setPicked(selected); }, [open, selected]);
+
+  if (!open) return null;
+
+  const y = month.getFullYear();
+  const m = month.getMonth();
+  const leadingBlanks = new Date(y, m, 1).getDay();
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const today = todayStr();
+
+  const toggle = (key: string) =>
+    setPicked(p => (p.includes(key) ? p.filter(k => k !== key) : [...p, key]));
+
+  const shiftMonth = (delta: number) => setMonth(new Date(y, m + delta, 1));
+  const sorted = [...picked].sort();
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={onClose}>
+      <div
+        className="bg-[#141214] border border-white/[0.08] rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06]">
+          <div>
+            <h3 className="text-white text-base font-semibold">Pick Dates</h3>
+            <p className="text-white/40 text-xs mt-0.5">Tap every day this session should run on.</p>
+          </div>
+          <button onClick={onClose} className="text-white/40 hover:text-white p-1.5 rounded-lg hover:bg-white/[0.04] transition-colors">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Calendar */}
+        <div className="px-6 py-5">
+          <div className="flex items-center justify-between mb-3">
+            <button
+              type="button"
+              onClick={() => shiftMonth(-1)}
+              className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/[0.06] transition-colors"
+              aria-label="Previous month"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <p className="text-white text-sm font-medium">
+              {month.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+            </p>
+            <button
+              type="button"
+              onClick={() => shiftMonth(1)}
+              className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/[0.06] transition-colors"
+              aria-label="Next month"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-7 gap-1 mb-1">
+            {DAY_LABELS.map((d, i) => (
+              <div key={i} className="text-center text-white/30 text-[10px] uppercase tracking-wider py-1">{d}</div>
+            ))}
+          </div>
+          <div className="grid grid-cols-7 gap-1">
+            {Array.from({ length: leadingBlanks }, (_, i) => <div key={`blank-${i}`} />)}
+            {Array.from({ length: daysInMonth }, (_, i) => {
+              const day = i + 1;
+              const key = dateKey(y, m, day);
+              const isPicked = picked.includes(key);
+              const isPast = key < today;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  disabled={isPast}
+                  onClick={() => toggle(key)}
+                  className={`aspect-square rounded-lg text-sm transition-colors ${
+                    isPicked
+                      ? 'bg-white text-black font-semibold'
+                      : isPast
+                        ? 'text-white/15 cursor-not-allowed'
+                        : `text-white/70 hover:bg-white/[0.08] hover:text-white ${key === today ? 'ring-1 ring-white/30' : ''}`
+                  }`}
+                >
+                  {day}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Selected dates */}
+        {sorted.length > 0 && (
+          <div className="px-6 pb-4 max-h-28 overflow-y-auto">
+            <div className="flex flex-wrap gap-1.5">
+              {sorted.map(key => (
+                <span
+                  key={key}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs bg-white/10 border border-white/25 text-white"
+                >
+                  {prettyDate(key)}
+                  <button type="button" onClick={() => toggle(key)} className="text-white/50 hover:text-white">✕</button>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="flex items-center justify-between gap-2 px-6 py-4 border-t border-white/[0.06] bg-white/[0.02]">
+          <span className="text-white/40 text-xs">
+            {sorted.length} {sorted.length === 1 ? 'date' : 'dates'} selected
+          </span>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setPicked([])}
+              disabled={sorted.length === 0}
+              className="px-4 py-2 text-sm text-white/60 hover:text-white border border-white/[0.10] hover:border-white/30 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Clear
+            </button>
+            <button
+              type="button"
+              onClick={() => onSave(sorted)}
+              className="px-4 py-2 text-sm font-medium bg-white hover:bg-gray-200 text-black rounded-lg transition-colors"
+            >
+              Done
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -335,7 +568,7 @@ function Dropdown({
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className={`w-full px-3 py-2 bg-[#1a1a1a] border rounded-lg text-left text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors flex items-center justify-between ${
+        className={`w-full px-3 py-2 bg-[#1a1a1a] border rounded-lg text-left text-sm focus:outline-none focus:ring-1 focus:ring-white/40 transition-colors flex items-center justify-between ${
           error ? 'border-red-500/50' : 'border-[#2a2a2a] hover:border-gray-600'
         }`}
       >
@@ -355,7 +588,7 @@ function Dropdown({
                 type="button"
                 onClick={() => { onChange(opt); setOpen(false); }}
                 className={`w-full text-left px-3 py-2 text-sm transition-colors ${
-                  value === opt ? 'bg-blue-600/20 text-blue-300' : 'text-gray-300 hover:bg-white/[0.04]'
+                  value === opt ? 'bg-white text-black font-medium' : 'text-gray-300 hover:bg-white/[0.04]'
                 }`}
               >
                 {opt}
@@ -407,6 +640,8 @@ const EventAssistantSection = () => {
       selectedCoaches: [],
       isRecurring: false,
       recurringWeeks: '',
+      isMultiDate: false,
+      multiDates: [],
     };
   };
 
@@ -441,9 +676,15 @@ const EventAssistantSection = () => {
             ? databases.listDocuments(databaseId, collections.proxyChildren, [Query.limit(1000)]).catch(() => ({ documents: [] }))
             : { documents: [] },
         ]);
-        setCoaches(((coachRes as any).documents as CoachRecord[]).sort((a, b) =>
-          `${a.firstName ?? ''} ${a.lastName ?? ''}`.localeCompare(`${b.firstName ?? ''} ${b.lastName ?? ''}`)
-        ));
+        // Hide test/non-coach accounts, then float the regulars to the top in
+        // COACH_PRIORITY order with everyone else alphabetical behind them.
+        const rank = (c: CoachRecord) => {
+          const i = COACH_PRIORITY.indexOf(normalizeCoachName(coachFullName(c)));
+          return i === -1 ? COACH_PRIORITY.length : i;
+        };
+        setCoaches(((coachRes as any).documents as CoachRecord[])
+          .filter(c => !HIDDEN_COACH_NAMES.has(normalizeCoachName(coachFullName(c))))
+          .sort((a, b) => rank(a) - rank(b) || coachFullName(a).localeCompare(coachFullName(b))));
         const players: PlayerRecord[] = [
           ...(youthRes as any).documents.map((p: any) => ({ $id: p.$id, userId: p.userId, firstName: p.firstName || '', lastName: p.lastName || '', type: 'Youth' as const })),
           ...(colRes as any).documents.map((p: any) => ({ $id: p.$id, userId: p.userId, firstName: p.firstName || '', lastName: p.lastName || '', type: 'Collegiate' as const })),
@@ -562,7 +803,7 @@ const EventAssistantSection = () => {
             key={t}
             onClick={() => setTab(t)}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              tab === t ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
+              tab === t ? 'bg-white text-black' : 'text-gray-400 hover:text-white'
             }`}
           >
             {label}
@@ -574,7 +815,7 @@ const EventAssistantSection = () => {
         <div className="max-w-2xl">
           {loadingPeople ? (
             <div className="flex items-center justify-center h-32">
-              <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+              <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
             </div>
           ) : (
             <CreateEventForm
@@ -635,7 +876,7 @@ const EventAssistantSection = () => {
                     key={t}
                     onClick={() => setCalType(t)}
                     className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors capitalize ${
-                      calType === t ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-white'
+                      calType === t ? 'bg-white text-black' : 'text-gray-500 hover:text-white'
                     }`}
                   >
                     {t}
@@ -645,7 +886,7 @@ const EventAssistantSection = () => {
 
               {loadingEvents ? (
                 <div className="flex items-center justify-center h-40">
-                  <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                  <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 </div>
               ) : events.length === 0 ? (
                 <p className="text-gray-600 text-sm text-center py-12">No events found for this month</p>
@@ -668,7 +909,7 @@ const EventAssistantSection = () => {
                           {signedUp.length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-1.5">
                               {signedUp.map((name, i) => (
-                                <span key={i} className="px-1.5 py-0.5 bg-blue-500/10 border border-blue-500/20 rounded text-blue-400 text-[10px] font-medium">
+                                <span key={i} className="px-1.5 py-0.5 bg-white/10 border border-white/20 rounded text-white/80 text-[10px] font-medium">
                                   {name}
                                 </span>
                               ))}
@@ -735,9 +976,18 @@ function CreateEventForm({
     setForm(f => ({ ...f, startTime: v, endTime: plusOneHour(v) }));
   };
 
-  // Auto-fill title when event type changes (mobile uses eventType as title fallback)
+  // Auto-fill title when event type changes (mobile uses eventType as title fallback).
+  // Privates default to Paul Torres — only when nothing is picked yet, so a
+  // deliberate choice is never overwritten and the dropdown stays editable.
   const handleEventType = (v: string) => {
-    setForm(f => ({ ...f, eventType: v, title: f.title || v }));
+    setForm(f => {
+      const next = { ...f, eventType: v, title: f.title || v };
+      if (PRIVATE_EVENT_TYPES.includes(v) && f.selectedCoaches.length === 0) {
+        const paul = coaches.find(c => normalizeCoachName(coachFullName(c)) === DEFAULT_PRIVATE_COACH);
+        if (paul) next.selectedCoaches = [paul];
+      }
+      return next;
+    });
   };
 
   // ─── Location modal ───
@@ -747,6 +997,23 @@ function CreateEventForm({
     set('location', location);
     setLocationModalOpen(false);
   };
+
+  // ─── Repeat modes ───
+  // Weekly recurrence and an explicit date list describe the same thing two
+  // different ways, so turning one on turns the other off.
+  const [dateModalOpen, setDateModalOpen] = useState(false);
+
+  const toggleRecurring = () =>
+    setForm(f => f.isRecurring
+      ? { ...f, isRecurring: false, recurringWeeks: '' }
+      : { ...f, isRecurring: true, isMultiDate: false, multiDates: [] });
+
+  const toggleMultiDate = () =>
+    setForm(f => {
+      if (f.isMultiDate) return { ...f, isMultiDate: false, multiDates: [] };
+      setDateModalOpen(true);
+      return { ...f, isMultiDate: true, isRecurring: false, recurringWeeks: '' };
+    });
 
   // ─── Player search ───
   const [playerSearch, setPlayerSearch] = useState('');
@@ -798,25 +1065,42 @@ function CreateEventForm({
     if (startValid && endValid) {
       timeOrderInvalid = to24h(form.endTime) <= to24h(form.startTime);
     }
+    const weeks = parseInt(form.recurringWeeks);
     const newErr = {
       title: titleRequired && !form.title.trim(),
-      date: !form.date.trim(),
+      // With Make Multiple on, the picked dates stand in for the Date field.
+      date: !form.isMultiDate && !form.date.trim(),
       startTime: !startValid,
       endTime: !endValid,
       timeOrder: timeOrderInvalid,
       location: !isAnalysis && !form.location.trim(),
       eventType: !form.eventType,
+      recurringWeeks: form.isRecurring && (!weeks || weeks < 1 || weeks > 52),
+      multiDates: form.isMultiDate && form.multiDates.length === 0,
     };
     setErrors(newErr);
     return !Object.values(newErr).some(Boolean);
   };
 
+  // Every date this submit should create an event on, in order.
+  const datesToCreate = (): string[] => {
+    if (form.isMultiDate) return [...form.multiDates].sort();
+    const weeks = form.isRecurring ? parseInt(form.recurringWeeks) : 1;
+    const [yr, mo, dy] = form.date.split('-').map(Number);
+    return Array.from({ length: weeks }, (_, week) => {
+      const d = new Date(yr, mo - 1, dy);
+      d.setDate(d.getDate() + week * 7);
+      return dateKey(d.getFullYear(), d.getMonth(), d.getDate());
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validate()) { onError('Please fill in all required fields correctly.'); return; }
-    if (form.isRecurring) {
-      const w = parseInt(form.recurringWeeks);
-      if (!w || w < 1 || w > 52) { onError('Recurring weeks must be 1–52.'); return; }
+    if (!validate()) {
+      if (form.isMultiDate && form.multiDates.length === 0) onError('Pick at least one date for Make Multiple.');
+      else if (form.isRecurring) onError('Please fill in all required fields correctly — recurring weeks must be 1–52.');
+      else onError('Please fill in all required fields correctly.');
+      return;
     }
 
     setSaving(true);
@@ -891,15 +1175,10 @@ function CreateEventForm({
         return;
       }
 
-      const weeksToCreate = form.isRecurring ? parseInt(form.recurringWeeks) : 1;
+      const eventDates = datesToCreate();
       let createdCount = 0;
 
-      for (let week = 0; week < weeksToCreate; week++) {
-        const [yr, mo, dy] = form.date.split('-').map(Number);
-        const baseDate = new Date(yr, mo - 1, dy);
-        baseDate.setDate(baseDate.getDate() + week * 7);
-        const eventDateStr = `${baseDate.getFullYear()}-${String(baseDate.getMonth() + 1).padStart(2, '0')}-${String(baseDate.getDate()).padStart(2, '0')}`;
-
+      for (const eventDateStr of eventDates) {
         const result = await callCalendarFunction('createEvent', {
           calendarType,
           // Function expects a nested eventData object with ISO datetimes
@@ -951,7 +1230,9 @@ function CreateEventForm({
       onSuccess(
         createdCount === 1
           ? 'Event created successfully.'
-          : `${createdCount} recurring events created successfully.`
+          : form.isMultiDate
+            ? `${createdCount} events created successfully across ${createdCount} dates.`
+            : `${createdCount} recurring events created successfully.`
       );
       setForm(makeEmptyForm());
       setErrors({});
@@ -963,6 +1244,12 @@ function CreateEventForm({
   };
 
   const isAnalysis = ANALYSIS_EVENT_TYPES.includes(form.eventType);
+  const plannedCount = form.isMultiDate
+    ? form.multiDates.length
+    : form.isRecurring
+      ? (parseInt(form.recurringWeeks) || 0)
+      : 1;
+  const submitLabel = plannedCount > 1 ? `Create ${plannedCount} Events` : 'Create Event';
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -988,7 +1275,7 @@ function CreateEventForm({
           value={form.title}
           onChange={e => set('title', e.target.value)}
           placeholder={form.eventType || 'Event title'}
-          className={`w-full px-3 py-2 bg-[#1a1a1a] border rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder-gray-600 ${
+          className={`w-full px-3 py-2 bg-[#1a1a1a] border rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-white/40 placeholder-gray-600 ${
             errors.title ? 'border-red-500/50' : 'border-[#2a2a2a]'
           }`}
         />
@@ -1002,7 +1289,7 @@ function CreateEventForm({
             type="date"
             value={form.date}
             onChange={e => set('date', e.target.value)}
-            className={`w-full px-3 py-2 bg-[#1a1a1a] border rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+            className={`w-full px-3 py-2 bg-[#1a1a1a] border rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-white/40 ${
               errors.date ? 'border-red-500/50' : 'border-[#2a2a2a]'
             }`}
           />
@@ -1040,7 +1327,7 @@ function CreateEventForm({
               value={form.location}
               onChange={e => set('location', e.target.value)}
               placeholder="Type an address, or click the pin to search…"
-              className={`w-full px-3 py-2 pr-9 bg-[#1a1a1a] border rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder-gray-600 ${
+              className={`w-full px-3 py-2 pr-9 bg-[#1a1a1a] border rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-white/40 placeholder-gray-600 ${
                 errors.location ? 'border-red-500/50' : 'border-[#2a2a2a]'
               }`}
             />
@@ -1060,6 +1347,28 @@ function CreateEventForm({
             </button>
           </div>
           {errors.location && <p className="text-red-400 text-xs mt-1">Please enter a location.</p>}
+
+          {/* One-tap fill for the venues we use week to week */}
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {PRESET_VENUES.map(v => {
+              const active = form.location === v.address;
+              return (
+                <button
+                  key={v.label}
+                  type="button"
+                  onClick={() => set('location', v.address)}
+                  title={v.address}
+                  className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                    active
+                      ? 'bg-white border-white text-black'
+                      : 'bg-white/[0.03] border-white/[0.12] text-white/60 hover:text-white hover:border-white/35'
+                  }`}
+                >
+                  {v.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -1090,7 +1399,7 @@ function CreateEventForm({
               ) : (
                 coaches.map(c => {
                   const checked = form.selectedCoaches.some(x => x.$id === c.$id);
-                  const name = `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim() || c.$id;
+                  const name = coachFullName(c) || c.$id;
                   return (
                     <button
                       key={c.$id}
@@ -1098,16 +1407,8 @@ function CreateEventForm({
                       onClick={() => toggleCoach(c)}
                       className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-white/[0.04]"
                     >
-                      <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${
-                        checked ? 'bg-blue-600 border-blue-600' : 'border-gray-600'
-                      }`}>
-                        {checked && (
-                          <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                          </svg>
-                        )}
-                      </div>
-                      <span className="text-gray-300">{name}</span>
+                      <Check checked={checked} />
+                      <span className={checked ? 'text-white' : 'text-gray-300'}>{name}</span>
                     </button>
                   );
                 })
@@ -1129,13 +1430,13 @@ function CreateEventForm({
               {form.selectedPlayers.map(p => (
                 <span
                   key={p.$id}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs bg-blue-600/20 border border-blue-500/30 text-blue-300"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs bg-white/10 border border-white/25 text-white"
                 >
                   {p.firstName} {p.lastName}
                   <button
                     type="button"
                     onClick={() => removePlayer(p.$id)}
-                    className="text-blue-300/60 hover:text-blue-300"
+                    className="text-white/50 hover:text-white"
                   >
                     ✕
                   </button>
@@ -1150,7 +1451,7 @@ function CreateEventForm({
             onChange={e => setPlayerSearch(e.target.value)}
             placeholder={form.selectedPlayers.length >= 4 ? 'Max players reached' : 'Search players…'}
             disabled={form.selectedPlayers.length >= 4}
-            className="w-full px-3 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder-gray-600 disabled:opacity-50"
+            className="w-full px-3 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-white/40 placeholder-gray-600 disabled:opacity-50"
           />
           {playerSearch.trim().length >= 2 && playerSuggestions.length > 0 && (
             <div className="absolute z-20 mt-1 left-0 right-0 bg-[#111] border border-[#2a2a2a] rounded-lg shadow-xl max-h-56 overflow-y-auto">
@@ -1172,39 +1473,85 @@ function CreateEventForm({
         </div>
       )}
 
-      {/* Recurring */}
-      <div className="flex items-center gap-3">
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={form.isRecurring}
-            onChange={e => set('isRecurring', e.target.checked)}
-            className="w-4 h-4 rounded border-gray-600 bg-[#1a1a1a] text-blue-600 focus:ring-1 focus:ring-blue-500"
-          />
-          <span className="text-gray-300 text-sm">Recurring weekly</span>
-        </label>
-        {form.isRecurring && (
-          <input
-            type="number"
-            min={1}
-            max={52}
-            value={form.recurringWeeks}
-            onChange={e => set('recurringWeeks', e.target.value)}
-            placeholder="weeks"
-            className="w-24 px-3 py-1.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder-gray-600"
-          />
-        )}
-      </div>
+      {/* Repeat options — creating only; editing touches one calendar event */}
+      {mode === 'create' && (
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+            <button type="button" onClick={toggleRecurring} className="flex items-center gap-2">
+              <Check checked={form.isRecurring} />
+              <span className={`text-sm ${form.isRecurring ? 'text-white' : 'text-gray-300'}`}>Recurring weekly</span>
+            </button>
+            {form.isRecurring && (
+              <input
+                type="number"
+                min={1}
+                max={52}
+                value={form.recurringWeeks}
+                onChange={e => set('recurringWeeks', e.target.value)}
+                placeholder="weeks"
+                className={`w-24 px-3 py-1.5 bg-[#1a1a1a] border rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-white/40 placeholder-gray-600 ${
+                  errors.recurringWeeks ? 'border-red-500/50' : 'border-[#2a2a2a]'
+                }`}
+              />
+            )}
+
+            <button type="button" onClick={toggleMultiDate} className="flex items-center gap-2">
+              <Check checked={form.isMultiDate} />
+              <span className={`text-sm ${form.isMultiDate ? 'text-white' : 'text-gray-300'}`}>Make Multiple</span>
+            </button>
+          </div>
+
+          {form.isMultiDate && (
+            <div className={`rounded-lg border px-3 py-3 bg-white/[0.02] ${
+              errors.multiDates ? 'border-red-500/50' : 'border-[#2a2a2a]'
+            }`}>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-gray-400 text-xs">
+                  {form.multiDates.length === 0
+                    ? 'No dates picked yet — this session will be created on every date you choose.'
+                    : `${form.multiDates.length} ${form.multiDates.length === 1 ? 'date' : 'dates'} picked · the Date field above is ignored.`}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setDateModalOpen(true)}
+                  className="flex-shrink-0 px-3 py-1.5 text-xs font-medium bg-white hover:bg-gray-200 text-black rounded-lg transition-colors"
+                >
+                  {form.multiDates.length === 0 ? 'Pick Dates' : 'Edit Dates'}
+                </button>
+              </div>
+              {form.multiDates.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-2.5">
+                  {form.multiDates.map(key => (
+                    <span
+                      key={key}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs bg-white/10 border border-white/25 text-white"
+                    >
+                      {prettyDate(key)}
+                      <button
+                        type="button"
+                        onClick={() => set('multiDates', form.multiDates.filter(k => k !== key))}
+                        className="text-white/50 hover:text-white"
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Submit */}
       <div className="pt-2">
         <button
           type="submit"
           disabled={saving}
-          className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+          className="w-full py-2.5 bg-white hover:bg-gray-200 text-black text-sm font-semibold rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
         >
-          {saving && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-          {saving ? (mode === 'edit' ? 'Saving…' : 'Creating…') : (mode === 'edit' ? 'Save Changes' : 'Create Event')}
+          {saving && <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />}
+          {saving ? (mode === 'edit' ? 'Saving…' : 'Creating…') : (mode === 'edit' ? 'Save Changes' : submitLabel)}
         </button>
       </div>
 
@@ -1213,6 +1560,13 @@ function CreateEventForm({
         currentValue={form.location}
         onClose={() => setLocationModalOpen(false)}
         onSelect={handlePickLocation}
+      />
+
+      <MultiDatePickerModal
+        open={dateModalOpen}
+        selected={form.multiDates}
+        onClose={() => setDateModalOpen(false)}
+        onSave={dates => { set('multiDates', dates); setDateModalOpen(false); }}
       />
     </form>
   );

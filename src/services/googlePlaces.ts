@@ -41,9 +41,11 @@ const cache = new Map<string, { data: GooglePlacesPrediction[]; ts: number }>();
 const CACHE_MS = 5 * 60 * 1000;
 
 export const GooglePlacesService = {
+  // `types` defaults to unrestricted: passing 'establishment' makes Google
+  // return ZERO_RESULTS for plain street addresses.
   async getAutocompleteSuggestions(
     input: string,
-    types: string = 'establishment',
+    types: string = '',
     options: { componentRestrictions?: { country: string }; language?: string } = {},
   ): Promise<GooglePlacesPrediction[]> {
     if (!input || input.trim().length < 2) return [];
