@@ -97,6 +97,12 @@ export const isWeekendAfternoon = (event: CalendarEvent): boolean => {
 export const isMullinsOwnSession = (event: CalendarEvent): boolean =>
   lower(event.title).includes("mullins");
 
+// Only group training is paid through this page. Privates and analysis work
+// each sit on their own Google calendar, so the source is what decides —
+// titles vary too much to sort them reliably.
+export const isPayableCalendar = (event: CalendarEvent): boolean =>
+  event.calendar === "public";
+
 // Camps and group sessions are the only revenue Gyau shares in. Weekend
 // afternoons and privates are excluded whether or not he was there.
 export const gyauEligible = (event: CalendarEvent): boolean => {
@@ -251,7 +257,7 @@ export interface PayoutTable {
 
 export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
   const inWindow = data.events.filter(
-    e => isWithinPayoutWindow(e) && !isMullinsOwnSession(e)
+    e => isWithinPayoutWindow(e) && isPayableCalendar(e) && !isMullinsOwnSession(e)
   );
 
   // Everyone credited to a calendar event, from tracked attendance or the

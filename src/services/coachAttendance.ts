@@ -105,10 +105,15 @@ async function loadEvents(): Promise<CalendarEvent[]> {
 
   const [pub, priv] = await Promise.all([fetchAll("public"), fetchAll("private")]);
   const map = new Map<string, CalendarEvent>();
-  for (const e of [...pub, ...priv]) {
-    if (isEventCancelled(e)) continue;
-    if (Date.parse(e.startDateTime) > nowMs) continue;
-    map.set(e.id, e);
+  // Tagged with their source so consumers can tell group training apart from
+  // privates. Public is read first and wins if an event somehow sits on both.
+  for (const [source, list] of [["public", pub], ["private", priv]] as const) {
+    for (const e of list) {
+      if (isEventCancelled(e)) continue;
+      if (Date.parse(e.startDateTime) > nowMs) continue;
+      if (map.has(e.id)) continue;
+      map.set(e.id, { ...e, calendar: source });
+    }
   }
   return Array.from(map.values()).sort(
     (a, b) => Date.parse(a.startDateTime) - Date.parse(b.startDateTime)

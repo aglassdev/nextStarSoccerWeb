@@ -3,6 +3,10 @@ import { functions, databases, collections } from "./appwrite";
 
 const databaseId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
 
+// Which Google calendar an event was read from. Group training lives on the
+// public calendar; privates and analysis work each have their own.
+export type CalendarSource = "public" | "private" | "analysis";
+
 export interface CalendarEvent {
   id: string;
   title: string;
@@ -11,6 +15,9 @@ export interface CalendarEvent {
   startDateTime: string;
   endDateTime: string;
   dateOnly?: boolean;
+  // Set by callers that read more than one calendar and need to tell the
+  // sources apart afterwards.
+  calendar?: CalendarSource;
 }
 
 // Words that indicate cancellation — used to exclude those lines from coach detection.
@@ -343,7 +350,7 @@ class GoogleCalendarService {
   async getEventsForMonth(
     year: number,
     month: number,
-    calendarType: "public" | "private" | "analysis" = "public"
+    calendarType: CalendarSource = "public"
   ): Promise<CalendarEvent[]> {
     try {
       if (calendarType === "private" || calendarType === "analysis") {
