@@ -96,6 +96,38 @@ export const gyauEligible = (event: CalendarEvent): boolean => {
   return isCamp(event.title) || lower(event.title).includes("group");
 };
 
+const easternDay = (iso: string) =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date(iso));
+
+// A Nike camp day is sold as an overlapping half day and full day at the same
+// start time. They are one session on the ground, so they are combined: the
+// revenue adds up, but the facility hire and each coach's pay are only counted
+// once, and Gyau takes his share of the day as a whole.
+const nikeCampDayKey = (event: CalendarEvent): string | null => {
+  if (!isNikeCamp(event.title)) return null;
+  const t = lower(event.title);
+  if (!t.includes("half day") && !t.includes("full day")) return null;
+  return `nike-camp::${easternDay(event.startDateTime)}`;
+};
+
+// Collapses the grouped events into one synthetic session spanning the longest
+// of them, so hourly pay reflects the real length of the day.
+const mergeSessionEvents = (group: CalendarEvent[]): CalendarEvent => {
+  const byStart = [...group].sort((a, b) => Date.parse(a.startDateTime) - Date.parse(b.startDateTime));
+  const first = byStart[0];
+  const latestEnd = group.reduce(
+    (max, e) => (Date.parse(e.endDateTime) > Date.parse(max) ? e.endDateTime : max),
+    first.endDateTime
+  );
+  const hasHalf = group.some(e => lower(e.title).includes("half day"));
+  const hasFull = group.some(e => lower(e.title).includes("full day"));
+  const title =
+    hasHalf && hasFull
+      ? "Next Star x Nike Summer Camp (Half + Full Day)"
+      : first.title;
+  return { ...first, title, endDateTime: latestEnd };
+};
+
 export const facilityLabel = (location?: string): string => {
   if (!location) return "—";
   return location.split(",")[0].trim();
@@ -174,10 +206,10 @@ export interface PayoutTable {
 }
 
 export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
-  const events = data.events.filter(isWithinPayoutWindow);
+  const inWindow = data.events.filter(isWithinPayoutWindow);
 
-  // Everyone credited to a session, from tracked attendance or the calendar
-  // description, since Gyau only ever appears in descriptions.
+  // Everyone credited to a calendar event, from tracked attendance or the
+  // calendar description.
   const attendeesByEvent = new Map<string, string[]>();
   for (const [eventId, slot] of Object.entries(data.coachesByEvent)) {
     const names: string[] = [];
@@ -186,15 +218,45 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
     attendeesByEvent.set(eventId, names);
   }
 
+  // Group the overlapping halves of a camp day together; everything else is a
+  // session on its own.
+  const groups = new Map<string, CalendarEvent[]>();
+  for (const event of inWindow) {
+    const key = nikeCampDayKey(event) ?? event.id;
+    groups.set(key, [...(groups.get(key) ?? []), event]);
+  }
+
+  const events: CalendarEvent[] = [];
+  const memberIds = new Map<string, string[]>();
+  for (const [key, group] of groups) {
+    const merged = group.length === 1 ? group[0] : mergeSessionEvents(group);
+    events.push({ ...merged, id: key });
+    memberIds.set(key, group.map(e => e.id));
+  }
+  events.sort((a, b) => Date.parse(a.startDateTime) - Date.parse(b.startDateTime));
+
+  const revenueFor = (key: string) =>
+    (memberIds.get(key) ?? [key]).reduce((sum, id) => sum + (data.revenueByEvent[id] || 0), 0);
+  const attendeesFor = (key: string) => {
+    const names: string[] = [];
+    for (const id of memberIds.get(key) ?? [key]) {
+      for (const n of attendeesByEvent.get(id) ?? []) {
+        if (!names.some(x => normalizeName(x) === normalizeName(n))) names.push(n);
+      }
+    }
+    return names;
+  };
+
   const rows: PayoutRow[] = [];
+  const gyauAttended = new Set<string>();
 
   for (const event of events) {
-    const attendees = attendeesByEvent.get(event.id) ?? [];
+    const attendees = attendeesFor(event.id);
     if (attendees.length === 0) continue;
 
     const facility = facilityLabel(event.location);
     const facilityCost = facilityCostFor(event);
-    const revenue = data.revenueByEvent[event.id] || 0;
+    const revenue = revenueFor(event.id);
 
     // Support coaching cost is what the session pays out to coaches other than
     // Paul Torres, and other than Gyau whose share is derived from it.
@@ -212,6 +274,7 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
 
       if (key === GYAU) {
         if (!gyauEligible(event)) continue;
+        gyauAttended.add(event.id);
         const net = Math.max(0, revenue - facilityCost - supportCost);
         rows.push({
           id: `${event.id}::${key}`,
@@ -252,19 +315,16 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
   }
 
   // Gyau also shares in eligible sessions he did not coach.
-  const gyauAttended = new Set(
-    rows.filter(r => normalizeName(r.coach) === GYAU).map(r => r.id.split("::")[0])
-  );
   const gyauDisplayName =
     data.coaches.find(c => c.key === GYAU)?.name ?? "Phillip Gyau";
 
   for (const event of events) {
     if (gyauAttended.has(event.id)) continue;
     if (!gyauEligible(event)) continue;
-    const revenue = data.revenueByEvent[event.id] || 0;
+    const revenue = revenueFor(event.id);
     if (revenue <= 0) continue;
 
-    const attendees = attendeesByEvent.get(event.id) ?? [];
+    const attendees = attendeesFor(event.id);
     const supportCoaches = attendees.filter(n => {
       const k = normalizeName(n);
       return k !== PAUL_TORRES && k !== GYAU;
