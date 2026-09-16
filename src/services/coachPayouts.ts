@@ -11,41 +11,47 @@ export const isWithinPayoutWindow = (event: CalendarEvent): boolean =>
 
 // ── Rates ─────────────────────────────────────────────────────────────────────
 
-// Hourly rate for the assistant coaches, i.e. anyone without a specific
-// arrangement below. Paid on exact elapsed time, so 3h pays 3 × the rate.
+// Everyone is hourly and paid on exact elapsed time, so 3h pays 3 × the rate.
 export const DEFAULT_HOURLY = 25;
+export const SENIOR_HOURLY = 50;
 
-// Ryan Machado is hourly but at his own rates, higher for group sessions than
-// for camps.
-export const MACHADO_GROUP_HOURLY = 50;
-export const MACHADO_CAMP_HOURLY = 25;
+// Paid at the higher rate, with one exception: at a camp run by a head coach
+// they drop to the default rate like everyone else. Spelling variants are
+// listed because names also arrive from free-text calendar descriptions.
+const SENIOR_COACHES = new Set([
+  "ryan machado",
+  "jake steinman",
+  "noah satriano",
+  "michael elfman",
+  "michael anthony elfman",
+  "patrick mullins",
+]);
 
-// Patrick Mullins is a flat rate per session.
-export const MULLINS_PER_SESSION = 75;
+// Session leads. Neither draws an hourly rate: Gyau takes a share of the
+// profit of each eligible session, and Torres keeps whatever is left after
+// him, so Torres is left off this page entirely. He still counts as a head
+// coach being present, which is what sets the camp rate.
+const GYAU = "phillip gyau";
+const PAUL_TORRES = "paul torres";
+const HEAD_COACHES = new Set([GYAU, PAUL_TORRES]);
 
-// Guests booked as a session expense rather than on an hourly rate. They are
-// recorded as attendance like any other coach, so the figure flows into the
-// session's support cost and comes out of Gyau's net.
-export const SESSION_EXPENSE_PER_SESSION: Record<string, number> = {
-  peabo: 250,
+// Booked as a session cost rather than a coach — a photographer, not staff.
+// The figure comes out of session profit but earns no payout row of its own.
+export const SESSION_EXPENSES: Record<string, { label: string; amount: number }> = {
+  peabo: { label: "Peabo · photographer", amount: 250 },
 };
 
 // Phillip Gyau takes a share of what the session nets after facility hire and
-// the other coaches on the session have been paid.
+// every other cost on it.
 export const GYAU_ATTENDED_SHARE = 0.5;
 export const GYAU_ABSENT_SHARE = 0.3;
 
-// Facilities we pay to hire. Matched on the start of the calendar location, so
-// the full postal address still resolves. Everything not listed is free.
+// Facilities we pay to hire. Matched anywhere in the calendar location, so the
+// full postal address still resolves. Everything not listed is free.
 export const FACILITY_COSTS: { match: string; label: string; flat: number }[] = [
   { match: "sofive", label: "Sofive Rockville", flat: 150 },
-  { match: "bethesda soccer club", label: "Bethesda Soccer Club", flat: 150 },
+  { match: "bethesda soccer club", label: "Bethesda Soccer Club", flat: 110 },
 ];
-
-const PAUL_TORRES = "paul torres";
-const MACHADO = "ryan machado";
-const MULLINS = "patrick mullins";
-const GYAU = "phillip gyau";
 
 // ── Session classification ────────────────────────────────────────────────────
 
@@ -88,7 +94,8 @@ export const isWeekendAfternoon = (event: CalendarEvent): boolean => {
 export const isMullinsInAlexandria = (event: CalendarEvent): boolean =>
   lower(event.title).includes("mullins") && lower(event.location || "").includes("alexandria");
 
-// Camps and group sessions are the only revenue Gyau shares in.
+// Camps and group sessions are the only revenue Gyau shares in. Weekend
+// afternoons and privates are excluded whether or not he was there.
 export const gyauEligible = (event: CalendarEvent): boolean => {
   if (isPrivateOrAnalysis(event.title)) return false;
   if (isWeekendAfternoon(event)) return false;
@@ -153,33 +160,67 @@ export interface CoachRate {
   basis: string;
 }
 
-export const rateForCoach = (coachName: string, event: CalendarEvent): CoachRate => {
+export const rateForCoach = (
+  coachName: string,
+  event: CalendarEvent,
+  headCoachPresent: boolean
+): CoachRate => {
   const key = normalizeName(coachName);
+
+  if (HEAD_COACHES.has(key)) return { amount: null, basis: "Head coach" };
+
+  const expense = SESSION_EXPENSES[key];
+  if (expense) return { amount: expense.amount, basis: "Session expense" };
+
   const hours = durationHours(event);
   const hoursLabel = hours ? `${hours % 1 ? hours.toFixed(1) : hours}h` : "duration unknown";
 
-  if (key === PAUL_TORRES) return { amount: null, basis: "Not calculated" };
-  if (key === MULLINS) return { amount: MULLINS_PER_SESSION, basis: "Flat per session" };
-
-  const expense = SESSION_EXPENSE_PER_SESSION[key];
-  if (expense !== undefined) return { amount: expense, basis: "Session expense" };
-
-  if (key === MACHADO) {
-    const rate = isCamp(event.title) ? MACHADO_CAMP_HOURLY : MACHADO_GROUP_HOURLY;
-    return {
-      amount: hours ? hours * rate : rate,
-      basis: `${hoursLabel} × $${rate}${isCamp(event.title) ? " (camp)" : ""}`,
-    };
-  }
+  // The higher rate does not apply at a camp a head coach is running.
+  const campWithHead = isCamp(event.title) && headCoachPresent;
+  const rate = SENIOR_COACHES.has(key) && !campWithHead ? SENIOR_HOURLY : DEFAULT_HOURLY;
+  const note = SENIOR_COACHES.has(key) && campWithHead ? " (camp rate)" : "";
 
   return {
-    amount: hours ? hours * DEFAULT_HOURLY : DEFAULT_HOURLY,
-    basis: `${hoursLabel} × $${DEFAULT_HOURLY}`,
+    amount: hours ? hours * rate : rate,
+    basis: `${hoursLabel} × $${rate}${note}`,
   };
 };
 
 // ── Rows ──────────────────────────────────────────────────────────────────────
 
+export interface SupportPay {
+  name: string;
+  amount: number;
+  basis: string;
+}
+
+export interface SessionCost {
+  label: string;
+  amount: number;
+}
+
+// One row of the Session view: what the session took in, what it cost to run,
+// and what was left over.
+export interface SessionRow {
+  id: string;
+  title: string;
+  startDateTime: string;
+  dateOnly?: boolean;
+  headCoaches: string[];
+  supportCoaches: SupportPay[];
+  supportCost: number;
+  facility: string;
+  facilityCost: number;
+  otherCosts: SessionCost[];
+  otherCost: number;
+  revenue: number;
+  profit: number;
+  gyauShare: number;
+  gyauAttended: boolean;
+  gyauEligible: boolean;
+}
+
+// One row of the Coach view: what a single coach earned on a single session.
 export interface PayoutRow {
   id: string;
   coach: string;
@@ -188,8 +229,8 @@ export interface PayoutRow {
   dateOnly?: boolean;
   facility: string;
   facilityCost: number;
-  // Only populated for Gyau and Paul Torres. Assistant coaches carry no
-  // support cost of their own, so these stay null on their rows.
+  // Only populated on Gyau's rows, where the support cost is what his share is
+  // calculated after. Assistant coaches carry no support cost of their own.
   supportCoaches: string[] | null;
   supportCost: number | null;
   revenue: number;
@@ -200,6 +241,7 @@ export interface PayoutRow {
 
 export interface PayoutTable {
   rows: PayoutRow[];
+  sessions: SessionRow[];
   builtAt: string;
   totalsByCoach: { coach: string; total: number | null; sessions: number }[];
   grandTotal: number;
@@ -239,6 +281,7 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
 
   const revenueFor = (key: string) =>
     (memberIds.get(key) ?? [key]).reduce((sum, id) => sum + (data.revenueByEvent[id] || 0), 0);
+
   // Within a combined camp day a coach may only have worked the half day, so
   // pay them for the longest event they are actually credited on rather than
   // the full span of the day.
@@ -265,113 +308,112 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
     return names;
   };
 
-  const rows: PayoutRow[] = [];
-  const gyauAttended = new Set<string>();
+  const gyauDisplayName = data.coaches.find(c => c.key === GYAU)?.name ?? "Phillip Gyau";
+
+  // ── Session view ──
+  const sessions: SessionRow[] = [];
 
   for (const event of events) {
     const attendees = attendeesFor(event.id);
-    if (attendees.length === 0) continue;
-
-    const facility = facilityLabel(event.location);
-    const facilityCost = facilityCostFor(event);
     const revenue = revenueFor(event.id);
+    // A session nobody is credited on and that took nothing in has nothing to
+    // report either way.
+    if (attendees.length === 0 && revenue <= 0) continue;
 
-    // Support coaching cost is what the session pays out to coaches other than
-    // Paul Torres, and other than Gyau whose share is derived from it.
-    const supportCoaches = attendees.filter(n => {
-      const k = normalizeName(n);
-      return k !== PAUL_TORRES && k !== GYAU;
+    const headCoaches = attendees.filter(n => HEAD_COACHES.has(normalizeName(n)));
+    const headCoachPresent = headCoaches.length > 0;
+
+    const otherCosts: SessionCost[] = [];
+    const supportCoaches: SupportPay[] = [];
+    for (const name of attendees) {
+      const key = normalizeName(name);
+      if (HEAD_COACHES.has(key)) continue;
+      const expense = SESSION_EXPENSES[key];
+      if (expense) { otherCosts.push({ label: expense.label, amount: expense.amount }); continue; }
+      const rate = rateForCoach(name, payableEventFor(event.id, name, event), headCoachPresent);
+      supportCoaches.push({ name, amount: rate.amount ?? 0, basis: rate.basis });
+    }
+
+    const supportCost = supportCoaches.reduce((s, c) => s + c.amount, 0);
+    const otherCost = otherCosts.reduce((s, c) => s + c.amount, 0);
+    const facilityCost = facilityCostFor(event);
+    const profit = revenue - facilityCost - supportCost - otherCost;
+
+    const eligible = gyauEligible(event);
+    const attended = attendees.some(n => normalizeName(n) === GYAU);
+    // His share never goes negative on a session that lost money.
+    const shareRate = attended ? GYAU_ATTENDED_SHARE : GYAU_ABSENT_SHARE;
+    const gyauShare = eligible ? Math.max(0, profit) * shareRate : 0;
+
+    sessions.push({
+      id: event.id,
+      title: event.title,
+      startDateTime: event.startDateTime,
+      dateOnly: event.dateOnly,
+      headCoaches,
+      supportCoaches,
+      supportCost,
+      facility: facilityLabel(event.location),
+      facilityCost,
+      otherCosts,
+      otherCost,
+      revenue,
+      profit,
+      gyauShare,
+      gyauAttended: attended,
+      gyauEligible: eligible,
     });
-    const supportCost = supportCoaches.reduce(
-      (sum, n) => sum + (rateForCoach(n, payableEventFor(event.id, n, event)).amount ?? 0),
-      0
-    );
+  }
 
-    for (const coach of attendees) {
-      const key = normalizeName(coach);
+  // ── Coach view ──
+  const rows: PayoutRow[] = [];
 
-      if (key === GYAU) {
-        if (!gyauEligible(event)) continue;
-        gyauAttended.add(event.id);
-        const net = Math.max(0, revenue - facilityCost - supportCost);
-        rows.push({
-          id: `${event.id}::${key}`,
-          coach,
-          sessionTitle: event.title,
-          startDateTime: event.startDateTime,
-          dateOnly: event.dateOnly,
-          facility,
-          facilityCost,
-          supportCoaches,
-          supportCost,
-          revenue,
-          payment: net * GYAU_ATTENDED_SHARE,
-          basis: `50% of $${net.toFixed(2)} net (attended)`,
-          attended: true,
-        });
-        continue;
-      }
+  for (const session of sessions) {
+    const supportNames = session.supportCoaches.map(c => c.name);
 
-      const rate = rateForCoach(coach, payableEventFor(event.id, coach, event));
-      const showsSupport = key === PAUL_TORRES;
+    for (const support of session.supportCoaches) {
       rows.push({
-        id: `${event.id}::${key}`,
-        coach,
-        sessionTitle: event.title,
-        startDateTime: event.startDateTime,
-        dateOnly: event.dateOnly,
-        facility,
-        facilityCost,
-        supportCoaches: showsSupport ? supportCoaches : null,
-        supportCost: showsSupport ? supportCost : null,
-        revenue,
-        payment: rate.amount,
-        basis: rate.basis,
+        id: `${session.id}::${normalizeName(support.name)}`,
+        coach: support.name,
+        sessionTitle: session.title,
+        startDateTime: session.startDateTime,
+        dateOnly: session.dateOnly,
+        facility: session.facility,
+        facilityCost: session.facilityCost,
+        supportCoaches: null,
+        supportCost: null,
+        revenue: session.revenue,
+        payment: support.amount,
+        basis: support.basis,
         attended: true,
       });
     }
-  }
 
-  // Gyau also shares in eligible sessions he did not coach.
-  const gyauDisplayName =
-    data.coaches.find(c => c.key === GYAU)?.name ?? "Phillip Gyau";
-
-  for (const event of events) {
-    if (gyauAttended.has(event.id)) continue;
-    if (!gyauEligible(event)) continue;
-    const revenue = revenueFor(event.id);
-    if (revenue <= 0) continue;
-
-    const attendees = attendeesFor(event.id);
-    const supportCoaches = attendees.filter(n => {
-      const k = normalizeName(n);
-      return k !== PAUL_TORRES && k !== GYAU;
-    });
-    const supportCost = supportCoaches.reduce(
-      (sum, n) => sum + (rateForCoach(n, payableEventFor(event.id, n, event)).amount ?? 0),
-      0
-    );
-    const facilityCost = facilityCostFor(event);
-    const net = Math.max(0, revenue - facilityCost - supportCost);
-
+    // Gyau earns from every eligible session, whether or not he was there.
+    if (!session.gyauEligible) continue;
+    if (!session.gyauAttended && session.revenue <= 0) continue;
+    const net = Math.max(0, session.profit);
     rows.push({
-      id: `${event.id}::${GYAU}`,
+      id: `${session.id}::${GYAU}`,
       coach: gyauDisplayName,
-      sessionTitle: event.title,
-      startDateTime: event.startDateTime,
-      dateOnly: event.dateOnly,
-      facility: facilityLabel(event.location),
-      facilityCost,
-      supportCoaches,
-      supportCost,
-      revenue,
-      payment: net * GYAU_ABSENT_SHARE,
-      basis: `30% of $${net.toFixed(2)} net (did not attend)`,
-      attended: false,
+      sessionTitle: session.title,
+      startDateTime: session.startDateTime,
+      dateOnly: session.dateOnly,
+      facility: session.facility,
+      facilityCost: session.facilityCost,
+      supportCoaches: supportNames,
+      supportCost: session.supportCost,
+      revenue: session.revenue,
+      payment: session.gyauShare,
+      basis: session.gyauAttended
+        ? `50% of $${net.toFixed(2)} net (attended)`
+        : `30% of $${net.toFixed(2)} net (did not attend)`,
+      attended: session.gyauAttended,
     });
   }
 
   rows.sort((a, b) => Date.parse(b.startDateTime) - Date.parse(a.startDateTime));
+  sessions.sort((a, b) => Date.parse(b.startDateTime) - Date.parse(a.startDateTime));
 
   const byCoach = new Map<string, { coach: string; total: number | null; sessions: number }>();
   for (const row of rows) {
@@ -388,6 +430,7 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
 
   return {
     rows,
+    sessions,
     builtAt: data.builtAt,
     totalsByCoach,
     grandTotal: rows.reduce((s, r) => s + (r.payment ?? 0), 0),
