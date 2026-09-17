@@ -139,11 +139,15 @@ const Inner = ({ userId, userName, userEmail }: { userId: string; userName: stri
     if (!customerId) return;
     setBusy(m.stripePaymentMethodId);
     setMessage(null);
+    // Drop the row straight away — we know what was removed, so waiting on a
+    // full re-list just adds a round trip the user can feel. Restored on error.
+    const previous = methods;
+    setMethods((ms) => ms.filter((x) => x.stripePaymentMethodId !== m.stripePaymentMethodId));
     try {
       await detachPaymentMethod(m.stripePaymentMethodId);
-      await refresh(customerId);
       setMessage({ kind: 'ok', text: 'Payment method removed.' });
     } catch (e: any) {
+      setMethods(previous);
       setMessage({ kind: 'err', text: e?.message || 'Could not remove payment method.' });
     } finally {
       setBusy(null);

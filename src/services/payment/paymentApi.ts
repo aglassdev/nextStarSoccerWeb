@@ -198,7 +198,23 @@ export async function sendPaymentReceipt(billId: string, userId: string): Promis
 // ── Resolve the logged-in user's Stripe customer id + profile/type ─────────────
 // Searches the player/parent/coach collections for a profile doc owned by this
 // Appwrite account (matches userId first, then falls back to $id).
+// Resolving a user's Stripe context used to walk 5 collections sequentially and
+// try TWO lookups each (listDocuments by userId, then getDocument by $id),
+// swallowing 404s — up to 9 round trips, ~1.2s for a coach and far worse on
+// mobile, before a single payment method could be fetched. Now: one parallel
+// pass, and the $id fallback only runs if nothing matched (in practice
+// $id === userId for every record, so it effectively never does).
+const stripeContextCache = new Map<string, UserStripeContext>();
+
+export function clearUserStripeContextCache(accountId?: string) {
+  if (accountId) stripeContextCache.delete(accountId);
+  else stripeContextCache.clear();
+}
+
 export async function resolveUserStripeContext(accountId: string): Promise<UserStripeContext> {
+  const cached = stripeContextCache.get(accountId);
+  if (cached) return cached;
+
   const lookups: { collectionId: string | undefined; userType: UserType }[] = [
     { collectionId: collections.parentUsers, userType: 'parent' },
     { collectionId: collections.youthPlayers, userType: 'youth' },
@@ -206,31 +222,50 @@ export async function resolveUserStripeContext(accountId: string): Promise<UserS
     { collectionId: collections.professionalPlayers, userType: 'professional' },
     { collectionId: collections.coaches, userType: 'coach' },
   ];
+  const active = lookups.filter(
+    (l): l is { collectionId: string; userType: UserType } => !!l.collectionId,
+  );
 
-  for (const { collectionId, userType } of lookups) {
-    if (!collectionId) continue;
-    // Match by userId field
-    try {
-      const res = await databases.listDocuments(databaseId, collectionId, [
-        Query.equal('userId', accountId),
-        Query.limit(1),
-      ]);
-      if (res.documents.length > 0) {
-        const doc = res.documents[0] as any;
-        return { stripeId: doc.stripeId || null, userType, collectionId, profile: doc };
+  const byUserId = await Promise.all(
+    active.map(async ({ collectionId, userType }) => {
+      try {
+        const res = await databases.listDocuments(databaseId, collectionId, [
+          Query.equal('userId', accountId),
+          Query.limit(1),
+        ]);
+        return res.documents.length ? { doc: res.documents[0] as any, userType, collectionId } : null;
+      } catch {
+        return null;
       }
-    } catch { /* keep searching */ }
+    }),
+  );
 
-    // Match by document $id (older accounts where $id === account id)
-    try {
-      const doc = (await databases.getDocument(databaseId, collectionId, accountId)) as any;
-      if (doc) {
-        return { stripeId: doc.stripeId || null, userType, collectionId, profile: doc };
-      }
-    } catch { /* keep searching */ }
+  // Keep the original collection precedence (parent first) rather than
+  // whichever request happened to return first.
+  let hit = byUserId.find(Boolean) || null;
+
+  if (!hit) {
+    // Fallback for the handful of records where $id !== userId.
+    const byDocId = await Promise.all(
+      active.map(async ({ collectionId, userType }) => {
+        try {
+          const doc = (await databases.getDocument(databaseId, collectionId, accountId)) as any;
+          return doc ? { doc, userType, collectionId } : null;
+        } catch {
+          return null;
+        }
+      }),
+    );
+    hit = byDocId.find(Boolean) || null;
   }
 
-  return { stripeId: null, userType: null, collectionId: null, profile: null };
+  const ctx: UserStripeContext = hit
+    ? { stripeId: hit.doc.stripeId || null, userType: hit.userType, collectionId: hit.collectionId, profile: hit.doc }
+    : { stripeId: null, userType: null, collectionId: null, profile: null };
+
+  // Only cache a real hit — a miss may just mean the profile is still being created.
+  if (hit) stripeContextCache.set(accountId, ctx);
+  return ctx;
 }
 
 // ── Persist a newly-created Stripe customer id onto the user's profile doc ──────
@@ -241,6 +276,10 @@ export async function saveUserStripeId(
 ): Promise<void> {
   try {
     await databases.updateDocument(databaseId, collectionId, documentId, { stripeId: stripeCustomerId });
+    // The cached context holds the OLD (usually null) stripeId. The cache is
+    // keyed by auth account id, not doc id (they match for every record today,
+    // but don't rely on it here) — clear the lot; it holds one or two entries.
+    clearUserStripeContextCache();
   } catch (e) {
     console.error('Error saving Stripe customer id to profile:', e);
   }
