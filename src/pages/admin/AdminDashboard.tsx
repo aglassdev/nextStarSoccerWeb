@@ -8,7 +8,7 @@ import PlayersSection from './sections/PlayersSection';
 import CoachesSection from './sections/CoachesSection';
 import ParentsSection from './sections/ParentsSection';
 import BillsSection from './sections/BillsSection';
-import PaymentsSection from './sections/PaymentsSection';
+// import PaymentsSection from './sections/PaymentsSection'; // Payments page shelved — no data to show yet
 import MessagesSection from './sections/MessagesSection';
 import InquiriesSection from './sections/InquiriesSection';
 import DevelopmentSection from './sections/DevelopmentSection';
@@ -39,7 +39,7 @@ const REQUEST_TYPES = [
   'Player Report',
 ];
 
-type Section = 'players' | 'coaches' | 'parents' | 'bills' | 'payments' | 'messages' | 'requests' | 'calendar' | 'eventAssistant' | 'attendance' | 'coachManagement' | 'coachPayments' | 'devOverview' | 'appFeedback' | 'serviceStatus' | 'sessionReviews' | 'scholarships';
+type Section = 'players' | 'coaches' | 'parents' | 'bills' | /* 'payments' | */ 'messages' | 'requests' | 'calendar' | 'eventAssistant' | 'attendance' | 'coachManagement' | 'coachPayments' | 'devOverview' | 'appFeedback' | 'serviceStatus' | 'sessionReviews' | 'scholarships';
 
 type NavGroup = 'Directory' | 'Coaches' | 'Messages' | 'Payments' | 'Events' | 'Development';
 
@@ -47,7 +47,7 @@ const SECTION_TO_GROUP: Partial<Record<Section, NavGroup>> = {
   players: 'Directory', coaches: 'Directory', parents: 'Directory',
   coachManagement: 'Coaches', coachPayments: 'Coaches',
   messages: 'Messages', requests: 'Messages',
-  bills: 'Payments', payments: 'Payments', scholarships: 'Payments',
+  bills: 'Payments', /* payments: 'Payments', */ scholarships: 'Payments',
   calendar: 'Events', eventAssistant: 'Events', attendance: 'Events', sessionReviews: 'Events',
   devOverview: 'Development', appFeedback: 'Development', serviceStatus: 'Development',
 };
@@ -197,7 +197,7 @@ const SECTION_FROM_PATH: Record<string, Section> = {
   '/admin/coaches': 'coaches',
   '/admin/parents': 'parents',
   '/admin/messages': 'messages',
-  '/admin/payments': 'payments',
+  // '/admin/payments': 'payments',
   '/admin/bills': 'bills',
   '/admin/inquiries': 'requests',
   '/admin/calendar': 'calendar',
@@ -224,7 +224,7 @@ const AdminDashboard = () => {
     coaches: '/admin/coaches',
     parents: '/admin/parents',
     messages: '/admin/messages',
-    payments: '/admin/payments',
+    // payments: '/admin/payments',
     bills: '/admin/bills',
     requests: '/admin/inquiries',
     calendar: '/admin/calendar',
@@ -433,7 +433,7 @@ const AdminDashboard = () => {
     coaches: <CoachesSection />,
     parents: <ParentsSection />,
     bills: <BillsSection />,
-    payments: <PaymentsSection />,
+    // payments: <PaymentsSection />,
     messages: <MessagesSection />,
     requests: <InquiriesSection />,
     calendar: <CalendarSection />,
@@ -534,8 +534,10 @@ const AdminDashboard = () => {
             icon={<svg className="w-[15px] h-[15px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>}>
             <NavChild section="bills" label="Billing" active={activeSection === 'bills'} onSelect={setActiveSection}
               icon={<svg className="w-[13px] h-[13px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>} />
+            {/* Payments page shelved for now — it has no data to show.
             <NavChild section="payments" label="Payments" active={activeSection === 'payments'} onSelect={setActiveSection}
               icon={<svg className="w-[13px] h-[13px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} />
+            */}
             <NavChild section="scholarships" label="Scholarships" active={activeSection === 'scholarships'} onSelect={setActiveSection}
               icon={<svg className="w-[13px] h-[13px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" /></svg>} />
           </NavGroupItem>

@@ -162,7 +162,7 @@ function AppRoutes() {
       <Route path="/admin/parents" element={<AdminDashboard />} />
       <Route path="/admin/parents/:id" element={<ParentProfile />} />
       <Route path="/admin/messages" element={<AdminDashboard />} />
-      <Route path="/admin/payments" element={<AdminDashboard />} />
+      {/* <Route path="/admin/payments" element={<AdminDashboard />} /> */}
       <Route path="/admin/bills" element={<AdminDashboard />} />
       <Route path="/admin/inquiries" element={<AdminDashboard />} />
       <Route path="/admin/calendar" element={<AdminDashboard />} />
