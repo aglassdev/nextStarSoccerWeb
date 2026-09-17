@@ -2,6 +2,14 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Query, ID } from 'appwrite';
 import { databases, databaseId, collections } from '../../../services/appwrite';
+import {
+  loadBillingStatusMap,
+  statusFor,
+  standingTextClass,
+  standingMessage,
+  recordCourtesySession,
+  type PlayerBillingStatus,
+} from '../../../services/payment/playerBillingStatus';
 import { useAuth } from '../../../contexts/AuthContext';
 import { googleCalendarService, CalendarEvent, isEventCancelled } from '../../../services/googleCalendar';
 
@@ -14,6 +22,13 @@ interface PlayerSearchResult {
   lastName: string;
   type: 'Youth' | 'Collegiate' | 'Professional';
   isProxy?: boolean;
+  /**
+   * Proxy children key signups/check-ins off $id but bills off proxyId, so we
+   * must keep proxyId to join against the bills table. Without it every proxy
+   * child looks settled.
+   */
+  proxyId?: string;
+  migratedToUserId?: string;
 }
 
 interface AttendeeDoc {
@@ -212,6 +227,8 @@ function EventDetailView({
   const [search, setSearch] = useState('');
   const [listSearch, setListSearch] = useState('');
   const [adding, setAdding] = useState<string | null>(null);
+  // playerId -> billing standing. Drives name colour and blocks red players.
+  const [billing, setBilling] = useState<Map<string, PlayerBillingStatus>>(new Map());
   const [checkingIn, setCheckingIn] = useState<string | null>(null);
   const [coachNames, setCoachNames] = useState<string[]>([]);
 
@@ -302,6 +319,7 @@ function EventDetailView({
           })),
           ...((proxyRes as any).documents).map((d: any) => ({
             $id: d.$id, userId: d.$id, firstName: d.firstName || '', lastName: d.lastName || '', type: 'Youth' as const, isProxy: true,
+            proxyId: d.proxyId, migratedToUserId: d.migratedToUserId,
           })),
         ];
         setAllPlayers(players);
@@ -309,6 +327,24 @@ function EventDetailView({
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event.id]);
+
+  // Billing standings for the whole roster, refreshed per event view. One bills
+  // fetch rather than a query per player.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const m = await loadBillingStatusMap();
+        if (!cancelled) setBilling(m);
+      } catch (e) {
+        console.error('Error loading billing statuses:', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [event.id]);
+
+  const billingFor = (p: PlayerSearchResult) =>
+    statusFor(billing, p.proxyId, p.userId, p.$id, p.migratedToUserId);
 
   const signedUpUserIds = useMemo(
     () => new Set(signups.map(s => s.userId).filter(Boolean) as string[]),
@@ -352,6 +388,13 @@ function EventDetailView({
   }, [allPlayers, search, signedUpUserIds, checkedInKeys]);
 
   const handleAddPlayer = async (p: PlayerSearchResult) => {
+    // Defence in depth: the dropdown disables red players, but the map could be
+    // stale if the tab was left open.
+    const st = billingFor(p);
+    if (st.standing === 'red') {
+      onFeedback(`${p.firstName} ${p.lastName}: ${standingMessage(st)}`, true);
+      return;
+    }
     setAdding(p.$id);
     try {
       const eventDateISO = event.startDateTime;
@@ -383,7 +426,23 @@ function EventDetailView({
           }
         } catch (e) { console.error('Checkin create failed:', e); }
       }
-      onFeedback(`${p.firstName} ${p.lastName} added.`);
+      // A yellow player attending burns their single courtesy session.
+      if (st.standing === 'yellow') {
+        await recordCourtesySession({
+          playerId: p.proxyId || p.userId || p.$id,
+          playerName: `${p.firstName} ${p.lastName}`.trim(),
+          eventID: event.id,
+          eventTitle: event.title,
+          eventDate: event.startDateTime,
+          status: st,
+        });
+        setBilling(await loadBillingStatusMap());
+        onFeedback(
+          `${p.firstName} ${p.lastName} added — courtesy session used ($${st.overdueAmount} still overdue).`,
+        );
+      } else {
+        onFeedback(`${p.firstName} ${p.lastName} added.`);
+      }
       setSearch('');
       reloadSignups();
       reloadCheckins();
@@ -557,21 +616,47 @@ function EventDetailView({
           />
           {filteredPlayers.length > 0 && (
             <div className="absolute z-20 left-0 right-0 mt-1 bg-[#111] border border-white/[0.10] rounded-xl shadow-xl max-h-60 overflow-y-auto divide-y divide-white/[0.05]">
-              {filteredPlayers.map(p => (
+              {filteredPlayers.map(p => {
+                const st = billingFor(p);
+                const blocked = st.standing === 'red';
+                return (
                 <button
                   key={p.$id}
                   onClick={() => handleAddPlayer(p)}
-                  disabled={adding === p.$id}
-                  className="w-full flex items-center justify-between px-4 py-2.5 text-sm hover:bg-white/[0.04] transition-colors disabled:opacity-50"
+                  disabled={adding === p.$id || blocked}
+                  title={standingMessage(st) || undefined}
+                  className={`w-full flex items-center justify-between px-4 py-2.5 text-sm transition-colors disabled:opacity-50 ${blocked ? 'cursor-not-allowed' : 'hover:bg-white/[0.04]'}`}
                 >
-                  <span className="text-white">{p.firstName} {p.lastName}</span>
+                  <span className={`${standingTextClass(st.standing)} ${blocked ? 'line-through' : ''}`}>
+                    {p.firstName} {p.lastName}
+                  </span>
                   <span className="text-[10px] text-white/40 uppercase tracking-wider">
-                    {adding === p.$id ? 'adding…' : p.type}{p.isProxy && adding !== p.$id ? ' · Proxy' : ''}
+                    {adding === p.$id
+                      ? 'adding…'
+                      : blocked
+                        ? `blocked · $${st.overdueAmount} overdue`
+                        : st.standing === 'yellow'
+                          ? `courtesy · $${st.overdueAmount} overdue`
+                          : `${p.type}${p.isProxy ? ' · Proxy' : ''}`}
                   </span>
                 </button>
-              ))}
+                );
+              })}
             </div>
           )}
+          {/* Billing legend — coaches need to know what the colours mean. */}
+          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 px-1">
+            {([
+              ['bg-white', 'Settled'],
+              ['bg-yellow-400', 'Overdue · 1 courtesy left'],
+              ['bg-red-400', 'Overdue · blocked'],
+            ] as const).map(([dot, label]) => (
+              <span key={label} className="inline-flex items-center gap-1.5">
+                <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
+                <span className="text-white/40 text-[10px]">{label}</span>
+              </span>
+            ))}
+          </div>
           {search.trim().length >= 2 && filteredPlayers.length === 0 && (
             <p className="text-white/30 text-xs mt-2 px-1">No matching players (or already signed up)</p>
           )}
@@ -766,6 +851,24 @@ function WeekView({
   const [loading, setLoading] = useState(true);
   const [addFor, setAddFor] = useState<string | null>(null);
   const [addSearch, setAddSearch] = useState('');
+  // Billing standings for the week grid's inline player search.
+  const [weekBilling, setWeekBilling] = useState<Map<string, PlayerBillingStatus>>(new Map());
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const m = await loadBillingStatusMap();
+        if (!cancelled) setWeekBilling(m);
+      } catch (e) {
+        console.error('Error loading billing statuses:', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const weekBillingFor = (p: PlayerSearchResult) =>
+    statusFor(weekBilling, p.proxyId, p.userId, p.$id, p.migratedToUserId);
 
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDaysStr(weekStart, i)), [weekStart]);
 
@@ -808,6 +911,11 @@ function WeekView({
   }, [weekKey]);
 
   const addCheckin = async (ev: WeekEvent, p: PlayerSearchResult) => {
+    const st = weekBillingFor(p);
+    if (st.standing === 'red') {
+      onFeedback(`${p.firstName} ${p.lastName}: ${standingMessage(st)}`, true);
+      return;
+    }
     try {
       if (!collections.checkins) return;
       const doc = await databases.createDocument(databaseId, collections.checkins, ID.unique(), {
@@ -817,7 +925,22 @@ function WeekView({
       });
       setCheckinsByEvent(prev => ({ ...prev, [ev.id]: [...(prev[ev.id] || []), doc as any] }));
       setAddSearch(''); setAddFor(null);
-      onFeedback(`${p.firstName} ${p.lastName} checked in.`);
+      if (st.standing === 'yellow') {
+        await recordCourtesySession({
+          playerId: p.proxyId || p.userId || p.$id,
+          playerName: `${p.firstName} ${p.lastName}`.trim(),
+          eventID: ev.id,
+          eventTitle: ev.title,
+          eventDate: ev.startDateTime,
+          status: st,
+        });
+        setWeekBilling(await loadBillingStatusMap());
+        onFeedback(
+          `${p.firstName} ${p.lastName} checked in — courtesy session used ($${st.overdueAmount} still overdue).`,
+        );
+      } else {
+        onFeedback(`${p.firstName} ${p.lastName} checked in.`);
+      }
     } catch (e: any) { onFeedback(e.message || 'Failed to check in', true); }
   };
 
@@ -943,16 +1066,28 @@ function WeekView({
                             />
                             {results.length > 0 && (
                               <div className="absolute z-20 left-0 right-0 mt-1 bg-[#111] border border-white/15 rounded-lg shadow-xl max-h-48 overflow-y-auto divide-y divide-white/[0.05]">
-                                {results.map(p => (
+                                {results.map(p => {
+                                  const st = weekBillingFor(p);
+                                  const blocked = st.standing === 'red';
+                                  return (
                                   <button
                                     key={p.$id}
                                     onClick={() => addCheckin(ev, p)}
-                                    className="w-full text-left px-2.5 py-1.5 text-xs text-white hover:bg-white/[0.06] transition-colors"
+                                    disabled={blocked}
+                                    title={standingMessage(st) || undefined}
+                                    className={`w-full text-left px-2.5 py-1.5 text-xs transition-colors disabled:opacity-50 ${standingTextClass(st.standing)} ${blocked ? 'cursor-not-allowed line-through' : 'hover:bg-white/[0.06]'}`}
                                   >
                                     {p.firstName} {p.lastName}
-                                    {p.isProxy && <span className="text-white/30"> · Proxy</span>}
+                                    {blocked && <span className="text-red-400"> · blocked</span>}
+                                    {!blocked && st.standing === 'yellow' && (
+                                      <span className="text-yellow-400"> · courtesy</span>
+                                    )}
+                                    {p.isProxy && st.standing === 'white' && (
+                                      <span className="text-white/30"> · Proxy</span>
+                                    )}
                                   </button>
-                                ))}
+                                  );
+                                })}
                               </div>
                             )}
                           </div>
@@ -1073,7 +1208,7 @@ const AttendanceManagerSection = () => {
           ...((yRes as any).documents).map((d: any) => ({ $id: d.$id, userId: d.userId || d.$id, firstName: d.firstName || '', lastName: d.lastName || '', type: 'Youth' as const })),
           ...((cRes as any).documents).map((d: any) => ({ $id: d.$id, userId: d.userId || d.$id, firstName: d.firstName || '', lastName: d.lastName || '', type: 'Collegiate' as const })),
           ...((pRes as any).documents).map((d: any) => ({ $id: d.$id, userId: d.userId || d.$id, firstName: d.firstName || '', lastName: d.lastName || '', type: 'Professional' as const })),
-          ...((proxyRes as any).documents).map((d: any) => ({ $id: d.$id, userId: d.$id, firstName: d.firstName || '', lastName: d.lastName || '', type: 'Youth' as const, isProxy: true })),
+          ...((proxyRes as any).documents).map((d: any) => ({ $id: d.$id, userId: d.$id, firstName: d.firstName || '', lastName: d.lastName || '', type: 'Youth' as const, isProxy: true, proxyId: d.proxyId, migratedToUserId: d.migratedToUserId })),
         ]);
       } catch { /* ignore */ }
     })();
