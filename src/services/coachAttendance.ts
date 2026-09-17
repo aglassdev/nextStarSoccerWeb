@@ -1,5 +1,6 @@
 import { Query } from "appwrite";
 import { databases, databaseId, collections } from "./appwrite";
+import { getExcludedEventIds } from "./facilityCost";
 import {
   googleCalendarService,
   CalendarEvent,
@@ -42,6 +43,7 @@ export interface EventCoaches {
 }
 
 export interface CoachAttendanceData {
+  excludedEventIds: string[];
   coaches: CoachRow[];
   events: CalendarEvent[];
   coachesByEvent: Record<string, EventCoaches>;
@@ -239,5 +241,7 @@ export async function buildCoachAttendance(): Promise<CoachAttendanceData> {
       a.name.localeCompare(b.name)
   );
 
-  return { coaches, events, coachesByEvent, revenueByEvent, builtAt: new Date().toISOString() };
+  const excludedEventIds = Array.from(await getExcludedEventIds());
+
+  return { excludedEventIds, coaches, events, coachesByEvent, revenueByEvent, builtAt: new Date().toISOString() };
 }

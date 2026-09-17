@@ -41,6 +41,19 @@ export const computeFacilityCost = (location?: string, start?: string, end?: str
 // The computed figure is only a default: once a cost is saved against an event
 // it wins, so a hand-typed correction survives.
 
+// Sessions marked as not worth reporting — cancelled, or nobody turned up.
+export async function getExcludedEventIds(): Promise<Set<string>> {
+  if (!collections.eventMeta) return new Set();
+  try {
+    const res = await databases.listDocuments(databaseId, collections.eventMeta, [
+      Query.equal('excludedFromPayouts', true), Query.limit(1000),
+    ]);
+    return new Set((res.documents as any[]).map(d => d.eventId).filter(Boolean));
+  } catch {
+    return new Set();
+  }
+}
+
 export async function getFacilityCosts(eventIds: string[]): Promise<Record<string, number>> {
   if (!collections.eventMeta || eventIds.length === 0) return {};
   const out: Record<string, number> = {};

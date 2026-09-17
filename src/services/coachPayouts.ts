@@ -256,8 +256,10 @@ export interface PayoutTable {
 }
 
 export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
+  // Sessions someone marked as cancelled or unattended never reach the table.
+  const excluded = new Set(data.excludedEventIds ?? []);
   const inWindow = data.events.filter(
-    e => isWithinPayoutWindow(e) && isPayableCalendar(e) && !isMullinsOwnSession(e)
+    e => isWithinPayoutWindow(e) && isPayableCalendar(e) && !isMullinsOwnSession(e) && !excluded.has(e.id)
   );
 
   // Everyone credited to a calendar event, from tracked attendance or the
