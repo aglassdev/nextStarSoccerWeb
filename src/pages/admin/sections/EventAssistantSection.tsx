@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Query, ID } from 'appwrite';
 import { databases, databaseId, collections, functions } from '../../../services/appwrite';
 import { googleCalendarService, CalendarEvent, isEventCancelled } from '../../../services/googleCalendar';
-import { computeFacilityCost, facilityRateFor, setFacilityCost, getFacilityCost } from '../../../services/facilityCost';
+import { computeFacilityCost, facilityRateFor, rateLabel, setFacilityCost, getFacilityCost } from '../../../services/facilityCost';
 import {
   CoachRecord, ALL_EVENT_TYPES, PRIVATE_EVENT_TYPES, ANALYSIS_EVENT_TYPES, PRESET_VENUES,
   normalizeCoachName, coachFullName, DEFAULT_PRIVATE_COACH, sortCoachRoster,
@@ -614,7 +614,7 @@ function CreateEventForm({
   }, [mode, editingEvent]);
   useEffect(() => {
     if (costEdited) return;
-    const auto = computeFacilityCost(form.location, to24h(form.startTime), to24h(form.endTime));
+    const auto = computeFacilityCost(form.location, to24h(form.startTime), to24h(form.endTime), form.title || form.eventType);
     setForm(f => (f.facilityCost === (auto ? String(auto) : '') ? f : { ...f, facilityCost: auto ? String(auto) : '' }));
   }, [form.location, form.startTime, form.endTime, costEdited]);
 
@@ -1040,7 +1040,7 @@ function CreateEventForm({
               </div>
               <p className="text-gray-500 text-xs">
                 {facilityRate
-                  ? `${facilityRate.label} · $${facilityRate.hourly}/hr${costEdited ? ' · edited' : ' · auto'}`
+                  ? `${facilityRate.label} · ${rateLabel(facilityRate)}${costEdited ? ' · edited' : ' · auto'}`
                   : 'No hire cost at this venue'}
               </p>
               {costEdited && (

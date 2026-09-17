@@ -13,7 +13,7 @@ import {
 import { useAuth } from '../../../contexts/AuthContext';
 import { googleCalendarService, CalendarEvent, isEventCancelled } from '../../../services/googleCalendar';
 import { updateCalendarEvent } from '../../../services/calendarAdmin';
-import { computeFacilityCost, facilityRateFor, getFacilityCost, setFacilityCost } from '../../../services/facilityCost';
+import { computeFacilityCost, facilityRateFor, rateLabel, getFacilityCost, setFacilityCost } from '../../../services/facilityCost';
 import {
   CoachRecord, ALL_EVENT_TYPES, PRESET_VENUES, sortCoachRoster, coachFullName,
   START_TIME_OPTIONS, END_TIME_OPTIONS, to24h, plusOneHour,
@@ -277,12 +277,12 @@ function EventDetailsCard({
 
   const displayCost = storedCost !== null
     ? storedCost
-    : computeFacilityCost(event.location, event.startDateTime, event.endDateTime);
+    : computeFacilityCost(event.location, event.startDateTime, event.endDateTime, event.title);
 
   // Facility hire follows venue × duration until typed over.
   useEffect(() => {
     if (!editing || costEdited) return;
-    const auto = computeFacilityCost(location, to24h(startTime), to24h(endTime));
+    const auto = computeFacilityCost(location, to24h(startTime), to24h(endTime), title || eventType);
     setCost(auto ? String(auto) : '');
   }, [editing, costEdited, location, startTime, endTime]);
 
@@ -529,7 +529,7 @@ function EventDetailsCard({
                 />
               </div>
               <p className="text-gray-600 text-[10px] mt-1">
-                {rate ? `${rate.label} · $${rate.hourly}/hr${costEdited ? ' · edited' : ' · auto'}` : 'No hire cost at this venue'}
+                {rate ? `${rate.label} · ${rateLabel(rate)}${costEdited ? ' · edited' : ' · auto'}` : 'No hire cost at this venue'}
               </p>
             </div>
           </div>

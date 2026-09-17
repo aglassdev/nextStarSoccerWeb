@@ -1,5 +1,6 @@
 import { CoachAttendanceData, normalizeName } from "./coachAttendance";
 import { CalendarEvent } from "./googleCalendar";
+import { computeFacilityCost } from "./facilityCost";
 
 // Payouts only cover sessions from this date onward; anything earlier is
 // already settled. Anchored to Eastern time, where the season is scheduled.
@@ -45,13 +46,6 @@ export const SESSION_EXPENSES: Record<string, { label: string; amount: number }>
 // every other cost on it.
 export const GYAU_ATTENDED_SHARE = 0.5;
 export const GYAU_ABSENT_SHARE = 0.3;
-
-// Facilities we pay to hire. Matched anywhere in the calendar location, so the
-// full postal address still resolves. Everything not listed is free.
-export const FACILITY_COSTS: { match: string; label: string; flat: number }[] = [
-  { match: "sofive", label: "Sofive Rockville", flat: 150 },
-  { match: "bethesda soccer club", label: "Bethesda Soccer Club", flat: 110 },
-];
 
 // ── Session classification ────────────────────────────────────────────────────
 
@@ -148,12 +142,13 @@ export const facilityLabel = (location?: string): string => {
   return location.split(",")[0].trim();
 };
 
-// Nike camps are excluded from facility hire; Nike evening groups are not.
-export const facilityCostFor = (event: CalendarEvent): number => {
-  if (isNikeCamp(event.title)) return 0;
-  const loc = lower(event.location || "");
-  const hit = FACILITY_COSTS.find(f => loc.includes(f.match));
-  return hit ? hit.flat : 0;
+// Facility hire comes from the shared rate table, which already knows that
+// Nike camps and the pro/college half of a camp day cost us nothing. A cost
+// saved against the event on the Attendance Manager overrides the calculation.
+export const facilityCostFor = (event: CalendarEvent, stored?: Record<string, number>): number => {
+  const override = stored?.[event.id];
+  if (typeof override === "number") return override;
+  return computeFacilityCost(event.location, event.startDateTime, event.endDateTime, event.title);
 };
 
 const durationHours = (event: CalendarEvent): number => {
@@ -348,7 +343,7 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
 
     const supportCost = supportCoaches.reduce((s, c) => s + c.amount, 0);
     const otherCost = otherCosts.reduce((s, c) => s + c.amount, 0);
-    const facilityCost = facilityCostFor(event);
+    const facilityCost = facilityCostFor(event, data.facilityCosts);
     const profit = revenue - facilityCost - supportCost - otherCost;
 
     const eligible = gyauEligible(event);
