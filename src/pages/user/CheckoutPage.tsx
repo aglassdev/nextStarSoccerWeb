@@ -156,6 +156,51 @@ const CheckoutForm = ({
     setError('');
     setProcessing(true);
     try {
+      // ── Saved BANK account ──────────────────────────────────────────────────
+      // stripe.js can only confirm a us_bank_account it just collected, never a
+      // previously saved one, so the backend creates AND confirms the intent
+      // against the saved method (the ACH mandate is already on file).
+      const savedBank =
+        isSavedMode
+          ? savedMethods.find(
+              (m) => m.stripePaymentMethodId === selection && m.kind === 'bank',
+            )
+          : undefined;
+
+      if (savedBank) {
+        const res = await createPaymentIntent({
+          amount: Math.round(total * 100),
+          currency: 'usd',
+          metadata: {
+            billId: bills.map((b) => b.$id).join(','),
+            billMonth: bills[0]?.monthName || '',
+            itemCount: String(bills.reduce((s, b) => s + (b.items?.length || 0), 0)),
+          },
+          existingStripeCustomerId: stripeCustomerId || undefined,
+          userInfo: {
+            userId: user.$id,
+            email: user.email,
+            name: user.name,
+            userType: userType || undefined,
+          },
+          paymentMethodId: savedBank.stripePaymentMethodId,
+        });
+
+        // ACH settles over days, so "processing" is the expected success here.
+        if (res.status === 'succeeded') {
+          await settlePaid('bank transfer');
+          onPaid();
+        } else if (res.status === 'processing') {
+          await Promise.all(
+            bills.map((b) => markBillProcessing(b.$id, 'bank transfer').catch(() => {})),
+          );
+          onProcessing();
+        } else {
+          throw new Error('The bank transfer could not be completed. Please try another method.');
+        }
+        return;
+      }
+
       const clientSecret = await createIntent();
 
       // ── ACH / Direct Debit ──────────────────────────────────────────────────

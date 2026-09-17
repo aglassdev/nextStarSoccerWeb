@@ -15,6 +15,7 @@ import {
   calculateLateFee,
 } from '../../services/payment/billingService';
 import { resolveUserStripeContext } from '../../services/payment/paymentApi';
+import PaymentMethodsSection from './PaymentMethodsSection';
 
 // ── Bill detail modal ──────────────────────────────────────────────────────────
 const BillModal = ({
@@ -340,6 +341,17 @@ const PaymentPortalPage = () => {
                     </button>
                   ))}
                 </div>
+              )}
+            </section>
+
+            {/* Saved payment methods — cards and bank accounts (ACH) */}
+            <section>
+              {user?.$id && (
+                <PaymentMethodsSection
+                  userId={user.$id}
+                  userName={fullName || ''}
+                  userEmail={(user as any)?.email || ''}
+                />
               )}
             </section>
           </>

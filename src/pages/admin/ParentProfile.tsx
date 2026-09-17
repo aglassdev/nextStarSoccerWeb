@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Query } from 'appwrite';
 import { databases, databaseId, collections } from '../../services/appwrite';
 
-const TYPE_PATH: Record<string, string> = { Youth: 'youth', Collegiate: 'collegiate', Professional: 'professional' };
+const TYPE_PATH: Record<string, string> = { Youth: 'youth', Collegiate: 'collegiate', Professional: 'professional', Proxy: 'proxy' };
 const BILLING_OPTIONS = ['unapproved', 'approved'] as const;
 
 interface ParentRecord {
@@ -88,7 +88,10 @@ const ParentProfile = () => {
         for (const doc of proxyRes.documents as any[]) {
           if (doc.parentUserId !== id) continue;
           const childName = `${doc.firstName || ''} ${doc.lastName || ''}`.trim() || doc.$id;
-          resolved.push({ $id: doc.$id, name: childName, type: 'Youth' });
+          // Must be 'Proxy', not 'Youth' — proxy children live in
+          // proxy_children, so routing them to /admin/players/youth/<id> makes
+          // PlayerProfile's getDocument() 404 with "Player not found".
+          resolved.push({ $id: doc.$id, name: childName, type: 'Proxy' });
         }
 
         // Real user children via relationships (childUserId field)
