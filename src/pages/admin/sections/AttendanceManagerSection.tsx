@@ -12,6 +12,13 @@ import {
 } from '../../../services/payment/playerBillingStatus';
 import { useAuth } from '../../../contexts/AuthContext';
 import { googleCalendarService, CalendarEvent, isEventCancelled } from '../../../services/googleCalendar';
+import { updateCalendarEvent } from '../../../services/calendarAdmin';
+import { computeFacilityCost, facilityRateFor, getFacilityCost, setFacilityCost } from '../../../services/facilityCost';
+import {
+  CoachRecord, ALL_EVENT_TYPES, PRESET_VENUES, sortCoachRoster, coachFullName,
+  START_TIME_OPTIONS, END_TIME_OPTIONS, to24h, plusOneHour,
+  LocationPickerModal, DatePickerModal, Dropdown, CoachPicker,
+} from '../../../components/admin/eventControls';
 
 type CalType = 'public' | 'private';
 
@@ -199,6 +206,352 @@ function SessionNotesPanel({ eventId, eventDate, eventTime, currentUserId, curre
   );
 }
 
+// ── Event details card, editable in place ────────────────────────────────────
+// Read-only until the pencil is pressed; the tick commits and turns back into
+// a pencil. Uses the same controls as the Event Assistant so a session edited
+// here ends up shaped exactly like one created there.
+function EventDetailsCard({
+  event, calType, coachNames, onSaved, onFeedback, onCoachesChanged,
+}: {
+  event: CalendarEvent;
+  calType: CalType;
+  coachNames: string[];
+  onSaved: (patch: Partial<CalendarEvent>) => void;
+  onFeedback: (msg: string, isError?: boolean) => void;
+  onCoachesChanged: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const [title, setTitle] = useState(event.title || '');
+  const [eventType, setEventType] = useState('');
+  const [date, setDate] = useState('');
+  const [startTime, setStartTime] = useState('');
+  const [endTime, setEndTime] = useState('');
+  const [location, setLocation] = useState(event.location || '');
+  const [cost, setCost] = useState('');
+  const [costEdited, setCostEdited] = useState(false);
+  const [storedCost, setStoredCost] = useState<number | null>(null);
+
+  const [roster, setRoster] = useState<CoachRecord[]>([]);
+  const [selectedCoaches, setSelectedCoaches] = useState<CoachRecord[]>([]);
+  const [locOpen, setLocOpen] = useState(false);
+  const [dateOpen, setDateOpen] = useState(false);
+
+  const fmtClock = (iso: string) =>
+    new Date(iso).toLocaleTimeString('en-US', {
+      timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true,
+    }).replace(/^0/, '');
+
+  // Seed the editor from the event every time it opens, so an abandoned edit
+  // never leaks into the next one.
+  const resetFromEvent = () => {
+    setTitle(event.title || '');
+    setEventType(ALL_EVENT_TYPES.find(t => (event.title || '').toLowerCase().includes(t.toLowerCase())) || '');
+    setDate(new Date(event.startDateTime).toLocaleDateString('en-CA', { timeZone: 'America/New_York' }));
+    setStartTime(event.dateOnly ? '' : fmtClock(event.startDateTime));
+    setEndTime(event.dateOnly ? '' : fmtClock(event.endDateTime));
+    setLocation(event.location || '');
+    setCost(storedCost !== null ? String(storedCost) : '');
+    setCostEdited(storedCost !== null);
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    getFacilityCost(event.id).then(v => { if (!cancelled) setStoredCost(v); }).catch(() => {});
+    (async () => {
+      if (!collections.coaches) return;
+      try {
+        const res = await databases.listDocuments(databaseId, collections.coaches, [Query.limit(500)]);
+        if (!cancelled) setRoster(sortCoachRoster(res.documents as any));
+      } catch { /* picker just stays empty */ }
+    })();
+    return () => { cancelled = true; };
+  }, [event.id]);
+
+  // Pre-tick the coaches already checked in to this session.
+  useEffect(() => {
+    if (roster.length === 0) return;
+    setSelectedCoaches(roster.filter(c => coachNames.includes(coachFullName(c))));
+  }, [roster, coachNames]);
+
+  const displayCost = storedCost !== null
+    ? storedCost
+    : computeFacilityCost(event.location, event.startDateTime, event.endDateTime);
+
+  // Facility hire follows venue × duration until typed over.
+  useEffect(() => {
+    if (!editing || costEdited) return;
+    const auto = computeFacilityCost(location, to24h(startTime), to24h(endTime));
+    setCost(auto ? String(auto) : '');
+  }, [editing, costEdited, location, startTime, endTime]);
+
+  const rate = facilityRateFor(location);
+
+  const openEditor = () => { resetFromEvent(); setEditing(true); };
+
+  const save = async () => {
+    if (!date || !startTime || !endTime) { onFeedback('Date, start and end time are all required.', true); return; }
+    if (to24h(endTime) <= to24h(startTime)) { onFeedback('End time must be after start time.', true); return; }
+    setSaving(true);
+    try {
+      const finalTitle = (title.trim() || eventType || event.title || '').trim();
+      const startISO = `${date}T${to24h(startTime)}:00`;
+      const endISO = `${date}T${to24h(endTime)}:00`;
+
+      await updateCalendarEvent(calType, event.id, {
+        title: finalTitle, location, description: '', startDateTime: startISO, endDateTime: endISO,
+      });
+
+      const costNum = parseInt(cost) || 0;
+      await setFacilityCost(event.id, costNum).catch(() => {});
+      setStoredCost(costNum);
+
+      // Coaches are read from check-ins, so editing them writes check-ins.
+      if (collections.coachCheckins) {
+        const existing = await databases.listDocuments(databaseId, collections.coachCheckins, [
+          Query.equal('eventID', event.id), Query.limit(50),
+        ]);
+        const keep = new Set(selectedCoaches.map(c => c.userId || c.$id));
+        const present = new Set<string>();
+        for (const d of existing.documents as any[]) {
+          const id = d.coachUserId;
+          if (id && keep.has(id)) { present.add(id); continue; }
+          await databases.deleteDocument(databaseId, collections.coachCheckins, d.$id).catch(() => {});
+        }
+        for (const c of selectedCoaches) {
+          const id = c.userId || c.$id;
+          if (present.has(id)) continue;
+          await databases.createDocument(databaseId, collections.coachCheckins, ID.unique(), {
+            eventID: event.id, eventTitle: finalTitle, eventDate: startISO,
+            coachUserId: id, coaches: [c.$id],
+          }).catch(() => {});
+        }
+      }
+
+      onSaved({ title: finalTitle, location, startDateTime: startISO, endDateTime: endISO });
+      onCoachesChanged();
+      setEditing(false);
+      onFeedback('Event updated.');
+    } catch (e: any) {
+      onFeedback(e?.message || 'Could not save the event.', true);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
+    <div>
+      <p className="text-white/40 text-[10px] uppercase tracking-wider mb-0.5">{label}</p>
+      {children}
+    </div>
+  );
+
+  return (
+    <div className="bg-[#1d1c21] border border-white/[0.08] rounded-xl p-5">
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <p className="text-white/50 text-[11px] font-medium tracking-widest uppercase">Event Details</p>
+        {editing ? (
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setEditing(false)}
+              disabled={saving}
+              title="Discard changes"
+              className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/[0.06] transition-colors disabled:opacity-40"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <button
+              onClick={save}
+              disabled={saving}
+              title="Confirm changes"
+              className="p-1.5 rounded-lg bg-white text-black hover:bg-gray-200 transition-colors disabled:opacity-50"
+            >
+              {saving ? (
+                <span className="block w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+              ) : (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={openEditor}
+            title="Edit event"
+            className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/[0.06] transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+          </button>
+        )}
+      </div>
+
+      {!editing ? (
+        <div className="flex flex-wrap gap-x-8 gap-y-2">
+          <Field label="Title"><p className="text-white text-sm">{event.title}</p></Field>
+          <Field label="Date"><p className="text-white text-sm">{formatFullDate(event.startDateTime)}</p></Field>
+          <Field label="Time">
+            <p className="text-white text-sm">
+              {event.dateOnly ? 'All Day' : `${formatTime(event.startDateTime)} – ${formatTime(event.endDateTime)}`}
+            </p>
+          </Field>
+          {event.location && <Field label="Location"><p className="text-white text-sm">{event.location}</p></Field>}
+          <Field label="Calendar"><p className="text-white text-sm capitalize">{calType}</p></Field>
+          <Field label="Facility cost">
+            <p className="text-white text-sm">{displayCost > 0 ? `$${displayCost}` : '—'}</p>
+          </Field>
+          {coachNames.length > 0 && (
+            <Field label={coachNames.length > 1 ? 'Coaches' : 'Coach'}>
+              <p className="text-white text-sm">{coachNames.join(', ')}</p>
+            </Field>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-gray-400 text-xs mb-1">Title</label>
+              <input
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                placeholder={eventType || 'Event title'}
+                className="w-full px-3 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-white/40 placeholder-gray-600"
+              />
+            </div>
+            <Dropdown
+              label="Event type"
+              value={eventType}
+              options={ALL_EVENT_TYPES}
+              onChange={v => { setEventType(v); if (!title.trim()) setTitle(v); }}
+              placeholder="Select event type"
+            />
+          </div>
+
+          <div className="grid sm:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-gray-400 text-xs mb-1">Date</label>
+              <button
+                type="button"
+                onClick={() => setDateOpen(true)}
+                className="w-full px-3 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-left text-sm text-white hover:border-gray-600 flex items-center justify-between"
+              >
+                <span>{date || 'Pick a date'}</span>
+                <svg className="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </button>
+            </div>
+            <Dropdown
+              label="Start time"
+              value={startTime}
+              options={START_TIME_OPTIONS}
+              onChange={v => { setStartTime(v); setEndTime(plusOneHour(v)); }}
+              placeholder="Start"
+            />
+            <Dropdown
+              label="End time"
+              value={endTime}
+              options={END_TIME_OPTIONS}
+              onChange={setEndTime}
+              placeholder="End"
+            />
+          </div>
+
+          <div>
+            <label className="block text-gray-400 text-xs mb-1">Location</label>
+            <div className="relative">
+              <input
+                value={location}
+                onChange={e => setLocation(e.target.value)}
+                placeholder="Type an address, or click the pin to search…"
+                className="w-full px-3 py-2 pr-9 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-white/40 placeholder-gray-600"
+              />
+              <button
+                type="button"
+                onClick={() => setLocOpen(true)}
+                title="Search for a location"
+                className="absolute inset-y-0 right-0 px-2.5 flex items-center text-gray-500 hover:text-white transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {PRESET_VENUES.map(v => (
+                <button
+                  key={v.label}
+                  type="button"
+                  onClick={() => setLocation(v.address)}
+                  title={v.address}
+                  className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                    location === v.address
+                      ? 'bg-white border-white text-black'
+                      : 'bg-white/[0.03] border-white/[0.12] text-white/60 hover:text-white hover:border-white/35'
+                  }`}
+                >
+                  {v.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-gray-400 text-xs mb-1">Coaches</label>
+              <CoachPicker
+                coaches={roster}
+                selected={selectedCoaches}
+                onToggle={c => setSelectedCoaches(prev =>
+                  prev.some(x => x.$id === c.$id) ? prev.filter(x => x.$id !== c.$id) : [...prev, c]
+                )}
+              />
+              <p className="text-gray-600 text-[10px] mt-1">Saved as coach check-ins.</p>
+            </div>
+            <div>
+              <label className="block text-gray-400 text-xs mb-1">Facility cost</label>
+              <div className="relative">
+                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500 text-sm">$</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={cost}
+                  onChange={e => { setCostEdited(true); setCost(e.target.value); }}
+                  placeholder="0"
+                  className="w-full pl-6 pr-3 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-white/40 placeholder-gray-600"
+                />
+              </div>
+              <p className="text-gray-600 text-[10px] mt-1">
+                {rate ? `${rate.label} · $${rate.hourly}/hr${costEdited ? ' · edited' : ' · auto'}` : 'No hire cost at this venue'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <LocationPickerModal
+        open={locOpen}
+        currentValue={location}
+        onClose={() => setLocOpen(false)}
+        onSelect={loc => { setLocation(loc); setLocOpen(false); }}
+      />
+      <DatePickerModal
+        open={dateOpen}
+        value={date}
+        onClose={() => setDateOpen(false)}
+        onSelect={d => { setDate(d); setDateOpen(false); }}
+      />
+    </div>
+  );
+}
+
 // ── Event detail view ─────────────────────────────────────────────────────────
 function EventDetailView({
   event,
@@ -231,6 +584,11 @@ function EventDetailView({
   const [billing, setBilling] = useState<Map<string, PlayerBillingStatus>>(new Map());
   const [checkingIn, setCheckingIn] = useState<string | null>(null);
   const [coachNames, setCoachNames] = useState<string[]>([]);
+  // Edits land here first so the card updates without waiting on a calendar refetch.
+  const [liveEvent, setLiveEvent] = useState<CalendarEvent>(event);
+  useEffect(() => { setLiveEvent(event); }, [event]);
+  const onEventEdited = (patch: Partial<CalendarEvent>) =>
+    setLiveEvent(e => ({ ...e, ...patch }));
 
   const reloadCoaches = async () => {
     try {
@@ -242,10 +600,8 @@ function EventDetailView({
         }
       };
       const q = [Query.equal('eventID', event.id), Query.limit(50)];
-      // A coach "coaches" a session if they signed up for it OR checked in to it.
-      if (collections.coachSignups) {
-        try { collect((await databases.listDocuments(databaseId, collections.coachSignups, q)).documents as any[]); } catch { /* ignore */ }
-      }
+      // Check-ins only. A signup is an intention and the calendar description is
+      // hand-typed; neither is evidence the coach actually worked the session.
       if (collections.coachCheckins) {
         try { collect((await databases.listDocuments(databaseId, collections.coachCheckins, q)).documents as any[]); } catch { /* ignore */ }
       }
@@ -566,44 +922,14 @@ function EventDetailView({
       </button>
 
       <div className="space-y-4 max-w-5xl">
-        {/* Event Details */}
-        <div className="bg-[#1d1c21] border border-white/[0.08] rounded-xl p-5">
-          <p className="text-white/50 text-[11px] font-medium tracking-widest uppercase mb-3">Event Details</p>
-          <div className="flex flex-wrap gap-x-8 gap-y-2">
-            <div>
-              <p className="text-white/40 text-[10px] uppercase tracking-wider mb-0.5">Title</p>
-              <p className="text-white text-sm">{event.title}</p>
-            </div>
-            <div>
-              <p className="text-white/40 text-[10px] uppercase tracking-wider mb-0.5">Date</p>
-              <p className="text-white text-sm">{formatFullDate(event.startDateTime)}</p>
-            </div>
-            <div>
-              <p className="text-white/40 text-[10px] uppercase tracking-wider mb-0.5">Time</p>
-              <p className="text-white text-sm">
-                {event.dateOnly ? 'All Day' : `${formatTime(event.startDateTime)} – ${formatTime(event.endDateTime)}`}
-              </p>
-            </div>
-            {event.location && (
-              <div>
-                <p className="text-white/40 text-[10px] uppercase tracking-wider mb-0.5">Location</p>
-                <p className="text-white text-sm">{event.location}</p>
-              </div>
-            )}
-            <div>
-              <p className="text-white/40 text-[10px] uppercase tracking-wider mb-0.5">Calendar</p>
-              <p className="text-white text-sm capitalize">{calType}</p>
-            </div>
-            {coachNames.length > 0 && (
-              <div>
-                <p className="text-white/40 text-[10px] uppercase tracking-wider mb-0.5">
-                  {coachNames.length > 1 ? 'Coaches' : 'Coach'}
-                </p>
-                <p className="text-white text-sm">{coachNames.join(', ')}</p>
-              </div>
-            )}
-          </div>
-        </div>
+        <EventDetailsCard
+          event={liveEvent}
+          calType={calType}
+          coachNames={coachNames}
+          onSaved={onEventEdited}
+          onFeedback={onFeedback}
+          onCoachesChanged={reloadCoaches}
+        />
 
         {/* Add player search */}
         <div className="relative">
@@ -848,6 +1174,7 @@ function WeekView({
   const [weekStart, setWeekStart] = useState(() => sundayOf(todayStr));
   const [calFilter, setCalFilter] = useState<'all' | 'public' | 'private'>('all');
   const [checkinsByEvent, setCheckinsByEvent] = useState<Record<string, AttendeeDoc[]>>({});
+  const [coachesByEvent, setCoachesByEvent] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
   const [addFor, setAddFor] = useState<string | null>(null);
   const [addSearch, setAddSearch] = useState('');
@@ -905,6 +1232,41 @@ function WeekView({
         }));
         if (!cancelled) setCheckinsByEvent(Object.fromEntries(entries));
       } finally { if (!cancelled) setLoading(false); }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weekKey]);
+
+  // Coaches on each session, from coach check-ins only — never the calendar.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!collections.coachCheckins || !collections.coaches || weekEventIds.length === 0) {
+        if (!cancelled) setCoachesByEvent({});
+        return;
+      }
+      try {
+        const roster = await databases.listDocuments(databaseId, collections.coaches, [Query.limit(500)]);
+        const nameById: Record<string, string> = {};
+        for (const c of roster.documents as any[]) {
+          const full = `${c.firstName || ''} ${c.lastName || ''}`.trim();
+          if (!full) continue;
+          if (c.userId) nameById[c.userId] = full;
+          if (c.$id) nameById[c.$id] = full;
+        }
+        const entries = await Promise.all(weekEventIds.map(async (id) => {
+          try {
+            const res = await databases.listDocuments(databaseId, collections.coachCheckins!, [Query.equal('eventID', id), Query.limit(50)]);
+            const ids = new Set<string>();
+            for (const d of res.documents as any[]) {
+              if (d.coachUserId) ids.add(d.coachUserId);
+              if (Array.isArray(d.coaches)) for (const c of d.coaches) { const t = String(c).trim(); if (t) ids.add(t); }
+            }
+            return [id, [...new Set([...ids].map(x => nameById[x]).filter(Boolean))] as string[]] as [string, string[]];
+          } catch { return [id, [] as string[]] as [string, string[]]; }
+        }));
+        if (!cancelled) setCoachesByEvent(Object.fromEntries(entries));
+      } catch { if (!cancelled) setCoachesByEvent({}); }
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1042,6 +1404,12 @@ function WeekView({
                           <div className="min-w-0 flex-1">
                             <p className="text-white text-xs font-medium leading-snug">{ev.title}</p>
                             <p className="text-white/40 text-[10px] mt-0.5">{formatTime(ev.startDateTime, ev.dateOnly)}</p>
+                            {(coachesByEvent[ev.id]?.length ?? 0) > 0 && (
+                              <p className="text-emerald-300/70 text-[10px] mt-0.5 truncate"
+                                 title={coachesByEvent[ev.id].join(', ')}>
+                                {coachesByEvent[ev.id].join(', ')}
+                              </p>
+                            )}
                           </div>
                         </div>
 

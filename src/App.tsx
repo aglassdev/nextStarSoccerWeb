@@ -158,7 +158,6 @@ function AppRoutes() {
       <Route path="/admin/players/:type/:id" element={<PlayerProfile />} />
       <Route path="/admin/coaches" element={<AdminDashboard />} />
       <Route path="/admin/coach-management" element={<AdminDashboard />} />
-      <Route path="/admin/coach-attendance" element={<AdminDashboard />} />
       <Route path="/admin/coach-payments" element={<AdminDashboard />} />
       <Route path="/admin/parents" element={<AdminDashboard />} />
       <Route path="/admin/parents/:id" element={<ParentProfile />} />

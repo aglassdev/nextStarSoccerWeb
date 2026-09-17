@@ -76,6 +76,8 @@ export const collections = {
   couponUsage: import.meta.env.VITE_APPWRITE_COUPON_USAGE_COLLECTION_ID || 'coupon_usage',
   familyRelationships001: import.meta.env.VITE_APPWRITE_FAMILY_RELATIONSHIPS_COLLECTION_ID || 'family_relationships_001',
   serviceStatus: import.meta.env.VITE_APPWRITE_SERVICE_STATUS_COLLECTION_ID || 'service_status',
+  // Per-event fields that Google Calendar has nowhere to store, keyed by event id.
+  eventMeta: import.meta.env.VITE_APPWRITE_EVENT_META_COLLECTION_ID || 'event_meta',
 };
 
 // Appwrite Function IDs for Stripe/payment processing (shared with the mobile app).
@@ -90,6 +92,8 @@ export const paymentFunctions = {
   listPaymentMethods: import.meta.env.VITE_APPWRITE_LIST_PAYMENT_METHODS_FUNCTION_ID || '68c8f0c800245401ab25',
   getStripePrice: import.meta.env.VITE_APPWRITE_GET_STRIPE_PRICE_FUNCTION_ID || '68d311f00003367d3a0e',
   sendReceipt: import.meta.env.VITE_APPWRITE_SEND_RECEIPT_FUNCTION_ID || '68f325ea00311c5f5d4d',
+  createSetupIntent:
+    import.meta.env.VITE_APPWRITE_CREATE_SETUP_INTENT_FUNCTION_ID || 'create-setup-intent',
 };
 
 // Stripe publishable key (publishable keys are designed to be public / embedded

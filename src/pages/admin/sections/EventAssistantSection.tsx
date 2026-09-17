@@ -1,20 +1,18 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Query, ID } from 'appwrite';
 import { databases, databaseId, collections, functions } from '../../../services/appwrite';
 import { googleCalendarService, CalendarEvent, isEventCancelled } from '../../../services/googleCalendar';
-import { GooglePlacesService, GooglePlacesPrediction } from '../../../services/googlePlaces';
+import { computeFacilityCost, facilityRateFor, setFacilityCost, getFacilityCost } from '../../../services/facilityCost';
+import {
+  CoachRecord, ALL_EVENT_TYPES, PRIVATE_EVENT_TYPES, ANALYSIS_EVENT_TYPES, PRESET_VENUES,
+  normalizeCoachName, coachFullName, DEFAULT_PRIVATE_COACH, sortCoachRoster,
+  Req, Check, START_TIME_OPTIONS, END_TIME_OPTIONS, calendarTypeFor, to24h, plusOneHour,
+  LocationPickerModal, Dropdown, DAY_LABELS, dateKey, prettyDate,
+} from '../../../components/admin/eventControls';
 
 const APPWRITE_FUNCTION_ID = '68c373b50026f961bdc4';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-interface CoachRecord {
-  $id: string;
-  userId?: string;
-  firstName?: string;
-  lastName?: string;
-  [key: string]: any;
-}
-
 interface PlayerRecord {
   $id: string;
   userId?: string;
@@ -38,6 +36,7 @@ interface EventFormData {
   recurringWeeks: string;
   isMultiDate: boolean;
   multiDates: string[];  // YYYY-MM-DD, one event created per date
+  facilityCost: string;  // auto-filled from location × duration, editable
 }
 
 // Returns today's date as YYYY-MM-DD in local time (used as default for the date field)
@@ -55,336 +54,10 @@ const EMPTY_FORM_BASE: Omit<EventFormData, 'date'> = {
   recurringWeeks: '',
   isMultiDate: false,
   multiDates: [],
+  facilityCost: '',
 };
 // Always call this to get a fresh form — date stamps today
 const makeEmptyForm = (): EventFormData => ({ ...EMPTY_FORM_BASE, date: todayStr() });
-
-// ── Constants copied verbatim from mobile EventMakerScreen ───────────────────
-const PUBLIC_EVENT_TYPES = [
-  'Morning Group Training',
-  'Afternoon Group Training',
-  'Evening Group Training',
-  'Next Star x Nike Evening Group Training',
-];
-const PRIVATE_EVENT_TYPES = ['Private Session'];
-const ANALYSIS_EVENT_TYPES = ['Game Analysis', 'Parent Consultation'];
-// Private Session leads the list — it is by far the most frequently created type.
-const ALL_EVENT_TYPES = [...PRIVATE_EVENT_TYPES, ...PUBLIC_EVENT_TYPES, ...ANALYSIS_EVENT_TYPES];
-
-// Every address is the Google Places formatted address and is prefixed with the
-// venue name. Both matter downstream: coachPayouts matches facility hire on
-// substrings of the location ("sofive", "bethesda soccer club") and derives the
-// facility label from everything before the first comma.
-const PRESET_VENUES: { label: string; address: string }[] = [
-  { label: 'Lewinsville Park', address: 'Lewinsville Park, 1659 Chain Bridge Rd, McLean, VA 22101' },
-  { label: 'Whitman HS', address: 'Walt Whitman High School, 7100 Whittier Blvd, Bethesda, MD 20817' },
-  { label: 'Somerset ES', address: 'Somerset Elementary School, 5811 Warwick Pl, Chevy Chase, MD 20815' },
-  { label: 'Murch ES', address: 'Ben Murch Elementary School, 4810 36th St NW, Washington, DC 20008' },
-  { label: 'Sofive Rockville', address: 'Sofive Soccer Centers Rockville, 1008 Westmore Ave, Rockville, MD 20850' },
-  { label: 'Bethesda SC', address: 'Bethesda Soccer Club, 8717 Grovemont Cir, Gaithersburg, MD 20877' },
-  { label: 'Howard University', address: 'Howard University, 2400 6th St NW, Washington, DC 20059' },
-  { label: 'Wootton HS', address: 'Thomas S. Wootton High School, 2100 Wootton Pkwy, Rockville, MD 20850' },
-];
-
-// ── Coach picker roster ──────────────────────────────────────────────────────
-const normalizeCoachName = (name: string) => name.trim().toLowerCase().replace(/\s+/g, ' ');
-
-// Surfaced at the top of the picker, in this order. Everyone else follows
-// alphabetically.
-const COACH_PRIORITY = [
-  'paul torres',
-  'phillip gyau',
-  'ryan machado',
-  'noah satriano',
-  'jake steinman',
-];
-
-// Test accounts and people who are not coaches, kept out of the picker.
-const HIDDEN_COACH_NAMES = new Set([
-  'coach testing',
-  'mike kin',
-  'peabo',
-  'rolando aguilar',
-]);
-
-const coachFullName = (c: CoachRecord) =>
-  `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim();
-
-// The head coach privates default to.
-const DEFAULT_PRIVATE_COACH = 'paul torres';
-
-// Red asterisk for required field labels
-const Req = () => <span className="text-red-400 ml-0.5">*</span>;
-
-// White box with a black check — matches the white button treatment.
-const Check = ({ checked }: { checked: boolean }) => (
-  <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
-    checked ? 'bg-white border-white' : 'border-gray-600'
-  }`}>
-    {checked && (
-      <svg className="w-2.5 h-2.5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-      </svg>
-    )}
-  </div>
-);
-
-// 15-min interval slots between two 24-hour bounds (inclusive)
-function generateTimeRange(startHour24: number, endHour24: number): string[] {
-  const out: string[] = [];
-  for (let h = startHour24; h <= endHour24; h++) {
-    for (let m = 0; m < 60; m += 15) {
-      if (h === endHour24 && m > 0) break;
-      const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
-      const ampm = h < 12 ? 'AM' : 'PM';
-      out.push(`${h12}:${String(m).padStart(2, '0')} ${ampm}`);
-    }
-  }
-  return out;
-}
-
-// Start: 6:00 AM – 7:00 PM ; End: 7:00 AM – 8:00 PM
-const START_TIME_OPTIONS = generateTimeRange(6, 19);
-const END_TIME_OPTIONS = generateTimeRange(7, 20);
-
-// Calendar-type derivation matches mobile logic
-function calendarTypeFor(eventType: string): 'public' | 'private' | 'analysis' {
-  if (ANALYSIS_EVENT_TYPES.includes(eventType)) return 'analysis';
-  if (PRIVATE_EVENT_TYPES.includes(eventType)) return 'private';
-  return 'public';
-}
-
-// Convert "5:30 PM" → "17:30"
-function to24h(time12: string): string {
-  if (!time12) return '';
-  const [t, ampm] = time12.split(' ');
-  const [hStr, mStr] = t.split(':');
-  let h = parseInt(hStr);
-  if (ampm === 'PM' && h !== 12) h += 12;
-  if (ampm === 'AM' && h === 12) h = 0;
-  return `${String(h).padStart(2, '0')}:${mStr}`;
-}
-
-// "5:30 PM" + 1h → "6:30 PM"
-function plusOneHour(time12: string): string {
-  if (!time12) return '';
-  const [t, ampm] = time12.split(' ');
-  const [hStr, mStr] = t.split(':');
-  let h = parseInt(hStr);
-  if (ampm === 'PM' && h !== 12) h += 12;
-  if (ampm === 'AM' && h === 12) h = 0;
-  h = (h + 1) % 24;
-  const newAmPm = h < 12 ? 'AM' : 'PM';
-  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
-  return `${h12}:${mStr} ${newAmPm}`;
-}
-
-function formatTime(dt: string, dateOnly?: boolean) {
-  if (dateOnly) return 'All Day';
-  return new Date(dt).toLocaleTimeString('en-US', {
-    hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/New_York',
-  });
-}
-function formatDate(dt: string) {
-  return new Date(dt).toLocaleDateString('en-US', {
-    weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/New_York',
-  });
-}
-
-// ── Location picker modal — themed, rounded, with map preview ───────────────
-function LocationPickerModal({
-  open, currentValue, onClose, onSelect,
-}: {
-  open: boolean;
-  currentValue: string;
-  onClose: () => void;
-  onSelect: (loc: string) => void;
-}) {
-  const [query, setQuery] = useState('');
-  const [suggestions, setSuggestions] = useState<GooglePlacesPrediction[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [preview, setPreview] = useState(currentValue);
-  const tRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    if (open) { setQuery(''); setSuggestions([]); setPreview(currentValue); }
-  }, [open, currentValue]);
-
-  const fetchSuggestions = useCallback(async (input: string) => {
-    if (input.trim().length < 2) { setSuggestions([]); return; }
-    setLoading(true);
-    try {
-      // No `types` filter: restricting to 'establishment' makes Google return
-      // ZERO_RESULTS for plain street addresses, so both are requested here and
-      // the venue/address mix comes back ranked by relevance.
-      const out = await GooglePlacesService.getAutocompleteSuggestions(input, '', {
-        componentRestrictions: { country: 'us' },
-      });
-      setSuggestions(out);
-    } finally { setLoading(false); }
-  }, []);
-
-  const handleQuery = (v: string) => {
-    setQuery(v);
-    if (tRef.current) clearTimeout(tRef.current);
-    tRef.current = setTimeout(() => fetchSuggestions(v), 250);
-  };
-
-  const pickSuggestion = async (s: GooglePlacesPrediction) => {
-    let location = s.description;
-    try {
-      const details = await GooglePlacesService.getPlaceDetails(s.place_id);
-      const address = details?.formatted_address;
-      const name = details?.name?.trim();
-      if (address) {
-        // A street address comes back with its house number as the `name`, so
-        // prefixing it would read "7100, 7100 Whittier Blvd". Only venues get
-        // the name prepended.
-        location = name && !address.startsWith(name) ? `${name}, ${address}` : address;
-      }
-    } catch { /* fall back */ }
-    setPreview(location);
-  };
-
-  if (!open) return null;
-
-  const mapsKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
-  const mapSrc = preview && mapsKey
-    ? `https://www.google.com/maps/embed/v1/place?key=${mapsKey}&q=${encodeURIComponent(preview)}`
-    : '';
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={onClose}>
-      <div
-        className="bg-[#141214] border border-white/[0.08] rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden"
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06]">
-          <div>
-            <h3 className="text-white text-base font-semibold">Pick Location</h3>
-            <p className="text-white/40 text-xs mt-0.5">Choose a preset, search, or type an address.</p>
-          </div>
-          <button onClick={onClose} className="text-white/40 hover:text-white p-1.5 rounded-lg hover:bg-white/[0.04] transition-colors">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="px-6 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
-          {/* Preset venues */}
-          <div>
-            <p className="text-white/40 text-[10px] uppercase tracking-wider mb-2">Frequent Locations</p>
-            <div className="flex flex-wrap gap-1.5">
-              {PRESET_VENUES.map(v => (
-                <button
-                  key={v.label}
-                  onClick={() => setPreview(v.address)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-                    preview === v.address
-                      ? 'bg-white border-white text-black'
-                      : 'bg-white/[0.03] border-white/[0.10] text-white/55 hover:text-white hover:border-white/25'
-                  }`}
-                >
-                  {v.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Search */}
-          <div className="relative">
-            <p className="text-white/40 text-[10px] uppercase tracking-wider mb-2">Search</p>
-            <input
-              type="text"
-              value={query}
-              onChange={e => handleQuery(e.target.value)}
-              placeholder="Type a venue, school, or address…"
-              autoFocus
-              className="w-full px-3 py-2.5 bg-white/[0.04] border border-white/[0.10] rounded-xl text-white text-sm placeholder-white/25 focus:outline-none focus:border-white/30 transition-colors"
-            />
-            {loading && (
-              <div className="absolute right-3 top-9 w-4 h-4 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
-            )}
-            {suggestions.length > 0 && (
-              <div className="mt-2 bg-white/[0.03] border border-white/[0.08] rounded-xl overflow-hidden divide-y divide-white/[0.05]">
-                {suggestions.map(s => (
-                  <button
-                    key={s.place_id}
-                    onClick={() => pickSuggestion(s)}
-                    className="w-full text-left px-3 py-2.5 text-sm text-white/80 hover:bg-white/[0.04] transition-colors"
-                  >
-                    {s.description}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Map preview */}
-          {preview && (
-            <div>
-              <p className="text-white/40 text-[10px] uppercase tracking-wider mb-2">Preview</p>
-              <div className="rounded-xl overflow-hidden border border-white/[0.08] bg-white/[0.02]">
-                {mapSrc ? (
-                  <iframe
-                    src={mapSrc}
-                    className="w-full h-56"
-                    style={{ border: 0 }}
-                    loading="lazy"
-                    referrerPolicy="no-referrer-when-downgrade"
-                    title="Location preview"
-                  />
-                ) : (
-                  <div className="px-4 py-6 text-white/30 text-xs text-center">
-                    Map preview unavailable (set VITE_GOOGLE_MAPS_API_KEY).
-                  </div>
-                )}
-                <div className="px-4 py-2.5 border-t border-white/[0.06]">
-                  <p className="text-white text-xs">{preview}</p>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="flex justify-end gap-2 px-6 py-4 border-t border-white/[0.06] bg-white/[0.02]">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm text-white/60 hover:text-white border border-white/[0.10] hover:border-white/30 rounded-lg transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={() => preview && onSelect(preview)}
-            disabled={!preview}
-            className="px-4 py-2 text-sm font-medium bg-white hover:bg-gray-200 text-black rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            Use This Location
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Multi-date picker modal ──────────────────────────────────────────────────
-const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-
-// YYYY-MM-DD for a local-time y/m/d triple, avoiding UTC shifts from toISOString
-const dateKey = (y: number, m: number, d: number) =>
-  `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-
-// "Mon, Sep 21" from a YYYY-MM-DD key
-const prettyDate = (key: string) => {
-  const [y, m, d] = key.split('-').map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString('en-US', {
-    weekday: 'short', month: 'short', day: 'numeric',
-  });
-};
 
 function MultiDatePickerModal({
   open, selected, onClose, onSave,
@@ -547,58 +220,16 @@ function MultiDatePickerModal({
   );
 }
 
-// ── Reusable dropdown ────────────────────────────────────────────────────────
-function Dropdown({
-  label, required, value, options, onChange, placeholder = 'Select…', error,
-}: {
-  label: string;
-  required?: boolean;
-  value: string;
-  options: string[];
-  onChange: (v: string) => void;
-  placeholder?: string;
-  error?: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="relative">
-      <label className="block text-gray-400 text-xs mb-1">
-        {label}{required && <Req />}
-      </label>
-      <button
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        className={`w-full px-3 py-2 bg-[#1a1a1a] border rounded-lg text-left text-sm focus:outline-none focus:ring-1 focus:ring-white/40 transition-colors flex items-center justify-between ${
-          error ? 'border-red-500/50' : 'border-[#2a2a2a] hover:border-gray-600'
-        }`}
-      >
-        <span className={value ? 'text-white' : 'text-gray-600'}>{value || placeholder}</span>
-        <svg className={`w-3.5 h-3.5 text-gray-500 flex-shrink-0 ml-2 transition-transform ${open ? 'rotate-180' : ''}`}
-          fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-      {open && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute z-20 mt-1 w-full bg-[#111] border border-[#2a2a2a] rounded-lg shadow-xl max-h-56 overflow-y-auto">
-            {options.map(opt => (
-              <button
-                key={opt}
-                type="button"
-                onClick={() => { onChange(opt); setOpen(false); }}
-                className={`w-full text-left px-3 py-2 text-sm transition-colors ${
-                  value === opt ? 'bg-white text-black font-medium' : 'text-gray-300 hover:bg-white/[0.04]'
-                }`}
-              >
-                {opt}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  );
+function formatTime(dt: string, dateOnly?: boolean) {
+  if (dateOnly) return 'All Day';
+  return new Date(dt).toLocaleTimeString('en-US', {
+    hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/New_York',
+  });
+}
+function formatDate(dt: string) {
+  return new Date(dt).toLocaleDateString('en-US', {
+    weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/New_York',
+  });
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
@@ -642,6 +273,7 @@ const EventAssistantSection = () => {
       recurringWeeks: '',
       isMultiDate: false,
       multiDates: [],
+      facilityCost: '',
     };
   };
 
@@ -676,15 +308,8 @@ const EventAssistantSection = () => {
             ? databases.listDocuments(databaseId, collections.proxyChildren, [Query.limit(1000)]).catch(() => ({ documents: [] }))
             : { documents: [] },
         ]);
-        // Hide test/non-coach accounts, then float the regulars to the top in
-        // COACH_PRIORITY order with everyone else alphabetical behind them.
-        const rank = (c: CoachRecord) => {
-          const i = COACH_PRIORITY.indexOf(normalizeCoachName(coachFullName(c)));
-          return i === -1 ? COACH_PRIORITY.length : i;
-        };
-        setCoaches(((coachRes as any).documents as CoachRecord[])
-          .filter(c => !HIDDEN_COACH_NAMES.has(normalizeCoachName(coachFullName(c))))
-          .sort((a, b) => rank(a) - rank(b) || coachFullName(a).localeCompare(coachFullName(b))));
+        // Hidden test/non-coach accounts dropped, regulars floated to the top.
+        setCoaches(sortCoachRoster((coachRes as any).documents as CoachRecord[]));
         const players: PlayerRecord[] = [
           ...(youthRes as any).documents.map((p: any) => ({ $id: p.$id, userId: p.userId, firstName: p.firstName || '', lastName: p.lastName || '', type: 'Youth' as const })),
           ...(colRes as any).documents.map((p: any) => ({ $id: p.$id, userId: p.userId, firstName: p.firstName || '', lastName: p.lastName || '', type: 'Collegiate' as const })),
@@ -971,6 +596,28 @@ function CreateEventForm({
   const set = <K extends keyof EventFormData>(k: K, v: EventFormData[K]) =>
     setForm(f => ({ ...f, [k]: v }));
 
+  // Facility hire follows location × duration until someone types over it, at
+  // which point the typed figure sticks.
+  const [costEdited, setCostEdited] = useState(Boolean(initialForm?.facilityCost));
+  const facilityRate = facilityRateFor(form.location);
+
+  // A cost already saved against the event wins over the computed default.
+  useEffect(() => {
+    if (mode !== 'edit' || !editingEvent) return;
+    let cancelled = false;
+    getFacilityCost(editingEvent.id).then(stored => {
+      if (cancelled || stored === null) return;
+      setCostEdited(true);
+      setForm(f => ({ ...f, facilityCost: String(stored) }));
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [mode, editingEvent]);
+  useEffect(() => {
+    if (costEdited) return;
+    const auto = computeFacilityCost(form.location, to24h(form.startTime), to24h(form.endTime));
+    setForm(f => (f.facilityCost === (auto ? String(auto) : '') ? f : { ...f, facilityCost: auto ? String(auto) : '' }));
+  }, [form.location, form.startTime, form.endTime, costEdited]);
+
   // Auto-set end time when start time changes
   const handleStartTime = (v: string) => {
     setForm(f => ({ ...f, startTime: v, endTime: plusOneHour(v) }));
@@ -1170,6 +817,9 @@ function CreateEventForm({
           ));
         }
 
+        // Facility hire lives outside Google Calendar, so it saves either way.
+        await setFacilityCost(editingEvent.id, parseInt(form.facilityCost) || 0).catch(() => {});
+
         onSuccess(calendarFieldsChanged ? 'Event updated successfully.' : 'Players added successfully.');
         if (onDoneEditing) onDoneEditing();
         return;
@@ -1194,6 +844,9 @@ function CreateEventForm({
         // Function returns the created Google Calendar event under result.data
         const eventId: string = result?.data?.id || result?.eventId || result?.id || '';
         const eventDateISO = `${eventDateStr}T${startTime24}:00`;
+
+        const cost = parseInt(form.facilityCost) || 0;
+        if (eventId && cost > 0) await setFacilityCost(eventId, cost).catch(() => {});
 
         // Coach signups
         if (form.selectedCoaches.length > 0 && collections.coachSignups) {
@@ -1368,6 +1021,38 @@ function CreateEventForm({
                 </button>
               );
             })}
+          </div>
+
+          {/* Facility hire — auto-filled from the venue's hourly rate */}
+          <div className="mt-3">
+            <label className="block text-gray-400 text-xs mb-1">Facility cost</label>
+            <div className="flex items-center gap-2">
+              <div className="relative w-36">
+                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500 text-sm">$</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={form.facilityCost}
+                  onChange={e => { setCostEdited(true); set('facilityCost', e.target.value); }}
+                  placeholder="0"
+                  className="w-full pl-6 pr-3 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-white/40 placeholder-gray-600"
+                />
+              </div>
+              <p className="text-gray-500 text-xs">
+                {facilityRate
+                  ? `${facilityRate.label} · $${facilityRate.hourly}/hr${costEdited ? ' · edited' : ' · auto'}`
+                  : 'No hire cost at this venue'}
+              </p>
+              {costEdited && (
+                <button
+                  type="button"
+                  onClick={() => setCostEdited(false)}
+                  className="text-white/40 hover:text-white text-xs underline"
+                >
+                  reset
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

@@ -18,7 +18,6 @@ import CalendarSection from './sections/CalendarSection';
 import EventAssistantSection from './sections/EventAssistantSection';
 import AttendanceManagerSection from './sections/AttendanceManagerSection';
 import CoachManagementSection from './sections/CoachManagementSection';
-import CoachAttendanceSection from './sections/CoachAttendanceSection';
 import CoachPaymentsSection from './sections/CoachPaymentsSection';
 import SessionReviewsSection from './sections/SessionReviewsSection';
 import ScholarshipsSection from './sections/ScholarshipsSection';
@@ -40,13 +39,13 @@ const REQUEST_TYPES = [
   'Player Report',
 ];
 
-type Section = 'players' | 'coaches' | 'parents' | 'bills' | 'payments' | 'messages' | 'requests' | 'calendar' | 'eventAssistant' | 'attendance' | 'coachManagement' | 'coachAttendance' | 'coachPayments' | 'devOverview' | 'appFeedback' | 'serviceStatus' | 'sessionReviews' | 'scholarships';
+type Section = 'players' | 'coaches' | 'parents' | 'bills' | 'payments' | 'messages' | 'requests' | 'calendar' | 'eventAssistant' | 'attendance' | 'coachManagement' | 'coachPayments' | 'devOverview' | 'appFeedback' | 'serviceStatus' | 'sessionReviews' | 'scholarships';
 
 type NavGroup = 'Directory' | 'Coaches' | 'Messages' | 'Payments' | 'Events' | 'Development';
 
 const SECTION_TO_GROUP: Partial<Record<Section, NavGroup>> = {
   players: 'Directory', coaches: 'Directory', parents: 'Directory',
-  coachManagement: 'Coaches', coachAttendance: 'Coaches', coachPayments: 'Coaches',
+  coachManagement: 'Coaches', coachPayments: 'Coaches',
   messages: 'Messages', requests: 'Messages',
   bills: 'Payments', payments: 'Payments', scholarships: 'Payments',
   calendar: 'Events', eventAssistant: 'Events', attendance: 'Events', sessionReviews: 'Events',
@@ -58,7 +57,6 @@ const SECTION_LABELS: Partial<Record<Section, string>> = {
   requests: 'Inquiries',
   bills: 'Billing',
   coachManagement: 'Coach Management',
-  coachAttendance: 'Attendance Manager',
   coachPayments: 'Coach Payments',
   devOverview: 'Overview',
   appFeedback: 'App Feedback',
@@ -206,7 +204,6 @@ const SECTION_FROM_PATH: Record<string, Section> = {
   '/admin/event-assistant': 'eventAssistant',
   '/admin/attendance': 'attendance',
   '/admin/coach-management': 'coachManagement',
-  '/admin/coach-attendance': 'coachAttendance',
   '/admin/coach-payments': 'coachPayments',
   '/admin/dev': 'devOverview',
   '/admin/dev/feedback': 'appFeedback',
@@ -234,7 +231,6 @@ const AdminDashboard = () => {
     eventAssistant: '/admin/event-assistant',
     attendance: '/admin/attendance',
     coachManagement: '/admin/coach-management',
-    coachAttendance: '/admin/coach-attendance',
     coachPayments: '/admin/coach-payments',
     devOverview: '/admin/dev',
     appFeedback: '/admin/dev/feedback',
@@ -447,7 +443,6 @@ const AdminDashboard = () => {
     eventAssistant: <EventAssistantSection />,
     attendance: <AttendanceManagerSection />,
     coachManagement: <CoachManagementSection />,
-    coachAttendance: <CoachAttendanceSection />,
     coachPayments: <CoachPaymentsSection />,
     sessionReviews: <SessionReviewsSection />,
     scholarships: <ScholarshipsSection />,
@@ -517,8 +512,6 @@ const AdminDashboard = () => {
             icon={<svg className="w-[15px] h-[15px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>}>
             <NavChild section="coachManagement" label="Coaches" active={activeSection === 'coachManagement'} onSelect={setActiveSection}
               icon={<svg className="w-[13px] h-[13px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>} />
-            <NavChild section="coachAttendance" label="Attendance Manager" active={activeSection === 'coachAttendance'} onSelect={setActiveSection}
-              icon={<svg className="w-[13px] h-[13px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>} />
             <NavChild section="coachPayments" label="Coach Payments" active={activeSection === 'coachPayments'} onSelect={setActiveSection}
               icon={<svg className="w-[13px] h-[13px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} />
           </NavGroupItem>
