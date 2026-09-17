@@ -20,8 +20,6 @@ interface CoachDoc {
   experience?: string;
   coachingPositions?: string[];
   playingExperience?: string[];
-  signupsCount: number;
-  checkinsCount: number;
 }
 
 // ── Detail Panel ──────────────────────────────────────────────────────────────
@@ -159,21 +157,6 @@ const CoachDetailPanel = ({
             </div>
           </div>
 
-          {/* Activity stats */}
-          <div>
-            <p className="text-white/20 text-[10px] uppercase tracking-widest font-mono mb-3">Activity</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-white/[0.04] border border-white/[0.07] rounded-lg px-4 py-3">
-                <p className="text-white text-xl font-semibold tabular-nums leading-none">{coach.signupsCount}</p>
-                <p className="text-white/35 text-[11px] mt-1">Sessions signed up</p>
-              </div>
-              <div className="bg-white/[0.04] border border-white/[0.07] rounded-lg px-4 py-3">
-                <p className="text-white text-xl font-semibold tabular-nums leading-none">{coach.checkinsCount}</p>
-                <p className="text-white/35 text-[11px] mt-1">Sessions attended</p>
-              </div>
-            </div>
-          </div>
-
           {/* Meta */}
           <div>
             <p className="text-white/20 text-[10px] uppercase tracking-widest font-mono mb-3">Account</p>
@@ -205,6 +188,10 @@ const CoachDetailPanel = ({
 };
 
 // ── Main ──────────────────────────────────────────────────────────────────────
+// People on the coaches collection who are not coaches. Peabo is the session
+// photographer; his fee is a session cost, handled in coach payments.
+const NON_COACHES = new Set(['peabo']);
+
 const CoachManagementSection = () => {
   const [coaches, setCoaches] = useState<CoachDoc[]>([]);
   const [loading, setLoading] = useState(true);
@@ -218,20 +205,12 @@ const CoachManagementSection = () => {
     setError('');
     try {
       const coachRes = await databases.listDocuments(databaseId, collections.coaches, [Query.limit(5000)]);
-      const coachList = await Promise.all(
-        coachRes.documents.map(async (coach: any) => {
-          const [signups, checkins] = await Promise.all([
-            collections.coachSignups
-              ? databases.listDocuments(databaseId, collections.coachSignups, [
-                  Query.equal('coachId', coach.$id), Query.limit(1),
-                ]).catch(() => ({ total: 0 }))
-              : { total: 0 },
-            collections.coachCheckins
-              ? databases.listDocuments(databaseId, collections.coachCheckins, [
-                  Query.equal('coachId', coach.$id), Query.limit(1),
-                ]).catch(() => ({ total: 0 }))
-              : { total: 0 },
-          ]);
+      const coachList = coachRes.documents
+        // Peabo is the session photographer, not a coach.
+        .filter((coach: any) => !NON_COACHES.has(
+          `${coach.firstName || ''} ${coach.lastName || ''}`.trim().toLowerCase().replace(/\s+/g, ' ')
+        ))
+        .map((coach: any) => {
           return {
             $id: coach.$id,
             $createdAt: coach.$createdAt,
@@ -250,11 +229,8 @@ const CoachManagementSection = () => {
             experience: coach.experience,
             coachingPositions: coach.coachingPositions,
             playingExperience: coach.playingExperience,
-            signupsCount: (signups as any).total,
-            checkinsCount: (checkins as any).total,
           };
-        })
-      );
+        });
       setCoaches(coachList);
     } catch (err: any) {
       setError('Failed to load coaches: ' + (err.message || 'Unknown error'));
@@ -359,7 +335,10 @@ const CoachManagementSection = () => {
                   {coach.firstName} {coach.lastName}
                 </p>
                 {coach.email && (
-                  <p className="text-white/40 text-[11px] truncate mt-0.5">{coach.email}</p>
+                  <p className="text-white/40 text-[11px] truncate mt-0.5" title={coach.email}>{coach.email}</p>
+                )}
+                {coach.phone && (
+                  <p className="text-white/40 text-[11px] truncate mt-0.5">{coach.phone}</p>
                 )}
               </div>
               <svg className="w-3.5 h-3.5 text-white/20 group-hover:text-white/40 flex-shrink-0 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -368,7 +347,7 @@ const CoachManagementSection = () => {
             </div>
 
             {/* Verified badge */}
-            <div className="mb-4">
+            <div>
               {coach.isVerified ? (
                 <div className="flex items-center gap-1.5">
                   <div className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" />
@@ -380,18 +359,6 @@ const CoachManagementSection = () => {
                   <span className="text-white/30 text-[11px]">Not verified</span>
                 </div>
               )}
-            </div>
-
-            {/* Stats */}
-            <div className="grid grid-cols-2 gap-3 pt-4 border-t border-white/[0.06]">
-              <div>
-                <p className="text-white text-lg font-semibold tabular-nums leading-none">{coach.signupsCount}</p>
-                <p className="text-white/35 text-[11px] mt-1">Signed up</p>
-              </div>
-              <div>
-                <p className="text-white text-lg font-semibold tabular-nums leading-none">{coach.checkinsCount}</p>
-                <p className="text-white/35 text-[11px] mt-1">Attended</p>
-              </div>
             </div>
           </button>
         ))}
