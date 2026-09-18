@@ -241,7 +241,7 @@ const CoachPaymentsSection = () => {
               <p className="text-white/40 text-[12px]">
                 <span className="text-emerald-300 font-medium">{fmtMoney(table.grandTotal)}</span> paid out
                 {table.adminFeeTotal > 0 && (
-                  <> · <span className="text-amber-300/80 font-medium">{fmtMoney(table.adminFeeTotal)}</span> admin</>
+                  <> · <span className="text-amber-300/80 font-medium">{fmtMoney(table.adminFeeTotal)}</span> admin kept</>
                 )}
               </p>
             </div>
@@ -267,8 +267,8 @@ const CoachPaymentsSection = () => {
                   </p>
                   <p className="text-white/30 text-[10px]">{t.sessions} session{t.sessions === 1 ? '' : 's'}</p>
                   {t.adminFee !== undefined && t.adminFee > 0 && (
-                    <p className="text-amber-300/80 text-[10px] mt-1 pt-1 border-t border-white/[0.08]">
-                      admin 5% · {fmtMoney(t.adminFee)}
+                    <p className="text-white/35 text-[10px] mt-1 pt-1 border-t border-white/[0.08]">
+                      net of {fmtMoney(t.adminFee)} admin
                     </p>
                   )}
                 </button>
