@@ -3,7 +3,7 @@ import { buildCoachAttendance } from '../../../services/coachAttendance';
 import { computePayoutTable, PayoutRow, PayoutTable, SessionRow } from '../../../services/coachPayouts';
 
 // Bumped whenever the cached shape changes, so an old payload is never drawn.
-const CACHE_KEY = 'nss.coachPayouts.v4';
+const CACHE_KEY = 'nss.coachPayouts.v5';
 
 const fmtMoney = (n: number) =>
   n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 });
@@ -233,6 +233,48 @@ const CoachPaymentsSection = () => {
         </div>
       ) : (
         <>
+          {/* Per-coach profit. Paul Torres takes whatever is left after
+              these, so he is not calculated here. */}
+          <div className="mb-5">
+            <div className="flex items-baseline justify-between gap-3 mb-2">
+              <h2 className="text-white/70 text-[11px] uppercase tracking-wider font-semibold">Profit by coach</h2>
+              <p className="text-white/40 text-[12px]">
+                <span className="text-emerald-300 font-medium">{fmtMoney(table.grandTotal)}</span> paid out
+                {table.adminFeeTotal > 0 && (
+                  <> · <span className="text-amber-300/80 font-medium">{fmtMoney(table.adminFeeTotal)}</span> admin</>
+                )}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {table.totalsByCoach.length === 0 ? (
+                <p className="text-white/30 text-sm">No coach payouts in this window.</p>
+              ) : table.totalsByCoach.map(t => (
+                <button
+                  key={t.coach}
+                  onClick={() => {
+                    setView('coach');
+                    setFilters(f => ({ ...f, coach: f.coach === t.coach ? '' : t.coach }));
+                  }}
+                  className={`text-left px-3 py-2 rounded-lg border transition-colors ${
+                    filters.coach === t.coach
+                      ? 'bg-white/[0.10] border-white/30'
+                      : 'bg-[#0e0e0e] border-[#1c1c1c] hover:border-white/20'
+                  }`}
+                >
+                  <p className="text-white text-[12px] font-medium">{t.coach}</p>
+                  <p className={`text-[13px] font-semibold ${t.total === null ? 'text-white/25' : 'text-emerald-300'}`}>
+                    {t.total === null ? '—' : fmtMoney(t.total)}
+                  </p>
+                  <p className="text-white/30 text-[10px]">{t.sessions} session{t.sessions === 1 ? '' : 's'}</p>
+                  {t.adminFee !== undefined && t.adminFee > 0 && (
+                    <p className="text-amber-300/80 text-[10px] mt-1 pt-1 border-t border-white/[0.08]">
+                      admin 5% · {fmtMoney(t.adminFee)}
+                    </p>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
           {/* Summary bar */}
           <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
             {filtersActive ? (
@@ -293,8 +335,9 @@ const CoachPaymentsSection = () => {
                         s.supportCost > 0 ? `− Coaches ${fmtMoney(s.supportCost)}` : null,
                         ...s.otherCosts.map(c => `− ${c.label} ${fmtMoney(c.amount)}`),
                         `= ${fmtMoney(s.profit)}`,
+                        s.adminFee > 0 ? `− Admin 5% ${fmtMoney(s.adminFee)}` : null,
                         s.gyauEligible
-                          ? `Gyau ${s.gyauAttended ? '50%' : '30%'} → ${fmtMoney(s.gyauShare)}`
+                          ? `Gyau ${s.gyauAttended ? '50%' : '30%'} of the rest → ${fmtMoney(s.gyauShare)}`
                           : 'Gyau share: not eligible',
                       ].filter(Boolean).join('\n');
                       return (
@@ -404,40 +447,6 @@ const CoachPaymentsSection = () => {
             </div>
           </div>
 
-          {/* Per-coach profit, below the table. Paul Torres takes whatever is
-              left after these, so he is not calculated here. */}
-          <div className="mt-5">
-            <div className="flex items-baseline justify-between gap-3 mb-2">
-              <h2 className="text-white/70 text-[11px] uppercase tracking-wider font-semibold">Profit by coach</h2>
-              <p className="text-white/40 text-[12px]">
-                <span className="text-emerald-300 font-medium">{fmtMoney(table.grandTotal)}</span> paid out
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {table.totalsByCoach.length === 0 ? (
-                <p className="text-white/30 text-sm">No coach payouts in this window.</p>
-              ) : table.totalsByCoach.map(t => (
-                <button
-                  key={t.coach}
-                  onClick={() => {
-                    setView('coach');
-                    setFilters(f => ({ ...f, coach: f.coach === t.coach ? '' : t.coach }));
-                  }}
-                  className={`text-left px-3 py-2 rounded-lg border transition-colors ${
-                    filters.coach === t.coach
-                      ? 'bg-white/[0.10] border-white/30'
-                      : 'bg-[#0e0e0e] border-[#1c1c1c] hover:border-white/20'
-                  }`}
-                >
-                  <p className="text-white text-[12px] font-medium">{t.coach}</p>
-                  <p className={`text-[13px] font-semibold ${t.total === null ? 'text-white/25' : 'text-emerald-300'}`}>
-                    {t.total === null ? '—' : fmtMoney(t.total)}
-                  </p>
-                  <p className="text-white/30 text-[10px]">{t.sessions} session{t.sessions === 1 ? '' : 's'}</p>
-                </button>
-              ))}
-            </div>
-          </div>
         </>
       )}
     </div>
