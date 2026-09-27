@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Query, ID } from 'appwrite';
 import { databases, databaseId, collections } from '../../../services/appwrite';
@@ -1493,6 +1493,272 @@ function WeekView({
   );
 }
 
+// ── Table view ────────────────────────────────────────────────────────────────
+interface TableEvent extends CalendarEvent { calType: CalType; }
+
+// How many attendees fit on the collapsed single line before the row has to be
+// opened to read the rest.
+const ATTENDANCE_PREVIEW = 3;
+
+// Pulls a whole collection in pages. Attendance is needed for every row at
+// once, so this is a handful of requests rather than one per session.
+async function listAllDocs(collectionId: string): Promise<any[]> {
+  const out: any[] = [];
+  let cursor: string | null = null;
+  for (;;) {
+    const queries = [Query.limit(1000)];
+    if (cursor) queries.push(Query.cursorAfter(cursor));
+    const res = await databases.listDocuments(databaseId, collectionId, queries);
+    out.push(...res.documents);
+    if (res.documents.length < 1000) break;
+    cursor = res.documents[res.documents.length - 1].$id;
+  }
+  return out;
+}
+
+const venueLabel = (location?: string) => (location || '').split(',')[0].trim();
+
+// Puts a row just below the sticky header. Measured off bounding rects rather
+// than offsetTop, which for a <tr> is relative to the <table> and not to the
+// element actually doing the scrolling.
+const scrollRowIntoView = (list: HTMLDivElement, eventId: string): boolean => {
+  const el = list.querySelector<HTMLElement>(`[data-eid="${CSS.escape(eventId)}"]`);
+  if (!el) return false;
+  const head = list.querySelector('thead');
+  list.scrollTop += el.getBoundingClientRect().top - list.getBoundingClientRect().top - (head?.clientHeight ?? 0);
+  return true;
+};
+
+function formatTableDateTime(dt: string, dateOnly?: boolean) {
+  const date = new Date(dt).toLocaleDateString('en-US', {
+    weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/New_York',
+  });
+  return dateOnly ? `${date} · All day` : `${date} · ${formatTime(dt)}`;
+}
+
+function EventTable({
+  rows, scrollRef, highlightIds, firstUpcomingId, calFilter, onCalFilter, onOpen,
+}: {
+  rows: TableEvent[];
+  scrollRef: React.MutableRefObject<HTMLDivElement | null>;
+  highlightIds: string[];
+  firstUpcomingId: string | null;
+  calFilter: 'all' | 'public' | 'private';
+  onCalFilter: (f: 'all' | 'public' | 'private') => void;
+  onOpen: (ev: TableEvent) => void;
+}) {
+  const [attendees, setAttendees] = useState<Record<string, string[]>>({});
+  const [coaches, setCoaches] = useState<Record<string, string[]>>({});
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  const toggleExpanded = (id: string) =>
+    setExpanded(prev => {
+      const next = new Set(prev);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
+
+  // Everything at once: per-event requests would be a query per session.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const [checkinDocs, coachDocs, roster] = await Promise.all([
+          collections.checkins ? listAllDocs(collections.checkins).catch(() => []) : Promise.resolve([]),
+          collections.coachCheckins ? listAllDocs(collections.coachCheckins).catch(() => []) : Promise.resolve([]),
+          collections.coaches
+            ? databases.listDocuments(databaseId, collections.coaches, [Query.limit(500)])
+                .then(r => r.documents as any[]).catch(() => [])
+            : Promise.resolve([]),
+        ]);
+        if (cancelled) return;
+
+        const byEvent: Record<string, string[]> = {};
+        for (const c of checkinDocs) {
+          if (!c.eventID) continue;
+          const name = `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim() || c.userId || 'Unknown';
+          (byEvent[c.eventID] ||= []).push(name);
+        }
+        for (const id of Object.keys(byEvent)) byEvent[id].sort((a, b) => a.localeCompare(b));
+
+        // Coaches come from coach check-ins only — never the calendar.
+        const nameById: Record<string, string> = {};
+        for (const c of roster) {
+          const full = `${c.firstName || ''} ${c.lastName || ''}`.trim();
+          if (!full) continue;
+          if (c.userId) nameById[c.userId] = full;
+          if (c.$id) nameById[c.$id] = full;
+        }
+        const coachByEvent: Record<string, string[]> = {};
+        for (const d of coachDocs) {
+          if (!d.eventID) continue;
+          const ids = new Set<string>();
+          if (d.coachUserId) ids.add(d.coachUserId);
+          if (Array.isArray(d.coaches)) for (const c of d.coaches) { const t = String(c).trim(); if (t) ids.add(t); }
+          const list = (coachByEvent[d.eventID] ||= []);
+          for (const id of ids) {
+            const name = nameById[id];
+            if (name && !list.includes(name)) list.push(name);
+          }
+        }
+
+        setAttendees(byEvent);
+        setCoaches(coachByEvent);
+      } finally { if (!cancelled) setLoading(false); }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const totalCheckins = useMemo(
+    () => rows.reduce((sum, ev) => sum + (attendees[ev.id]?.length ?? 0), 0),
+    [rows, attendees],
+  );
+
+  // Open on today rather than a year of history, and settle again once
+  // attendance lands in case the rows reflowed — but back off the moment the
+  // admin has scrolled somewhere themselves.
+  const autoScrollAt = useRef<number | null>(null);
+  const settleOnToday = useCallback(() => {
+    const list = scrollRef.current;
+    if (!list || !firstUpcomingId) return;
+    if (autoScrollAt.current !== null && Math.abs(list.scrollTop - autoScrollAt.current) > 2) return;
+    if (scrollRowIntoView(list, firstUpcomingId)) autoScrollAt.current = list.scrollTop;
+  }, [firstUpcomingId, scrollRef]);
+
+  // A different row set — the public/private toggle — re-anchors on today.
+  useEffect(() => { autoScrollAt.current = null; }, [rows]);
+  useEffect(() => { requestAnimationFrame(settleOnToday); }, [rows, loading, settleOnToday]);
+
+  return (
+    <div className="flex flex-col h-[calc(100vh-180px)] min-h-0 bg-[#0e0e0e] border border-[#1c1c1c] rounded-xl overflow-hidden">
+      <div className="px-4 py-3 border-b border-[#1a1a1a] flex items-center justify-between gap-3 flex-shrink-0">
+        <div className="flex bg-white/[0.04] border border-white/10 rounded-lg p-0.5">
+          {(['all', 'public', 'private'] as const).map(f => (
+            <button
+              key={f}
+              onClick={() => onCalFilter(f)}
+              className={`px-3 py-1.5 text-sm rounded-md transition-colors capitalize ${
+                calFilter === f ? 'bg-white text-black font-medium' : 'text-white/60 hover:text-white'
+              }`}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+        <p className="text-white/30 text-xs">
+          {rows.length} session{rows.length === 1 ? '' : 's'}
+          {!loading && <> · {totalCheckins} check-in{totalCheckins === 1 ? '' : 's'}</>}
+        </p>
+      </div>
+
+      <div ref={scrollRef} className="flex-1 overflow-auto min-h-0">
+        <table className="w-full min-w-[1100px] border-collapse">
+          <colgroup>
+            <col style={{ width: '22%' }} />
+            <col style={{ width: 200 }} />
+            <col style={{ width: '15%' }} />
+            <col style={{ width: '15%' }} />
+            <col style={{ width: 70 }} />
+            <col />
+          </colgroup>
+          <thead className="sticky top-0 z-10 bg-[#141414] border-b border-white/[0.08]">
+            <tr className="text-white/45 text-[10px] uppercase tracking-wider">
+              <th className="text-left font-semibold px-4 py-2.5">Session</th>
+              <th className="text-left font-semibold px-3 py-2.5">Date / time</th>
+              <th className="text-left font-semibold px-3 py-2.5">Location</th>
+              <th className="text-left font-semibold px-3 py-2.5">Coaches</th>
+              <th className="text-right font-semibold px-3 py-2.5">Att.</th>
+              <th className="text-left font-semibold px-3 py-2.5">Attendance</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 ? (
+              <tr><td colSpan={6} className="px-4 py-10 text-center text-white/25 text-sm">No sessions found.</td></tr>
+            ) : rows.map(ev => {
+              const names = attendees[ev.id] ?? [];
+              const evCoaches = coaches[ev.id] ?? [];
+              const isOpen = expanded.has(ev.id);
+              const overflow = names.length - ATTENDANCE_PREVIEW;
+              return (
+                <tr
+                  key={ev.id}
+                  data-eid={ev.id}
+                  onClick={() => onOpen(ev)}
+                  className={`border-b border-white/[0.04] last:border-0 cursor-pointer align-top transition-colors ${
+                    highlightIds.includes(ev.id)
+                      ? 'bg-green-400/10 ring-1 ring-inset ring-green-400/60'
+                      : ev.id === firstUpcomingId
+                      ? 'bg-white/[0.05] hover:bg-white/[0.07]'
+                      : 'hover:bg-white/[0.04]'
+                  }`}
+                >
+                  <td className="px-4 py-2.5">
+                    <div className="flex items-start gap-2">
+                      <span
+                        className={`mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0 ${ev.calType === 'private' ? 'bg-purple-400' : 'bg-sky-400'}`}
+                        title={ev.calType === 'private' ? 'Private' : 'Public'}
+                      />
+                      <span className="text-white text-[12px] leading-snug">{ev.title}</span>
+                    </div>
+                  </td>
+                  <td className="px-3 py-2.5 text-white/50 text-[12px] whitespace-nowrap">
+                    {formatTableDateTime(ev.startDateTime, ev.dateOnly)}
+                  </td>
+                  <td className="px-3 py-2.5 text-white/55 text-[12px] truncate max-w-0" title={ev.location || ''}>
+                    {ev.location ? venueLabel(ev.location) : <span className="text-white/20">—</span>}
+                  </td>
+                  <td className="px-3 py-2.5 text-emerald-300/70 text-[12px] truncate max-w-0" title={evCoaches.join(', ')}>
+                    {evCoaches.length > 0 ? evCoaches.join(', ') : <span className="text-white/20">—</span>}
+                  </td>
+                  <td className="px-3 py-2.5 text-right text-[12px] whitespace-nowrap">
+                    {names.length > 0
+                      ? <span className="text-white/80">{names.length}</span>
+                      : <span className="text-white/20">0</span>}
+                  </td>
+                  <td className="px-3 py-2.5">
+                    {names.length === 0 ? (
+                      <span className="text-white/20 text-[12px]">—</span>
+                    ) : (
+                      <div className="flex items-start gap-2">
+                        <span
+                          className={`text-white/70 text-[12px] leading-relaxed flex-1 min-w-0 ${
+                            isOpen ? 'whitespace-normal break-words' : 'truncate'
+                          }`}
+                        >
+                          {isOpen ? names.join(', ') : names.slice(0, ATTENDANCE_PREVIEW).join(', ')}
+                          {!isOpen && overflow > 0 && (
+                            <span className="text-white/30"> +{overflow} more</span>
+                          )}
+                        </span>
+                        {overflow > 0 && (
+                          <button
+                            onClick={e => { e.stopPropagation(); toggleExpanded(ev.id); }}
+                            title={isOpen ? 'Collapse' : `Show all ${names.length}`}
+                            className="flex-shrink-0 p-0.5 text-white/30 hover:text-white transition-colors"
+                          >
+                            <svg
+                              className={`w-3.5 h-3.5 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                              fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 // ── Main section ─────────────────────────────────────────────────────────────
 const AttendanceManagerSection = () => {
   const { user } = useAuth();
@@ -1509,8 +1775,9 @@ const AttendanceManagerSection = () => {
   const [jumpDate, setJumpDate] = useState(easternToday);
   const [highlightIds, setHighlightIds] = useState<string[]>([]);
 
-  // List vs Week view, plus a shared player list for the week view's add search
-  const [viewMode, setViewMode] = useState<'list' | 'week'>('list');
+  // Table vs Week view, plus a shared player list for the week view's add search
+  const [viewMode, setViewMode] = useState<'table' | 'week'>('table');
+  const [calFilter, setCalFilter] = useState<'all' | 'public' | 'private'>('all');
   const [allPlayers, setAllPlayers] = useState<PlayerSearchResult[]>([]);
 
   const [successMsg, setSuccessMsg] = useState('');
@@ -1550,17 +1817,20 @@ const AttendanceManagerSection = () => {
         const dedupedPriv = dedup(priv);
         setPublicEvents(dedupedPub);
         setPrivateEvents(dedupedPriv);
-
-        // Restore selected event from URL params on (re)load
-        if (params.eventId && params.calType) {
-          const calType = params.calType as CalType;
-          const list = calType === 'public' ? dedupedPub : dedupedPriv;
-          const found = list.find(e => e.id === params.eventId);
-          if (found) setSelected({ event: found, calType });
-        }
       } finally { setLoading(false); }
     })();
   }, []);
+
+  // Keep the open session in step with the URL, so a link from elsewhere in the
+  // admin — the Coach Payments table, say — lands straight on that session.
+  useEffect(() => {
+    if (loading) return;
+    if (!params.eventId || !params.calType) { setSelected(null); return; }
+    const calType = params.calType as CalType;
+    const list = calType === 'public' ? publicEvents : privateEvents;
+    const found = list.find(e => e.id === params.eventId);
+    setSelected(found ? { event: found, calType } : null);
+  }, [loading, params.eventId, params.calType, publicEvents, privateEvents]);
 
   // Load the player roster once (shared with the week view's add-check-in search)
   useEffect(() => {
@@ -1582,61 +1852,39 @@ const AttendanceManagerSection = () => {
     })();
   }, []);
 
-  // Auto-scroll each column to the first event on or after today
-  const publicListRef = useRef<HTMLDivElement | null>(null);
-  const privateListRef = useRef<HTMLDivElement | null>(null);
-  const publicTodayRef = useRef<HTMLButtonElement | null>(null);
-  const privateTodayRef = useRef<HTMLButtonElement | null>(null);
+  // Both calendars in one date-ordered list, narrowed by the public/private
+  // toggle. Each row keeps its source so the table can mark and route it.
+  const tableRows = useMemo(() => {
+    const rows = [
+      ...(calFilter !== 'private' ? publicEvents.map(e => ({ ...e, calType: 'public' as const })) : []),
+      ...(calFilter !== 'public' ? privateEvents.map(e => ({ ...e, calType: 'private' as const })) : []),
+    ];
+    return rows.sort((a, b) => Date.parse(a.startDateTime) - Date.parse(b.startDateTime));
+  }, [publicEvents, privateEvents, calFilter]);
+
+  const tableScrollRef = useRef<HTMLDivElement | null>(null);
 
   const todayStartMs = useMemo(() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
     return d.getTime();
   }, []);
-  const firstUpcomingPublicId = useMemo(
-    () => publicEvents.find(e => Date.parse(e.startDateTime) >= todayStartMs)?.id ?? null,
-    [publicEvents, todayStartMs],
-  );
-  const firstUpcomingPrivateId = useMemo(
-    () => privateEvents.find(e => Date.parse(e.startDateTime) >= todayStartMs)?.id ?? null,
-    [privateEvents, todayStartMs],
+  const firstUpcomingId = useMemo(
+    () => tableRows.find(e => Date.parse(e.startDateTime) >= todayStartMs)?.id ?? null,
+    [tableRows, todayStartMs],
   );
 
-  useEffect(() => {
-    if (loading || selected) return;
-    // Scroll each column so the first event >= today sits at the top of its container
-    const scrollColumn = (
-      list: HTMLDivElement | null,
-      target: HTMLButtonElement | null,
-    ) => {
-      if (!list || !target) return;
-      list.scrollTop = target.offsetTop - list.offsetTop;
-    };
-    // RAF lets the layout settle before reading offsetTop
-    requestAnimationFrame(() => {
-      scrollColumn(publicListRef.current, publicTodayRef.current);
-      scrollColumn(privateListRef.current, privateTodayRef.current);
-    });
-  }, [loading, selected, firstUpcomingPublicId, firstUpcomingPrivateId]);
-
-  // Scroll both columns to the first session on/after the chosen date, and
-  // briefly highlight the landed-on events.
+  // Scroll to the first session on/after the chosen date and briefly highlight it.
   const jumpToDate = (dateStr: string) => {
     if (!dateStr) return;
-    const scrollList = (list: HTMLDivElement | null, events: CalendarEvent[]): string | null => {
-      if (!list) return null;
-      const target = events.find(e => e.startDateTime.slice(0, 10) >= dateStr);
-      if (!target) { list.scrollTop = list.scrollHeight; return null; }
-      const el = list.querySelector<HTMLElement>(`[data-eid="${CSS.escape(target.id)}"]`);
-      if (el) list.scrollTop = el.offsetTop - list.offsetTop;
-      return target.id;
-    };
-    const ids = [
-      scrollList(publicListRef.current, publicEvents),
-      scrollList(privateListRef.current, privateEvents),
-    ].filter(Boolean) as string[];
-    setHighlightIds(ids);
     setShowDateModal(false);
+    const list = tableScrollRef.current;
+    const target = tableRows.find(e => easternDay(e.startDateTime) >= dateStr);
+    if (!target) { if (list) list.scrollTop = list.scrollHeight; return; }
+    requestAnimationFrame(() => {
+      if (tableScrollRef.current) scrollRowIntoView(tableScrollRef.current, target.id);
+    });
+    setHighlightIds([target.id]);
     window.setTimeout(() => setHighlightIds([]), 2800);
   };
 
@@ -1648,7 +1896,7 @@ const AttendanceManagerSection = () => {
           <div className="flex items-center gap-2">
             {/* List / Week toggle */}
             <div className="flex bg-white/[0.04] border border-white/10 rounded-lg p-0.5">
-              {(['list', 'week'] as const).map(mode => (
+              {(['table', 'week'] as const).map(mode => (
                 <button
                   key={mode}
                   onClick={() => setViewMode(mode)}
@@ -1660,7 +1908,7 @@ const AttendanceManagerSection = () => {
                 </button>
               ))}
             </div>
-            {viewMode === 'list' && (
+            {viewMode === 'table' && (
               <button
                 onClick={() => { setJumpDate(easternToday); setShowDateModal(true); }}
                 className="flex items-center gap-2 px-4 py-2 bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 rounded-lg text-white text-sm transition-colors"
@@ -1710,83 +1958,15 @@ const AttendanceManagerSection = () => {
           onFeedback={showFeedback}
         />
       ) : (
-        <div className="grid grid-cols-2 gap-4 h-[calc(100vh-180px)] min-h-0">
-
-          {/* Public column */}
-          <section className="flex flex-col min-h-0 bg-[#0e0e0e] border border-[#1c1c1c] rounded-xl overflow-hidden">
-            <div className="px-5 py-3 border-b border-[#1a1a1a] flex items-baseline gap-3 flex-shrink-0">
-              <h3 className="text-white text-sm font-semibold">Public Sessions</h3>
-              <span className="text-white/30 text-xs">{publicEvents.length}</span>
-            </div>
-            <div ref={publicListRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-2">
-              {publicEvents.length === 0 ? (
-                <p className="text-white/25 text-sm text-center py-6">No public sessions found.</p>
-              ) : publicEvents.map(ev => {
-                const isFirstUpcoming = ev.id === firstUpcomingPublicId;
-                const isHighlighted = highlightIds.includes(ev.id);
-                return (
-                  <button
-                    key={ev.id}
-                    data-eid={ev.id}
-                    ref={isFirstUpcoming ? publicTodayRef : undefined}
-                    onClick={() => { setSelected({ event: ev, calType: 'public' }); navigate(`/admin/attendance/public/${ev.id}`); }}
-                    className={`w-full text-left bg-[#0e0e0e] border rounded-xl px-4 py-3 transition-colors ${
-                      isHighlighted
-                        ? 'border-green-400 ring-2 ring-green-400/60'
-                        : isFirstUpcoming
-                        ? 'border-white/30'
-                        : 'border-[#1c1c1c] hover:border-white/20'
-                    }`}
-                  >
-                    <p className="text-white text-sm font-medium truncate">{ev.title}</p>
-                    <p className="text-gray-500 text-xs mt-0.5">
-                      {formatDate(ev.startDateTime)} · {formatTime(ev.startDateTime, ev.dateOnly)}
-                    </p>
-                    {ev.location && <p className="text-gray-600 text-xs truncate mt-0.5">{ev.location}</p>}
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          {/* Private column */}
-          <section className="flex flex-col min-h-0 bg-[#0e0e0e] border border-[#1c1c1c] rounded-xl overflow-hidden">
-            <div className="px-5 py-3 border-b border-[#1a1a1a] flex items-baseline gap-3 flex-shrink-0">
-              <h3 className="text-white text-sm font-semibold">Private Sessions</h3>
-              <span className="text-white/30 text-xs">{privateEvents.length}</span>
-            </div>
-            <div ref={privateListRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-2">
-              {privateEvents.length === 0 ? (
-                <p className="text-white/25 text-sm text-center py-6">No private sessions found.</p>
-              ) : privateEvents.map(ev => {
-                const isFirstUpcoming = ev.id === firstUpcomingPrivateId;
-                const isHighlighted = highlightIds.includes(ev.id);
-                return (
-                  <button
-                    key={ev.id}
-                    data-eid={ev.id}
-                    ref={isFirstUpcoming ? privateTodayRef : undefined}
-                    onClick={() => { setSelected({ event: ev, calType: 'private' }); navigate(`/admin/attendance/private/${ev.id}`); }}
-                    className={`w-full text-left bg-[#0e0e0e] border rounded-xl px-4 py-3 transition-colors ${
-                      isHighlighted
-                        ? 'border-green-400 ring-2 ring-green-400/60'
-                        : isFirstUpcoming
-                        ? 'border-white/30'
-                        : 'border-[#1c1c1c] hover:border-white/20'
-                    }`}
-                  >
-                    <p className="text-white text-sm font-medium truncate">{ev.title}</p>
-                    <p className="text-gray-500 text-xs mt-0.5">
-                      {formatDate(ev.startDateTime)} · {formatTime(ev.startDateTime, ev.dateOnly)}
-                    </p>
-                    {ev.location && <p className="text-gray-600 text-xs truncate mt-0.5">{ev.location}</p>}
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-        </div>
+        <EventTable
+          rows={tableRows}
+          scrollRef={tableScrollRef}
+          highlightIds={highlightIds}
+          firstUpcomingId={firstUpcomingId}
+          calFilter={calFilter}
+          onCalFilter={setCalFilter}
+          onOpen={(ev) => navigate(`/admin/attendance/${ev.calType}/${ev.id}`)}
+        />
       )}
 
       {/* Find-by-date modal */}
@@ -1797,7 +1977,7 @@ const AttendanceManagerSection = () => {
             <div className="pointer-events-auto w-full max-w-sm bg-[#111] border border-white/10 rounded-2xl p-6 shadow-2xl">
               <h3 className="text-white font-semibold text-lg mb-1">Jump to date</h3>
               <p className="text-white/40 text-xs mb-4">
-                Scrolls both columns to the first session on or after the chosen date.
+                Scrolls the table to the first session on or after the chosen date.
               </p>
               <input
                 type="date"

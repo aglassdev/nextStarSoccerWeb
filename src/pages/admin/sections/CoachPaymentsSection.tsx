@@ -1,9 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { buildCoachAttendance } from '../../../services/coachAttendance';
-import { computePayoutTable, PayoutRow, PayoutTable, SessionRow } from '../../../services/coachPayouts';
+import {
+  computePayoutTable, summarizePayouts, easternMonthKey, easternMonthLabel,
+  PayoutRow, PayoutTable, SessionRow,
+} from '../../../services/coachPayouts';
 
 // Bumped whenever the cached shape changes, so an old payload is never drawn.
-const CACHE_KEY = 'nss.coachPayouts.v5';
+const CACHE_KEY = 'nss.coachPayouts.v6';
+
+const ALL_MONTHS = 'all';
 
 const fmtMoney = (n: number) =>
   n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 });
@@ -91,9 +97,11 @@ const FacilitySelect = ({ value, onChange, facilities }: {
 const Dash = () => <span className="text-white/20">—</span>;
 
 const CoachPaymentsSection = () => {
+  const navigate = useNavigate();
   const [table, setTable] = useState<PayoutTable | null>(null);
   const [error, setError] = useState('');
   const [view, setView] = useState<View>('session');
+  const [month, setMonth] = useState<string>(ALL_MONTHS);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'startDateTime', dir: 'desc' });
 
@@ -137,10 +145,30 @@ const CoachPaymentsSection = () => {
     [table]
   );
 
+  const months = useMemo(
+    () => Array.from(new Set((table?.sessions ?? []).map(s => easternMonthKey(s.startDateTime))))
+      .sort()
+      .reverse(),
+    [table]
+  );
+
+  // Choosing a month narrows the whole page, not just the rows: the coach cards
+  // and the headline figures are re-totalled over that month alone.
+  const scoped = useMemo(() => {
+    if (!table) return null;
+    if (month === ALL_MONTHS) return table;
+    const sessions = table.sessions.filter(s => easternMonthKey(s.startDateTime) === month);
+    const rows = table.rows.filter(r => easternMonthKey(r.startDateTime) === month);
+    return { ...table, rows, sessions, ...summarizePayouts(rows, sessions) };
+  }, [table, month]);
+
+  const openInAttendance = (eventId: string) =>
+    navigate(`/admin/attendance/public/${encodeURIComponent(eventId)}`);
+
   const has = (hay: string, needle: string) => hay.toLowerCase().includes(needle.trim().toLowerCase());
 
   const visibleSessions = useMemo(() => {
-    let rows = table?.sessions ?? [];
+    let rows = scoped?.sessions ?? [];
     if (filters.sessionTitle) rows = rows.filter(r => has(r.title, filters.sessionTitle));
     if (filters.facility) rows = rows.filter(r => r.facility === filters.facility);
     if (filters.supportCoaches) {
@@ -164,10 +192,10 @@ const CoachPaymentsSection = () => {
       if (av === bv) return Date.parse(b.startDateTime) - Date.parse(a.startDateTime);
       return av > bv ? dir : -dir;
     });
-  }, [table, filters, sort]);
+  }, [scoped, filters, sort]);
 
   const visibleRows = useMemo(() => {
-    let rows = table?.rows ?? [];
+    let rows = scoped?.rows ?? [];
     if (filters.coach) rows = rows.filter(r => has(r.coach, filters.coach));
     if (filters.sessionTitle) rows = rows.filter(r => has(r.sessionTitle, filters.sessionTitle));
     if (filters.facility) rows = rows.filter(r => r.facility === filters.facility);
@@ -190,7 +218,7 @@ const CoachPaymentsSection = () => {
       if (av === bv) return Date.parse(b.startDateTime) - Date.parse(a.startDateTime);
       return av > bv ? dir : -dir;
     });
-  }, [table, filters, sort]);
+  }, [scoped, filters, sort]);
 
   const sessionProfitTotal = useMemo(
     () => visibleSessions.reduce((s, r) => s + r.profit, 0),
@@ -207,18 +235,33 @@ const CoachPaymentsSection = () => {
     <div className="px-5 py-5">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
         <h1 className="text-white text-xl font-semibold">Coach Payments</h1>
-        <div className="flex bg-white/[0.04] border border-white/10 rounded-lg p-0.5">
-          {([['session', 'Session'], ['coach', 'Coach']] as [View, string][]).map(([v, label]) => (
-            <button
-              key={v}
-              onClick={() => switchView(v)}
-              className={`px-4 py-1.5 text-[12px] rounded-md transition-colors ${
-                view === v ? 'bg-white text-black font-medium' : 'text-white/60 hover:text-white'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+        <div className="flex items-center gap-2">
+          {/* Narrows the table and re-totals every coach card to that month. */}
+          <select
+            value={month}
+            onChange={e => setMonth(e.target.value)}
+            className={`px-3 py-1.5 text-[12px] rounded-lg border outline-none transition-colors ${
+              month === ALL_MONTHS
+                ? 'bg-white/[0.04] border-white/10 text-white/70 hover:text-white'
+                : 'bg-white text-black font-medium border-white'
+            }`}
+          >
+            <option value={ALL_MONTHS}>All months</option>
+            {months.map(m => <option key={m} value={m}>{easternMonthLabel(m)}</option>)}
+          </select>
+          <div className="flex bg-white/[0.04] border border-white/10 rounded-lg p-0.5">
+            {([['session', 'Session'], ['coach', 'Coach']] as [View, string][]).map(([v, label]) => (
+              <button
+                key={v}
+                onClick={() => switchView(v)}
+                className={`px-4 py-1.5 text-[12px] rounded-md transition-colors ${
+                  view === v ? 'bg-white text-black font-medium' : 'text-white/60 hover:text-white'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -226,7 +269,7 @@ const CoachPaymentsSection = () => {
         <div className="bg-red-500/10 border border-red-500/30 text-red-300 text-sm rounded-lg px-4 py-2.5 mb-4">{error}</div>
       )}
 
-      {!table ? (
+      {!scoped ? (
         <div className="bg-[#0e0e0e] border border-[#1c1c1c] rounded-xl px-6 py-12 text-center">
           <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin mx-auto" />
           <p className="text-white/50 text-sm mt-3">Pulling attendance, facilities and session revenue…</p>
@@ -239,16 +282,16 @@ const CoachPaymentsSection = () => {
             <div className="flex items-baseline justify-between gap-3 mb-2">
               <h2 className="text-white/70 text-[11px] uppercase tracking-wider font-semibold">Profit by coach</h2>
               <p className="text-white/40 text-[12px]">
-                <span className="text-emerald-300 font-medium">{fmtMoney(table.grandTotal)}</span> paid out
-                {table.adminFeeTotal > 0 && (
-                  <> · <span className="text-amber-300/80 font-medium">{fmtMoney(table.adminFeeTotal)}</span> admin kept</>
+                <span className="text-emerald-300 font-medium">{fmtMoney(scoped.grandTotal)}</span> paid out
+                {scoped.adminFeeTotal > 0 && (
+                  <> · <span className="text-amber-300/80 font-medium">{fmtMoney(scoped.adminFeeTotal)}</span> admin kept</>
                 )}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              {table.totalsByCoach.length === 0 ? (
+              {scoped.totalsByCoach.length === 0 ? (
                 <p className="text-white/30 text-sm">No coach payouts in this window.</p>
-              ) : table.totalsByCoach.map(t => (
+              ) : scoped.totalsByCoach.map(t => (
                 <button
                   key={t.coach}
                   onClick={() => {
@@ -277,18 +320,21 @@ const CoachPaymentsSection = () => {
           </div>
           {/* Summary bar */}
           <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-            {filtersActive ? (
-              <button
-                onClick={() => setFilters(EMPTY_FILTERS)}
-                className="px-3 py-1.5 text-[12px] text-white/60 hover:text-white border border-white/10 hover:border-white/25 rounded-lg transition-colors"
-              >
-                Clear filters
-              </button>
-            ) : <span />}
+            <div className="flex items-center gap-3">
+              {filtersActive && (
+                <button
+                  onClick={() => setFilters(EMPTY_FILTERS)}
+                  className="px-3 py-1.5 text-[12px] text-white/60 hover:text-white border border-white/10 hover:border-white/25 rounded-lg transition-colors"
+                >
+                  Clear filters
+                </button>
+              )}
+              <p className="text-white/25 text-[11px]">Click a row to open it in the Attendance Manager</p>
+            </div>
             <p className="text-white/40 text-[12px]">
               {view === 'session' ? (
                 <>
-                  {visibleSessions.length} of {table.sessions.length} sessions ·{' '}
+                  {visibleSessions.length} of {scoped.sessions.length} sessions ·{' '}
                   <span className={sessionProfitTotal < 0 ? 'text-rose-300 font-medium' : 'text-emerald-300 font-medium'}>
                     {fmtMoney(sessionProfitTotal)}
                   </span>{' '}
@@ -296,7 +342,7 @@ const CoachPaymentsSection = () => {
                 </>
               ) : (
                 <>
-                  {visibleRows.length} of {table.rows.length} rows ·{' '}
+                  {visibleRows.length} of {scoped.rows.length} rows ·{' '}
                   <span className="text-emerald-300 font-medium">{fmtMoney(coachPaymentTotal)}</span>
                   {filtersActive ? ' shown' : ' total'}
                 </>
@@ -341,7 +387,11 @@ const CoachPaymentsSection = () => {
                           : 'Gyau share: not eligible',
                       ].filter(Boolean).join('\n');
                       return (
-                        <tr key={s.id} className="border-b border-white/[0.04] last:border-0 hover:bg-white/[0.02] align-top">
+                        <tr
+                          key={s.id}
+                          onClick={() => openInAttendance(s.eventId)}
+                          className="border-b border-white/[0.04] last:border-0 hover:bg-white/[0.04] align-top cursor-pointer"
+                        >
                           <td className="px-3 py-2 text-white text-[12px]">{s.title}</td>
                           <td className="px-3 py-2 text-white/50 text-[12px] whitespace-nowrap">{fmtDateTime(s.startDateTime, s.dateOnly)}</td>
                           <td className="px-3 py-2 text-white/70 text-[12px]">
@@ -411,7 +461,11 @@ const CoachPaymentsSection = () => {
                     {visibleRows.length === 0 ? (
                       <tr><td colSpan={7} className="px-3 py-8 text-center text-white/30 text-sm">No rows match these filters.</td></tr>
                     ) : visibleRows.map(r => (
-                      <tr key={r.id} className="border-b border-white/[0.04] last:border-0 hover:bg-white/[0.02]">
+                      <tr
+                        key={r.id}
+                        onClick={() => openInAttendance(r.eventId)}
+                        className="border-b border-white/[0.04] last:border-0 hover:bg-white/[0.04] cursor-pointer"
+                      >
                         <td className="px-3 py-2 text-white text-[12px] whitespace-nowrap">
                           {r.coach}
                           {!r.attended && (

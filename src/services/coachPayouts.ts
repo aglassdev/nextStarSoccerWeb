@@ -110,6 +110,15 @@ export const gyauEligible = (event: CalendarEvent): boolean => {
 const easternDay = (iso: string) =>
   new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date(iso));
 
+// "2026-04" for the month a session falls in, read in Eastern time so a 9pm
+// session on the last of the month does not slide into the next one.
+export const easternMonthKey = (iso: string) => easternDay(iso).slice(0, 7);
+
+export const easternMonthLabel = (key: string) => {
+  const [y, m] = key.split("-").map(Number);
+  return new Date(y, (m || 1) - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+};
+
 // A Nike camp day is sold as an overlapping half day and full day at the same
 // start time. They are one session on the ground, so they are combined: the
 // revenue adds up, but the facility hire and each coach's pay are only counted
@@ -208,6 +217,10 @@ export interface SessionCost {
 // and what was left over.
 export interface SessionRow {
   id: string;
+  // The calendar event this row links back to. Usually the same as `id`; on a
+  // combined camp day `id` is a synthetic key, so this holds the first real
+  // event of the day so the row can still open in the Attendance Manager.
+  eventId: string;
   title: string;
   startDateTime: string;
   dateOnly?: boolean;
@@ -229,6 +242,7 @@ export interface SessionRow {
 // One row of the Coach view: what a single coach earned on a single session.
 export interface PayoutRow {
   id: string;
+  eventId: string;
   coach: string;
   sessionTitle: string;
   startDateTime: string;
@@ -361,6 +375,7 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
 
     sessions.push({
       id: event.id,
+      eventId: (memberIds.get(event.id) ?? [event.id])[0],
       title: event.title,
       startDateTime: event.startDateTime,
       dateOnly: event.dateOnly,
@@ -389,6 +404,7 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
     for (const support of session.supportCoaches) {
       rows.push({
         id: `${session.id}::${normalizeName(support.name)}`,
+        eventId: session.eventId,
         coach: support.name,
         sessionTitle: session.title,
         startDateTime: session.startDateTime,
@@ -411,6 +427,7 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
     const afterAdmin = net - session.adminFee;
     rows.push({
       id: `${session.id}::${GYAU}`,
+      eventId: session.eventId,
       coach: gyauDisplayName,
       sessionTitle: session.title,
       startDateTime: session.startDateTime,
@@ -431,6 +448,16 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
   rows.sort((a, b) => Date.parse(b.startDateTime) - Date.parse(a.startDateTime));
   sessions.sort((a, b) => Date.parse(b.startDateTime) - Date.parse(a.startDateTime));
 
+  return { rows, sessions, builtAt: data.builtAt, ...summarizePayouts(rows, sessions) };
+}
+
+// The per-coach cards and the headline figures, over whatever slice of rows it
+// is handed. Kept separate from the calculation itself so narrowing the table
+// to one month can re-total it without recomputing every session.
+export function summarizePayouts(
+  rows: PayoutRow[],
+  sessions: SessionRow[],
+): Pick<PayoutTable, "totalsByCoach" | "grandTotal" | "adminFeeTotal"> {
   const byCoach = new Map<string, { coach: string; total: number | null; sessions: number }>();
   for (const row of rows) {
     const key = normalizeName(row.coach);
@@ -447,11 +474,7 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
   const totalsByCoach = Array.from(byCoach.values()).sort(
     (a, b) => (b.total ?? -1) - (a.total ?? -1) || a.coach.localeCompare(b.coach)
   );
-
   return {
-    rows,
-    sessions,
-    builtAt: data.builtAt,
     totalsByCoach,
     grandTotal: rows.reduce((s, r) => s + (r.payment ?? 0), 0),
     adminFeeTotal,
