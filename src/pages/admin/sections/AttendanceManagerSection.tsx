@@ -1822,15 +1822,24 @@ const AttendanceManagerSection = () => {
   }, []);
 
   // Keep the open session in step with the URL, so a link from elsewhere in the
-  // admin — the Coach Payments table, say — lands straight on that session.
+  // admin — the Coach Payments table, a player profile — lands straight on that
+  // session. The calendar in the link is only a hint: signups never recorded
+  // which one an event came from, so try the other side before giving up.
   useEffect(() => {
     if (loading) return;
     if (!params.eventId || !params.calType) { setSelected(null); return; }
-    const calType = params.calType as CalType;
-    const list = calType === 'public' ? publicEvents : privateEvents;
-    const found = list.find(e => e.id === params.eventId);
-    setSelected(found ? { event: found, calType } : null);
-  }, [loading, params.eventId, params.calType, publicEvents, privateEvents]);
+    const wanted: CalType = params.calType === 'private' ? 'private' : 'public';
+    const order: CalType[] = wanted === 'public' ? ['public', 'private'] : ['private', 'public'];
+    for (const calType of order) {
+      const found = (calType === 'public' ? publicEvents : privateEvents)
+        .find(e => e.id === params.eventId);
+      if (!found) continue;
+      setSelected({ event: found, calType });
+      if (calType !== wanted) navigate(`/admin/attendance/${calType}/${found.id}`, { replace: true });
+      return;
+    }
+    setSelected(null);
+  }, [loading, params.eventId, params.calType, publicEvents, privateEvents, navigate]);
 
   // Load the player roster once (shared with the week view's add-check-in search)
   useEffect(() => {

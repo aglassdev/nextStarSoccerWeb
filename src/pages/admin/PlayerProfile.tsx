@@ -106,6 +106,60 @@ const SubSection = ({ title, fields }: { title: string; fields: { label: string;
   );
 };
 
+// When a session actually happened, as opposed to when its signup or check-in
+// document was written. All-day sessions store a bare "YYYY-MM-DD", which is
+// read as local so it cannot slip back a day through a timezone.
+const sessionDate = (raw?: string): Date | null => {
+  if (!raw) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  const d = new Date(raw);
+  return Number.isNaN(d.getTime()) ? null : d;
+};
+
+const fmtSessionDate = (raw?: string): string | null => {
+  const d = sessionDate(raw);
+  if (!d) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw as string)) {
+    return `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} · All day`;
+  }
+  const date = d.toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/New_York',
+  });
+  const time = d.toLocaleTimeString('en-US', {
+    hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York',
+  });
+  return `${date} · ${time}`;
+};
+
+const eventIdOf = (d: any): string => d.eventID || d.eventId || d.eventid || '';
+
+// One signup or check-in: what the session was and when it ran. Opens that
+// session in the Attendance Manager, where the rest of the roster lives.
+const SessionRow = ({ doc, onOpen, children }: {
+  doc: any;
+  onOpen: (doc: any) => void;
+  children?: React.ReactNode;
+}) => {
+  const eventId = eventIdOf(doc);
+  return (
+    <div className="flex items-start justify-between gap-2 py-2 border-b border-white/[0.05]">
+      <button
+        onClick={() => eventId && onOpen(doc)}
+        disabled={!eventId}
+        title={eventId ? 'Open in the Attendance Manager' : undefined}
+        className="min-w-0 text-left group disabled:cursor-default"
+      >
+        <p className="text-white text-xs truncate group-enabled:group-hover:underline">
+          {doc.eventTitle || eventId || '—'}
+        </p>
+        <p className="text-white/40 text-[10px] mt-0.5">{fmtSessionDate(doc.eventDate) || '—'}</p>
+      </button>
+      {children}
+    </div>
+  );
+};
+
 // Only renders if value is non-empty
 const InfoRow = ({ label, value }: { label: string; value?: string | null }) => {
   if (!value || value.trim() === '') return null;
@@ -256,7 +310,9 @@ const PlayerProfile = () => {
         const allCheckins = dedupeById(checkinsByDocId, checkinsByProxyDocId, checkinsByProxyFieldId, checkinsByProxyFieldUserId);
         const allBills = billsRes;
 
-        setCheckins(allCheckins);
+        setCheckins(allCheckins.sort(
+          (a: any, b: any) => (sessionDate(b.eventDate)?.getTime() ?? 0) - (sessionDate(a.eventDate)?.getTime() ?? 0)
+        ));
         setBills(allBills);
 
         const checkedEventIds = new Set(allCheckins.map((c: any) => c.eventId || c.eventID || c.eventid));
@@ -267,7 +323,8 @@ const PlayerProfile = () => {
 
         const counts = Array(6).fill(0);
         allCheckins.forEach((c: any) => {
-          const d = new Date(c.$createdAt || c.checkinTime);
+          const d = sessionDate(c.eventDate);
+          if (!d) return;
           for (let i = 0; i < 6; i++) {
             const target = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
             if (d.getFullYear() === target.getFullYear() && d.getMonth() === target.getMonth()) counts[i]++;
@@ -348,6 +405,11 @@ const PlayerProfile = () => {
     })
     .sort((a, b) => Date.parse(a.eventDate || a.signupDate || '') - Date.parse(b.eventDate || b.signupDate || ''));
   const fmtDate = (str?: string) => str ? new Date(str).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null;
+
+  // Signups do not record which calendar an event came from, so this is only a
+  // hint — the Attendance Manager checks the other calendar before giving up.
+  const openSession = (doc: any) =>
+    navigate(`/admin/attendance/${doc.calendarSource === 'private' ? 'private' : 'public'}/${encodeURIComponent(eventIdOf(doc))}`);
 
   // Personal info attribute resolution
   const birthDateRaw = player.birthDate || player.dateOfBirth || player.dob || player.birthdate || null;
@@ -494,15 +556,11 @@ const PlayerProfile = () => {
             ) : (
               <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
                 {upcomingSignups.map((s: any) => (
-                  <div key={s.$id} className="flex items-start justify-between gap-2 py-2 border-b border-white/[0.05]">
-                    <div className="min-w-0">
-                      <p className="text-white text-xs truncate">{s.eventTitle || s.eventId || s.eventID || '—'}</p>
-                      <p className="text-white/40 text-[10px] mt-0.5">{fmtDate(s.signupDate || s.$createdAt) || '—'}</p>
-                    </div>
+                  <SessionRow key={s.$id} doc={s} onOpen={openSession}>
                     {s.status && (
                       <span className="text-[10px] text-white/40 border border-white/10 rounded px-1.5 py-0.5 flex-shrink-0">{s.status}</span>
                     )}
-                  </div>
+                  </SessionRow>
                 ))}
               </div>
             )}
@@ -516,16 +574,8 @@ const PlayerProfile = () => {
               <p className="text-white/20 text-xs">None</p>
             ) : (
               <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                {checkins.slice().reverse().map((c: any) => (
-                  <div key={c.$id} className="flex items-start justify-between gap-2 py-2 border-b border-white/[0.05]">
-                    <div className="min-w-0">
-                      <p className="text-white text-xs truncate">{c.eventTitle || c.eventId || c.eventID || '—'}</p>
-                      <p className="text-white/40 text-[10px] mt-0.5">{fmtDate(c.checkinTime || c.$createdAt) || '—'}</p>
-                    </div>
-                    {c.checkoutTime && (
-                      <span className="text-[10px] text-white/30 flex-shrink-0">out {fmtDate(c.checkoutTime)}</span>
-                    )}
-                  </div>
+                {checkins.map((c: any) => (
+                  <SessionRow key={c.$id} doc={c} onOpen={openSession} />
                 ))}
               </div>
             )}
