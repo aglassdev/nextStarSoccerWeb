@@ -268,7 +268,7 @@ const BillModal = ({
                   {!editingDue && (
                     <button
                       onClick={() => { setEditDueVal(dueDateInput); setEditingDue(true); }}
-                      className="text-gray-600 hover:text-blue-400 transition-colors"
+                      className="text-gray-600 hover:text-white transition-colors"
                       title="Edit due date"
                     >
                       <PencilIcon />
@@ -281,13 +281,13 @@ const BillModal = ({
                       type="date"
                       value={editDueVal}
                       onChange={e => setEditDueVal(e.target.value)}
-                      className="flex-1 min-w-0 bg-[#1a1a1a] border border-gray-700 rounded-lg px-2 py-1 text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 [color-scheme:dark]"
+                      className="flex-1 min-w-0 bg-[#1a1a1a] border border-gray-700 rounded-lg px-2 py-1 text-white text-sm focus:outline-none focus:ring-1 focus:ring-white/40 [color-scheme:dark]"
                       autoFocus
                     />
                     <button
                       onClick={handleSaveDue}
                       disabled={savingDue}
-                      className="p-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors disabled:opacity-50"
+                      className="p-1.5 bg-white hover:bg-gray-200 text-black rounded-lg transition-colors disabled:opacity-50"
                     >
                       <CheckIcon />
                     </button>
@@ -314,7 +314,7 @@ const BillModal = ({
                 {!editingTotal && (
                   <button
                     onClick={() => { setEditTotalVal(String(bill.totalAmount ?? '')); setEditingTotal(true); }}
-                    className="text-gray-600 hover:text-blue-400 transition-colors"
+                    className="text-gray-600 hover:text-white transition-colors"
                     title="Edit total"
                   >
                     <PencilIcon />
@@ -330,13 +330,13 @@ const BillModal = ({
                     min="0"
                     value={editTotalVal}
                     onChange={e => setEditTotalVal(e.target.value)}
-                    className="flex-1 bg-[#1a1a1a] border border-gray-700 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="flex-1 bg-[#1a1a1a] border border-gray-700 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:ring-1 focus:ring-white/40"
                     autoFocus
                   />
                   <button
                     onClick={handleSaveTotal}
                     disabled={savingTotal}
-                    className="p-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors disabled:opacity-50"
+                    className="p-1.5 bg-white hover:bg-gray-200 text-black rounded-lg transition-colors disabled:opacity-50"
                   >
                     <CheckIcon />
                   </button>
@@ -359,7 +359,7 @@ const BillModal = ({
               <p className="text-gray-500 text-xs uppercase tracking-wider mb-3">Sessions</p>
               {loadingItems ? (
                 <div className="flex items-center justify-center h-16">
-                  <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 </div>
               ) : items.length === 0 ? (
                 <p className="text-gray-600 text-sm text-center py-4">No session items found</p>
@@ -385,13 +385,13 @@ const BillModal = ({
                               min="0"
                               value={editItemVal}
                               onChange={e => setEditItemVal(e.target.value)}
-                              className="w-20 bg-[#1a1a1a] border border-gray-700 rounded px-2 py-1 text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              className="w-20 bg-[#1a1a1a] border border-gray-700 rounded px-2 py-1 text-white text-sm focus:outline-none focus:ring-1 focus:ring-white/40"
                               autoFocus
                             />
                             <button
                               onClick={() => handleSaveItem(item)}
                               disabled={savingItemId === item.$id}
-                              className="p-1 bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors disabled:opacity-50"
+                              className="p-1 bg-white hover:bg-gray-200 text-black rounded transition-colors disabled:opacity-50"
                             >
                               <CheckIcon />
                             </button>
@@ -409,7 +409,7 @@ const BillModal = ({
                             </span>
                             <button
                               onClick={() => { setEditItemVal(String(item.price)); setEditingItemId(item.$id); }}
-                              className="text-gray-600 hover:text-blue-400 transition-colors"
+                              className="text-gray-600 hover:text-white transition-colors"
                               title="Edit amount"
                             >
                               <PencilIcon />
@@ -606,7 +606,7 @@ const BillsSection = () => {
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              activeTab === tab ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
+              activeTab === tab ? 'bg-white text-black font-medium' : 'text-gray-400 hover:text-white'
             }`}
           >
             {tabLabel[tab]}
@@ -621,13 +621,13 @@ const BillsSection = () => {
           placeholder="Search by name..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="w-full max-w-md px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600"
+          className="w-full max-w-md px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-white/40"
         />
       </div>
 
       {loading && (
         <div className="flex items-center justify-center h-48">
-          <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin" />
         </div>
       )}
       {error && (
@@ -651,7 +651,7 @@ const BillsSection = () => {
                     <span className="inline-flex items-center gap-1">
                       {label}
                       {sortKey === key
-                        ? <span className="text-blue-400">{sortDir === 'asc' ? '↑' : '↓'}</span>
+                        ? <span className="text-white">{sortDir === 'asc' ? '↑' : '↓'}</span>
                         : <span className="text-gray-700">↕</span>
                       }
                     </span>

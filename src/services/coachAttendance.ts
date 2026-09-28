@@ -48,7 +48,10 @@ export interface CoachAttendanceData {
   coaches: CoachRow[];
   events: CalendarEvent[];
   coachesByEvent: Record<string, EventCoaches>;
+  // What a session has actually brought in: bill items sitting on a paid bill.
   revenueByEvent: Record<string, number>;
+  // What it is due to bring in: everything billed for it, paid or not.
+  expectedRevenueByEvent: Record<string, number>;
   builtAt: string;
 }
 
@@ -124,12 +127,13 @@ async function loadEvents(): Promise<CalendarEvent[]> {
 }
 
 export async function buildCoachAttendance(): Promise<CoachAttendanceData> {
-  const [coachDocs, signups, checkins, playerCheckins, billItems, events] = await Promise.all([
+  const [coachDocs, signups, checkins, playerCheckins, billItems, bills, events] = await Promise.all([
     safeList(collections.coaches),
     safeList(collections.coachSignups),
     safeList(collections.coachCheckins),
     safeList(collections.checkins),
     safeList(collections.billItems),
+    safeList(collections.bills),
     loadEvents(),
   ]);
 
@@ -222,10 +226,18 @@ export async function buildCoachAttendance(): Promise<CoachAttendanceData> {
     }
   }
 
+  // A cancelled bill is neither collected nor owed, so it counts as neither.
+  // An item whose bill cannot be found is still something we billed for.
+  const billStatus = new Map<string, string>(bills.map(b => [b.$id, b.status]));
   const revenueByEvent: Record<string, number> = {};
+  const expectedRevenueByEvent: Record<string, number> = {};
   for (const item of billItems) {
     if (!item.eventId) continue;
-    revenueByEvent[item.eventId] = (revenueByEvent[item.eventId] || 0) + (item.price || 0);
+    const status = billStatus.get(item.billId);
+    if (status === "cancelled") continue;
+    const price = item.price || 0;
+    expectedRevenueByEvent[item.eventId] = (expectedRevenueByEvent[item.eventId] || 0) + price;
+    if (status === "paid") revenueByEvent[item.eventId] = (revenueByEvent[item.eventId] || 0) + price;
   }
 
   const sortByDate = (a: CoachSession, b: CoachSession) =>
@@ -245,5 +257,8 @@ export async function buildCoachAttendance(): Promise<CoachAttendanceData> {
   const excludedEventIds = Array.from(await getExcludedEventIds());
   const facilityCosts = await getFacilityCosts(events.map(e => e.id));
 
-  return { excludedEventIds, facilityCosts, coaches, events, coachesByEvent, revenueByEvent, builtAt: new Date().toISOString() };
+  return {
+    excludedEventIds, facilityCosts, coaches, events, coachesByEvent,
+    revenueByEvent, expectedRevenueByEvent, builtAt: new Date().toISOString(),
+  };
 }

@@ -53,6 +53,9 @@ export const GYAU_ABSENT_SHARE = 0.3;
 
 const lower = (s: string) => (s || "").toLowerCase();
 
+const fmtUsd = (n: number) =>
+  n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 });
+
 export const isCamp = (title: string) => lower(title).includes("camp");
 export const isNikeCamp = (title: string) =>
   lower(title).includes("nike") && isCamp(title);
@@ -231,10 +234,17 @@ export interface SessionRow {
   facilityCost: number;
   otherCosts: SessionCost[];
   otherCost: number;
+  // Two tracks run side by side: what a session has actually collected, and
+  // what it is due to collect once every bill on it is paid. Coach hours are
+  // the same either way, so only the revenue-derived figures differ.
   revenue: number;
   profit: number;
   adminFee: number;      // 5% of profit, taken before Gyau's share
   gyauShare: number;
+  expectedRevenue: number;
+  expectedProfit: number;
+  expectedAdminFee: number;
+  expectedGyauShare: number;
   gyauAttended: boolean;
   gyauEligible: boolean;
 }
@@ -254,7 +264,9 @@ export interface PayoutRow {
   supportCoaches: string[] | null;
   supportCost: number | null;
   revenue: number;
+  expectedRevenue: number;
   payment: number | null;
+  expectedPayment: number | null;
   basis: string;
   attended: boolean;
 }
@@ -264,9 +276,14 @@ export interface PayoutTable {
   sessions: SessionRow[];
   builtAt: string;
   // adminFee is only set on Gyau, whose share is what it is taken from.
-  totalsByCoach: { coach: string; total: number | null; sessions: number; adminFee?: number }[];
+  totalsByCoach: {
+    coach: string; total: number | null; expectedTotal: number | null;
+    sessions: number; adminFee?: number; expectedAdminFee?: number;
+  }[];
   grandTotal: number;
+  expectedGrandTotal: number;
   adminFeeTotal: number;
+  expectedAdminFeeTotal: number;
 }
 
 export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
@@ -305,8 +322,10 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
   }
   events.sort((a, b) => Date.parse(a.startDateTime) - Date.parse(b.startDateTime));
 
-  const revenueFor = (key: string) =>
-    (memberIds.get(key) ?? [key]).reduce((sum, id) => sum + (data.revenueByEvent[id] || 0), 0);
+  const sumOver = (key: string, table: Record<string, number>) =>
+    (memberIds.get(key) ?? [key]).reduce((sum, id) => sum + (table[id] || 0), 0);
+  const revenueFor = (key: string) => sumOver(key, data.revenueByEvent);
+  const expectedRevenueFor = (key: string) => sumOver(key, data.expectedRevenueByEvent ?? {});
 
   // Within a combined camp day a coach may only have worked the half day, so
   // pay them for the longest event they are actually credited on rather than
@@ -342,9 +361,10 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
   for (const event of events) {
     const attendees = attendeesFor(event.id);
     const revenue = revenueFor(event.id);
-    // A session nobody is credited on and that took nothing in has nothing to
+    const expectedRevenue = expectedRevenueFor(event.id);
+    // A session nobody is credited on and that is owed nothing has nothing to
     // report either way.
-    if (attendees.length === 0 && revenue <= 0) continue;
+    if (attendees.length === 0 && expectedRevenue <= 0) continue;
 
     const headCoaches = attendees.filter(n => HEAD_COACHES.has(normalizeName(n)));
     const headCoachPresent = headCoaches.length > 0;
@@ -365,13 +385,19 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
     const facilityCost = facilityCostFor(event, data.facilityCosts);
     const profit = revenue - facilityCost - supportCost - otherCost;
 
+    const expectedProfit = expectedRevenue - facilityCost - supportCost - otherCost;
+
     const eligible = gyauEligible(event);
     const attended = attendees.some(n => normalizeName(n) === GYAU);
-    // Neither the fee nor his share goes negative on a session that lost money.
-    const net = Math.max(0, profit);
-    const adminFee = eligible ? net * ADMIN_FEE_RATE : 0;
     const shareRate = attended ? GYAU_ATTENDED_SHARE : GYAU_ABSENT_SHARE;
-    const gyauShare = eligible ? (net - adminFee) * shareRate : 0;
+    // Neither the fee nor his share goes negative on a session that lost money.
+    const split = (p: number) => {
+      const net = Math.max(0, p);
+      const fee = eligible ? net * ADMIN_FEE_RATE : 0;
+      return { fee, share: eligible ? (net - fee) * shareRate : 0 };
+    };
+    const { fee: adminFee, share: gyauShare } = split(profit);
+    const { fee: expectedAdminFee, share: expectedGyauShare } = split(expectedProfit);
 
     sessions.push({
       id: event.id,
@@ -390,6 +416,10 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
       profit,
       adminFee,
       gyauShare,
+      expectedRevenue,
+      expectedProfit,
+      expectedAdminFee,
+      expectedGyauShare,
       gyauAttended: attended,
       gyauEligible: eligible,
     });
@@ -414,7 +444,9 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
         supportCoaches: null,
         supportCost: null,
         revenue: session.revenue,
+        expectedRevenue: session.expectedRevenue,
         payment: support.amount,
+        expectedPayment: support.amount,
         basis: support.basis,
         attended: true,
       });
@@ -422,9 +454,9 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
 
     // Gyau earns from every eligible session, whether or not he was there.
     if (!session.gyauEligible) continue;
-    if (!session.gyauAttended && session.revenue <= 0) continue;
-    const net = Math.max(0, session.profit);
-    const afterAdmin = net - session.adminFee;
+    if (!session.gyauAttended && session.expectedRevenue <= 0) continue;
+    const net = Math.max(0, session.expectedProfit);
+    const afterAdmin = net - session.expectedAdminFee;
     rows.push({
       id: `${session.id}::${GYAU}`,
       eventId: session.eventId,
@@ -437,10 +469,13 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
       supportCoaches: supportNames,
       supportCost: session.supportCost,
       revenue: session.revenue,
+      expectedRevenue: session.expectedRevenue,
       payment: session.gyauShare,
-      basis: session.gyauAttended
-        ? `50% of $${afterAdmin.toFixed(2)} (attended) — $${net.toFixed(2)} net less 5% admin`
-        : `30% of $${afterAdmin.toFixed(2)} (did not attend) — $${net.toFixed(2)} net less 5% admin`,
+      expectedPayment: session.expectedGyauShare,
+      basis: `${session.gyauAttended ? '50%' : '30%'} ${session.gyauAttended ? '(attended)' : '(did not attend)'} — `
+        + `earned on ${fmtUsd(session.revenue)} collected, `
+        + `expected once all ${fmtUsd(session.expectedRevenue)} billed is in: `
+        + `${fmtUsd(afterAdmin)} net of 5% admin`,
       attended: session.gyauAttended,
     });
   }
@@ -457,26 +492,37 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
 export function summarizePayouts(
   rows: PayoutRow[],
   sessions: SessionRow[],
-): Pick<PayoutTable, "totalsByCoach" | "grandTotal" | "adminFeeTotal"> {
-  const byCoach = new Map<string, { coach: string; total: number | null; sessions: number }>();
+): Pick<PayoutTable, "totalsByCoach" | "grandTotal" | "expectedGrandTotal" | "adminFeeTotal" | "expectedAdminFeeTotal"> {
+  type Entry = PayoutTable["totalsByCoach"][number];
+  const byCoach = new Map<string, Entry>();
   for (const row of rows) {
     const key = normalizeName(row.coach);
-    const entry = byCoach.get(key) ?? { coach: row.coach, total: 0 as number | null, sessions: 0 };
+    const entry = byCoach.get(key)
+      ?? { coach: row.coach, total: 0 as number | null, expectedTotal: 0 as number | null, sessions: 0 };
     entry.sessions += 1;
     if (row.payment === null) entry.total = null;
     else if (entry.total !== null) entry.total += row.payment;
+    if (row.expectedPayment === null) entry.expectedTotal = null;
+    else if (entry.expectedTotal !== null) entry.expectedTotal += row.expectedPayment;
     byCoach.set(key, entry);
   }
   const adminFeeTotal = sessions.reduce((s, x) => s + x.adminFee, 0);
+  const expectedAdminFeeTotal = sessions.reduce((s, x) => s + x.expectedAdminFee, 0);
   for (const entry of byCoach.values()) {
-    if (normalizeName(entry.coach) === GYAU) (entry as any).adminFee = adminFeeTotal;
+    if (normalizeName(entry.coach) !== GYAU) continue;
+    entry.adminFee = adminFeeTotal;
+    entry.expectedAdminFee = expectedAdminFeeTotal;
   }
+  // Ranked on what a coach is due in total, so a card does not jump around as
+  // bills are settled.
   const totalsByCoach = Array.from(byCoach.values()).sort(
-    (a, b) => (b.total ?? -1) - (a.total ?? -1) || a.coach.localeCompare(b.coach)
+    (a, b) => (b.expectedTotal ?? -1) - (a.expectedTotal ?? -1) || a.coach.localeCompare(b.coach)
   );
   return {
     totalsByCoach,
     grandTotal: rows.reduce((s, r) => s + (r.payment ?? 0), 0),
+    expectedGrandTotal: rows.reduce((s, r) => s + (r.expectedPayment ?? 0), 0),
     adminFeeTotal,
+    expectedAdminFeeTotal,
   };
 }

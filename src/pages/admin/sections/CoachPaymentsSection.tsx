@@ -7,7 +7,7 @@ import {
 } from '../../../services/coachPayouts';
 
 // Bumped whenever the cached shape changes, so an old payload is never drawn.
-const CACHE_KEY = 'nss.coachPayouts.v6';
+const CACHE_KEY = 'nss.coachPayouts.v8';
 
 const ALL_MONTHS = 'all';
 
@@ -27,7 +27,7 @@ const fmtDateTime = (iso: string, dateOnly?: boolean) => {
 
 type View = 'session' | 'coach';
 
-type SessionSortKey = 'title' | 'startDateTime' | 'headCoaches' | 'supportCoaches' | 'facility' | 'facilityCost' | 'profit';
+type SessionSortKey = 'title' | 'startDateTime' | 'headCoaches' | 'supportCoaches' | 'facility' | 'facilityCost' | 'revenue' | 'profit';
 type CoachSortKey = 'coach' | 'sessionTitle' | 'startDateTime' | 'facility' | 'supportCoaches' | 'supportCost' | 'payment';
 type SortKey = SessionSortKey | CoachSortKey;
 type SortDir = 'asc' | 'desc';
@@ -96,6 +96,13 @@ const FacilitySelect = ({ value, onChange, facilities }: {
 
 const Dash = () => <span className="text-white/20">—</span>;
 
+// What a figure becomes once every bill behind it is settled. Only worth
+// printing when it differs from what has actually come in.
+const Expected = ({ value, of }: { value: number; of: number }) =>
+  Math.abs(value - of) < 0.005 ? null : (
+    <p className="text-white/30 text-[10px] whitespace-nowrap">{fmtMoney(value)} exp.</p>
+  );
+
 const CoachPaymentsSection = () => {
   const navigate = useNavigate();
   const [table, setTable] = useState<PayoutTable | null>(null);
@@ -124,7 +131,10 @@ const CoachPaymentsSection = () => {
     let cancelled = false;
     try {
       const raw = localStorage.getItem(CACHE_KEY);
-      if (raw) setTable(JSON.parse(raw));
+      // Belt and braces on top of the version in the key: a payload missing a
+      // figure the table draws would crash the page rather than look stale.
+      const cached = raw ? JSON.parse(raw) : null;
+      if (cached && typeof cached.expectedGrandTotal === 'number') setTable(cached);
     } catch { /* ignore malformed cache */ }
     recalculate(() => cancelled);
     return () => { cancelled = true; };
@@ -133,7 +143,7 @@ const CoachPaymentsSection = () => {
   const toggleSort = (key: SortKey) =>
     setSort(s => (s.key === key
       ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' }
-      : { key, dir: key === 'startDateTime' || key === 'payment' || key === 'profit' || key === 'supportCost' || key === 'facilityCost' ? 'desc' : 'asc' }));
+      : { key, dir: key === 'startDateTime' || key === 'payment' || key === 'profit' || key === 'revenue' || key === 'supportCost' || key === 'facilityCost' ? 'desc' : 'asc' }));
 
   const switchView = (next: View) => {
     setView(next);
@@ -183,7 +193,8 @@ const CoachPaymentsSection = () => {
         case 'supportCoaches': return r.supportCoaches.length;
         case 'facility': return r.facility.toLowerCase();
         case 'facilityCost': return r.facilityCost;
-        case 'profit': return r.profit;
+        case 'revenue': return r.expectedRevenue;
+        case 'profit': return r.expectedProfit;
         default: return Date.parse(r.startDateTime);
       }
     };
@@ -224,8 +235,16 @@ const CoachPaymentsSection = () => {
     () => visibleSessions.reduce((s, r) => s + r.profit, 0),
     [visibleSessions]
   );
+  const sessionExpectedProfitTotal = useMemo(
+    () => visibleSessions.reduce((s, r) => s + r.expectedProfit, 0),
+    [visibleSessions]
+  );
   const coachPaymentTotal = useMemo(
     () => visibleRows.reduce((s, r) => s + (r.payment ?? 0), 0),
+    [visibleRows]
+  );
+  const coachExpectedTotal = useMemo(
+    () => visibleRows.reduce((s, r) => s + (r.expectedPayment ?? 0), 0),
     [visibleRows]
   );
 
@@ -282,8 +301,9 @@ const CoachPaymentsSection = () => {
             <div className="flex items-baseline justify-between gap-3 mb-2">
               <h2 className="text-white/70 text-[11px] uppercase tracking-wider font-semibold">Profit by coach</h2>
               <p className="text-white/40 text-[12px]">
-                <span className="text-emerald-300 font-medium">{fmtMoney(scoped.grandTotal)}</span> paid out
-                {scoped.adminFeeTotal > 0 && (
+                <span className="text-emerald-300 font-medium">{fmtMoney(scoped.grandTotal)}</span> earned on paid bills
+                {' · '}<span className="text-white/60 font-medium">{fmtMoney(scoped.expectedGrandTotal)}</span> expected
+                {scoped.expectedAdminFeeTotal > 0 && (
                   <> · <span className="text-amber-300/80 font-medium">{fmtMoney(scoped.adminFeeTotal)}</span> admin kept</>
                 )}
               </p>
@@ -308,10 +328,15 @@ const CoachPaymentsSection = () => {
                   <p className={`text-[13px] font-semibold ${t.total === null ? 'text-white/25' : 'text-emerald-300'}`}>
                     {t.total === null ? '—' : fmtMoney(t.total)}
                   </p>
+                  {/* What is still to come once the pending bills are settled. */}
+                  {t.expectedTotal !== null && t.expectedTotal !== t.total && (
+                    <p className="text-white/45 text-[11px]">{fmtMoney(t.expectedTotal)} expected</p>
+                  )}
                   <p className="text-white/30 text-[10px]">{t.sessions} session{t.sessions === 1 ? '' : 's'}</p>
-                  {t.adminFee !== undefined && t.adminFee > 0 && (
+                  {t.expectedAdminFee !== undefined && t.expectedAdminFee > 0 && (
                     <p className="text-white/35 text-[10px] mt-1 pt-1 border-t border-white/[0.08]">
-                      net of {fmtMoney(t.adminFee)} admin
+                      net of {fmtMoney(t.adminFee ?? 0)} admin
+                      {t.expectedAdminFee !== t.adminFee && <> · {fmtMoney(t.expectedAdminFee)} exp.</>}
                     </p>
                   )}
                 </button>
@@ -338,13 +363,14 @@ const CoachPaymentsSection = () => {
                   <span className={sessionProfitTotal < 0 ? 'text-rose-300 font-medium' : 'text-emerald-300 font-medium'}>
                     {fmtMoney(sessionProfitTotal)}
                   </span>{' '}
-                  profit
+                  profit · <span className="text-white/60 font-medium">{fmtMoney(sessionExpectedProfitTotal)}</span> expected
                 </>
               ) : (
                 <>
                   {visibleRows.length} of {scoped.rows.length} rows ·{' '}
                   <span className="text-emerald-300 font-medium">{fmtMoney(coachPaymentTotal)}</span>
-                  {filtersActive ? ' shown' : ' total'}
+                  {filtersActive ? ' shown' : ' earned'}
+                  {' · '}<span className="text-white/60 font-medium">{fmtMoney(coachExpectedTotal)}</span> expected
                 </>
               )}
             </p>
@@ -368,22 +394,23 @@ const CoachPaymentsSection = () => {
                         <FacilitySelect value={filters.facility} onChange={v => setFilters(f => ({ ...f, facility: v }))} facilities={facilities} />
                       </Th>
                       <Th label="Facility cost" sortKey="facilityCost" sort={sort} onSort={toggleSort} align="right" />
+                      <Th label="Revenue" sortKey="revenue" sort={sort} onSort={toggleSort} align="right" />
                       <Th label="Session profit" sortKey="profit" sort={sort} onSort={toggleSort} align="right" />
                     </tr>
                   </thead>
                   <tbody>
                     {visibleSessions.length === 0 ? (
-                      <tr><td colSpan={7} className="px-3 py-8 text-center text-white/30 text-sm">No sessions match these filters.</td></tr>
+                      <tr><td colSpan={8} className="px-3 py-8 text-center text-white/30 text-sm">No sessions match these filters.</td></tr>
                     ) : visibleSessions.map(s => {
                       const breakdown = [
-                        `Revenue ${fmtMoney(s.revenue)}`,
+                        `Revenue ${fmtMoney(s.revenue)} collected of ${fmtMoney(s.expectedRevenue)} billed`,
                         s.facilityCost > 0 ? `− Facility ${fmtMoney(s.facilityCost)}` : null,
                         s.supportCost > 0 ? `− Coaches ${fmtMoney(s.supportCost)}` : null,
                         ...s.otherCosts.map(c => `− ${c.label} ${fmtMoney(c.amount)}`),
-                        `= ${fmtMoney(s.profit)}`,
-                        s.adminFee > 0 ? `− Admin 5% ${fmtMoney(s.adminFee)}` : null,
+                        `= ${fmtMoney(s.profit)} now, ${fmtMoney(s.expectedProfit)} once all bills are paid`,
+                        s.expectedAdminFee > 0 ? `− Admin 5% ${fmtMoney(s.adminFee)} (${fmtMoney(s.expectedAdminFee)} expected)` : null,
                         s.gyauEligible
-                          ? `Gyau ${s.gyauAttended ? '50%' : '30%'} of the rest → ${fmtMoney(s.gyauShare)}`
+                          ? `Gyau ${s.gyauAttended ? '50%' : '30%'} of the rest → ${fmtMoney(s.gyauShare)} (${fmtMoney(s.expectedGyauShare)} expected)`
                           : 'Gyau share: not eligible',
                       ].filter(Boolean).join('\n');
                       return (
@@ -421,11 +448,18 @@ const CoachPaymentsSection = () => {
                               ? <span className="text-rose-300/80">{fmtMoney(s.facilityCost)}</span>
                               : <span className="text-white/30">{fmtMoney(0)}</span>}
                           </td>
+                          <td className="px-3 py-2 text-right whitespace-nowrap">
+                            <span className={`text-[12px] ${s.revenue > 0 ? 'text-white/80' : 'text-white/30'}`}>
+                              {fmtMoney(s.revenue)}
+                            </span>
+                            <Expected value={s.expectedRevenue} of={s.revenue} />
+                          </td>
                           <td className="px-3 py-2 text-right whitespace-nowrap" title={breakdown}>
                             <span className={`text-[12px] font-medium ${s.profit < 0 ? 'text-rose-300' : 'text-emerald-300'}`}>
                               {fmtMoney(s.profit)}
                             </span>
-                            {s.gyauEligible && s.gyauShare > 0 && (
+                            <Expected value={s.expectedProfit} of={s.profit} />
+                            {s.gyauEligible && s.expectedGyauShare > 0 && (
                               <p className="text-white/30 text-[10px]">
                                 Gyau {s.gyauAttended ? '50%' : '30%'} · {fmtMoney(s.gyauShare)}
                               </p>
@@ -492,6 +526,9 @@ const CoachPaymentsSection = () => {
                           {r.payment === null
                             ? <span className="text-white/25 text-[12px]">—</span>
                             : <span className="text-emerald-300 text-[12px] font-medium">{fmtMoney(r.payment)}</span>}
+                          {r.payment !== null && r.expectedPayment !== null && (
+                            <Expected value={r.expectedPayment} of={r.payment} />
+                          )}
                         </td>
                       </tr>
                     ))}
