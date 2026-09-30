@@ -212,7 +212,7 @@ const FlipCard: React.FC<{ player: Player }> = ({ player }) => {
             {player.position && player.position.trim() !== '' && (
               <div className="flex-shrink-0 text-right">
                 <p className="text-gray-500 text-[9px] uppercase tracking-wider">Position</p>
-                <p className="text-blue-400 text-sm font-bold leading-tight">{player.position}</p>
+                <p className="text-white text-sm font-bold leading-tight">{player.position}</p>
               </div>
             )}
           </div>

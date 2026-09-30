@@ -2,6 +2,27 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { images } from '../../constants/images';
 
+// The wordmark is NEXT ⦿ STAR with the ball dead centre, and the ball is as
+// wide as the image is tall (634 × 634 in a 2974 × 634 file). So collapsing it
+// is a symmetric clip: narrow a window that keeps the image centred and the
+// letters on either side wipe inward, leaving the ball exactly where it was.
+const LOGO_HEIGHT = 28;
+const LOGO_WIDTH = Math.round(LOGO_HEIGHT * (2974 / 634));
+
+const CollapsingLogo = ({ collapsed }: { collapsed: boolean }) => (
+  <span
+    className="relative flex justify-center overflow-hidden transition-[width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
+    style={{ width: collapsed ? LOGO_HEIGHT : LOGO_WIDTH, height: LOGO_HEIGHT }}
+  >
+    <img
+      src={images.logo}
+      alt="Next Star Soccer"
+      className="max-w-none flex-shrink-0"
+      style={{ width: LOGO_WIDTH, height: LOGO_HEIGHT }}
+    />
+  </span>
+);
+
 const Navigation = () => {
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -10,8 +31,9 @@ const Navigation = () => {
   const [scrolled, setScrolled]                 = useState(false);
   const getStartedRef = useRef<HTMLButtonElement>(null);
 
+  // Past this point the wordmark folds away and leaves only the ball.
   useEffect(() => {
-    const fn = () => setScrolled(window.scrollY > 10);
+    const fn = () => setScrolled(window.scrollY > 24);
     fn();
     window.addEventListener('scroll', fn, { passive: true });
     return () => window.removeEventListener('scroll', fn);
@@ -40,48 +62,20 @@ const Navigation = () => {
 
   return (
     <>
-      {/* ─── Fixed header shell — padding grows on scroll to "float" the pill ─── */}
-      <header
-        className={[
-          'fixed top-0 inset-x-0 z-50 transition-all duration-500',
-          scrolled ? 'pt-3' : 'pt-0',
-        ].join(' ')}
-      >
-        <div
-          className={[
-            'mx-auto transition-all duration-500',
-            scrolled ? 'max-w-7xl px-4 md:px-6' : 'max-w-none px-0',
-          ].join(' ')}
-        >
-          {/* Nav bar — full-width bar at top, floating pill when scrolled */}
-          <div
-            className={[
-              'transition-all duration-500',
-              scrolled
-                ? 'rounded-full border border-white/10 bg-black/90 backdrop-blur-xl shadow-2xl'
-                : 'bg-black border-b border-white/10',
-            ].join(' ')}
-          >
-            <div
-              className={[
-                'flex items-center justify-between font-lt-wave',
-                scrolled
-                  ? 'px-5 md:px-6 py-3'
-                  : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20',
-              ].join(' ')}
-            >
-              {/* Logo */}
-              <Link to="/" className="flex-shrink-0 flex items-center hover:opacity-75 transition-opacity">
-                <img
-                  src={images.logo}
-                  alt="Next Star Soccer"
-                  className={['w-auto transition-all duration-500', scrolled ? 'h-7' : 'h-8'].join(' ')}
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                    const p = e.currentTarget.parentElement;
-                    if (p) p.innerHTML = '<span class="text-white text-xl font-bold">NSS</span>';
-                  }}
-                />
+      {/* ─── Full-width bar, pinned to the top. It keeps its shape on scroll;
+             only the logo changes. ─── */}
+      <header className="fixed top-0 inset-x-0 z-50 bg-black/85 backdrop-blur-xl border-b border-white/[0.08]">
+            <div className="flex items-center justify-between font-lt-wave max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16">
+              {/* Logo — NEXT and STAR fold in behind the ball as the page scrolls.
+                  The link keeps the full wordmark's width so the links beside it
+                  never shift while it collapses. */}
+              <Link
+                to="/"
+                aria-label="Next Star Soccer — home"
+                className="flex-shrink-0 flex items-center hover:opacity-75 transition-opacity"
+                style={{ width: LOGO_WIDTH }}
+              >
+                <CollapsingLogo collapsed={scrolled} />
               </Link>
 
               {/* Desktop links */}
@@ -150,16 +144,10 @@ const Navigation = () => {
                 </button>
               </div>
             </div>
-          </div>
 
           {/* Mobile dropdown */}
           {isMobileMenuOpen && (
-            <div
-              className={[
-                'md:hidden mt-2 border border-white/10 bg-black/95 backdrop-blur-xl p-2',
-                scrolled ? 'rounded-2xl' : 'rounded-none',
-              ].join(' ')}
-            >
+            <div className="md:hidden border-t border-white/[0.08] bg-black/95 backdrop-blur-xl p-2">
               {navLinks.map((link) => (
                 <Link
                   key={link.path}
@@ -186,7 +174,6 @@ const Navigation = () => {
               </div>
             </div>
           )}
-        </div>
       </header>
 
       {/* Get Started modal — unchanged */}

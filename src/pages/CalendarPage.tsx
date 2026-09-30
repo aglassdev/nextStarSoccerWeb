@@ -45,6 +45,7 @@ const CalendarPage = () => {
     { id: "patrick-mullins", label: "Patrick Mullins", color: "#FFB300", selected: true },
     { id: "attacking-focus", label: "Attacking Focus", color: "#FF00FF", selected: true },
     { id: "evening-training", label: "Evening Group Training", color: "#E50101", selected: true },
+    { id: "group-training", label: "Group Training", color: "#E50101", selected: true },
     { id: "afternoon-training", label: "Afternoon Group Training", color: "#EAB308", selected: true },
     { id: "morning-training", label: "Morning Group Training", color: "#FF8A14", selected: true },
     { id: "next-star-x-nike-evening", label: "Next Star x Nike Evening", color: "#06B6D4", selected: true },
@@ -187,6 +188,9 @@ const CalendarPage = () => {
     if (lowerTitle.includes("morning group training")) return "morning-training";
     if (lowerTitle.includes("next star x nike evening")) return "next-star-x-nike-evening";
     if (lowerTitle.includes("evening group training")) return "evening-training";
+    // Checked after every more specific variant above, so only the plain
+    // "Group Training" title lands here.
+    if (lowerTitle.includes("group training")) return "group-training";
 
     // ── Specific camp / group types ─────────────────────────────────────────
     if (lowerTitle.includes("youth group")) return "youth-group-camp";
@@ -348,7 +352,7 @@ const CalendarPage = () => {
 
           {/* Today's Events Card */}
           {todaysEvents.length > 0 && (
-            <div className="bg-gray-800 rounded-lg p-6 shadow-lg mb-6">
+            <div className="bg-neutral-800 rounded-lg p-6 shadow-lg mb-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold text-white">Today's Events</h2>
                 <div className="text-white text-sm opacity-90">
@@ -401,7 +405,7 @@ const CalendarPage = () => {
           )}
 
           {/* Month Navigation */}
-          <div className="bg-gray-900 rounded-lg p-2 mb-6 overflow-hidden">
+          <div className="bg-neutral-900 rounded-lg p-2 mb-6 overflow-hidden">
             <div
               ref={monthScrollRef}
               className="flex gap-2 overflow-x-auto scrollbar-hide scroll-smooth relative"
@@ -471,9 +475,9 @@ const CalendarPage = () => {
                   return (
                     <div key={dateStr} ref={isTodayDate ? todayGroupRef : undefined}>
                       {/* Date header */}
-                      <div className={`text-sm font-semibold mb-2 px-1 ${isTodayDate ? 'text-blue-400' : 'text-gray-400'}`}>
+                      <div className={`text-sm font-semibold mb-2 px-1 ${isTodayDate ? 'text-white' : 'text-gray-400'}`}>
                         {date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-                        {isTodayDate && <span className="ml-2 text-xs bg-blue-600 text-white px-2 py-0.5 rounded-full">Today</span>}
+                        {isTodayDate && <span className="ml-2 text-xs bg-white text-black font-medium px-2 py-0.5 rounded-full">Today</span>}
                       </div>
                       {/* Event cards */}
                       <div className="space-y-2">
@@ -489,7 +493,7 @@ const CalendarPage = () => {
                             <button
                               key={event.id}
                               onClick={() => setSelectedEvent(event)}
-                              className={`w-full bg-gray-900 rounded-lg p-3 text-left flex items-start gap-2 hover:bg-gray-800 transition-colors ${isCancelled ? 'opacity-60' : ''}`}
+                              className={`w-full bg-neutral-900 rounded-lg p-3 text-left flex items-start gap-2 hover:bg-neutral-800 transition-colors ${isCancelled ? 'opacity-60' : ''}`}
                             >
                               <div
                                 className="w-1 self-stretch rounded-full flex-shrink-0"
@@ -525,9 +529,9 @@ const CalendarPage = () => {
               )}
             </div>
           ) : (
-            <div className="bg-gray-900 rounded-lg overflow-hidden">
+            <div className="bg-neutral-900 rounded-lg overflow-hidden">
               {/* Day headers */}
-              <div className="grid grid-cols-7 border-b border-gray-700">
+              <div className="grid grid-cols-7 border-b border-neutral-700">
                 {daysOfWeek.map((day) => (
                   <div
                     key={day}
@@ -545,7 +549,7 @@ const CalendarPage = () => {
                     return (
                       <div
                         key={`empty-${index}`}
-                        className="min-h-[120px] border-r border-b border-gray-800 bg-gray-950"
+                        className="min-h-[120px] border-r border-b border-neutral-800 bg-neutral-950"
                       />
                     );
                   }
@@ -558,14 +562,14 @@ const CalendarPage = () => {
                   return (
                     <div
                       key={day}
-                      className={`min-h-[120px] border-r border-b border-gray-800 p-2 ${
-                        isTodayDate ? 'bg-gray-800' : 'bg-gray-900'
+                      className={`min-h-[120px] border-r border-b border-neutral-800 p-2 ${
+                        isTodayDate ? 'bg-neutral-800' : 'bg-neutral-900'
                       }`}
                     >
                       <div
                         className={`text-sm font-medium mb-2 ${
                           isTodayDate
-                            ? 'text-white bg-blue-600 rounded-full w-7 h-7 flex items-center justify-center'
+                            ? 'text-black bg-white rounded-full w-7 h-7 flex items-center justify-center'
                             : 'text-gray-400'
                         }`}
                       >
@@ -586,7 +590,7 @@ const CalendarPage = () => {
                             <button
                               key={event.id}
                               onClick={() => setSelectedEvent(event)}
-                              className={`text-xs px-2 py-1 rounded flex items-start gap-1.5 w-full text-left hover:bg-gray-800 transition-colors ${
+                              className={`text-xs px-2 py-1 rounded flex items-start gap-1.5 w-full text-left hover:bg-neutral-800 transition-colors ${
                                 isCancelled ? 'opacity-50' : ''
                               }`}
                               title={`${event.title} - ${time}`}
@@ -626,7 +630,7 @@ const CalendarPage = () => {
           onClick={() => setSelectedEvent(null)}
         >
           <div
-            className="bg-gray-900 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+            className="bg-neutral-900 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-6">
@@ -699,7 +703,7 @@ const CalendarPage = () => {
 
                 {/* Map */}
                 {selectedEvent.location && (
-                  <div className={`bg-gray-800 rounded-lg overflow-hidden ${isMobile ? 'w-full h-48' : 'w-80 h-80 flex-shrink-0'}`}>
+                  <div className={`bg-neutral-800 rounded-lg overflow-hidden ${isMobile ? 'w-full h-48' : 'w-80 h-80 flex-shrink-0'}`}>
                     <iframe
                       width="100%"
                       height="100%"
@@ -746,7 +750,7 @@ const CalendarPage = () => {
                   <div
                     className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
                       option.selected
-                        ? "bg-blue-600 border-blue-600"
+                        ? "bg-black border-black"
                         : "border-gray-300"
                     }`}
                   >
@@ -761,7 +765,7 @@ const CalendarPage = () => {
             </div>
             <div className="p-4 border-t border-gray-200">
               <button
-                className="w-full py-2 text-sm font-medium text-blue-600 hover:text-blue-700"
+                className="w-full py-2 text-sm font-medium text-black hover:text-black/60"
                 onClick={resetFilters}
               >
                 Reset All

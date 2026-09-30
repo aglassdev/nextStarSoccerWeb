@@ -75,14 +75,15 @@ export const detectCountry = (subtitle: string): string => {
   return collegeKws.some(kw => s.includes(kw)) ? 'usa-collegiate' : 'usa-professional';
 };
 
-// ─── Dark theme ───────────────────────────────────────────────────────────────
-const OCEAN    = '#0d1b2a';
-const LAND     = '#1a2f4a';
-const BORDER   = '#243d5c';
-const HL_FILL  = 'rgba(59,130,246,0.28)';
-const HL_BDR   = '#3B82F6';
-const DOT_CLR  = '#60A5FA';
-const LEADER   = 'rgba(96,165,250,0.50)';
+// ─── Black and white ──────────────────────────────────────────────────────────
+// Countries with alumni are lifted out in white; everything else stays in grey.
+const OCEAN    = '#000000';
+const LAND     = '#1c1c1c';
+const BORDER   = '#333333';
+const HL_FILL  = 'rgba(255,255,255,0.30)';
+const HL_BDR   = '#ffffff';
+const DOT_CLR  = '#ffffff';
+const LEADER   = 'rgba(255,255,255,0.45)';
 const LBL_PRI  = 'rgba(255,255,255,0.90)';
 const LBL_SUB  = 'rgba(255,255,255,0.50)';
 
