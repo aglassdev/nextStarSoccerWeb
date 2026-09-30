@@ -146,22 +146,57 @@ function LogoCarousel({ icons, folder, direction, duration = '60s' }: {
   );
 }
 
+// Each photo with its real shape, so it can be shown whole — every one is a
+// tall portrait bar the last two.
 const COLLAGE_IMAGES = [
-    { src: images.collage1,  caption: 'Private Training'   },
-    { src: images.collage2,  caption: 'Game Day'           },
-    { src: images.collage3,  caption: 'Academy Clinic'     },
-    { src: images.collage4,  caption: 'Player Development' },
-    { src: images.collage5,  caption: 'Speed & Agility'    },
-    { src: images.collage6,  caption: 'Technical Work'     },
-    { src: images.collage7,  caption: 'Small Group'        },
-    { src: images.collage8,  caption: 'College Prep'       },
-    { src: images.collage9,  caption: 'Team Training'      },
-    { src: images.collage10, caption: 'Next Star Showcase' },
+    { src: images.collage1,  alt: 'Private training',   aspect: 1575 / 2000 },
+    { src: images.collage2,  alt: 'Game day',           aspect: 1370 / 2000 },
+    { src: images.collage3,  alt: 'Academy clinic',     aspect: 1431 / 2000 },
+    { src: images.collage4,  alt: 'Player development', aspect: 1333 / 2000 },
+    { src: images.collage5,  alt: 'Speed and agility',  aspect: 1333 / 2000 },
+    { src: images.collage6,  alt: 'Technical work',     aspect: 1333 / 2000 },
+    { src: images.collage7,  alt: 'Small group',        aspect: 1400 / 2000 },
+    { src: images.collage8,  alt: 'College prep',       aspect: 1551 / 2000 },
+    { src: images.collage9,  alt: 'Team training',      aspect: 2000 / 1594 },
+    { src: images.collage10, alt: 'Next Star showcase', aspect: 2881 / 2000 },
 ];
 
-// Which gallery tiles run two columns wide on desktop, so each row of four
-// columns fills exactly: [wide, 1, 1] [1, 1, wide] [1, 1, 1, 1].
-const WIDE_TILES = new Set([0, 5]);
+// Where each photo sits, as [left, top, width] in a field 100 units wide. The
+// height of each follows from its shape, so the layout can be scattered by
+// hand without cropping anything; every pair is at least 5 units apart and no
+// two share a top edge, so it never settles into rows. Phones get a denser
+// arrangement of their own, since the desktop one would shrink to thumbnails.
+type Spot = [left: number, top: number, width: number];
+const SCATTER_DESKTOP: Spot[] = [
+    [6, 31, 21], [41, 8, 18], [58, 69, 19], [88, 46, 12], [66, 2, 15],
+    [34, 42, 16], [14, 72, 17], [86, 14, 14], [55, 40, 27], [0, 0, 34],
+];
+const SCATTER_MOBILE: Spot[] = [
+    [8, 52, 40], [70, 16, 30], [46, 242, 38], [12, 161, 32], [56, 68, 34],
+    [60, 127, 30], [0, 218, 36], [54, 181, 40], [0, 112, 50], [0, 0, 64],
+];
+
+function Scatter({ spots, className = '' }: { spots: Spot[]; className?: string }) {
+    const height = Math.max(...spots.map(([, top, width], i) => top + width / COLLAGE_IMAGES[i].aspect));
+    return (
+        <div className={`relative w-full ${className}`} style={{ aspectRatio: `100 / ${height}` }}>
+            {COLLAGE_IMAGES.map((photo, i) => {
+                const [left, top, width] = spots[i];
+                return (
+                    <img
+                        key={photo.src}
+                        src={photo.src}
+                        alt={photo.alt}
+                        className="absolute block object-contain"
+                        style={{ left: `${left}%`, top: `${(top / height) * 100}%`, width: `${width}%`, aspectRatio: `${photo.aspect}` }}
+                        loading="lazy"
+                        decoding="async"
+                    />
+                );
+            })}
+        </div>
+    );
+}
 
 const INSTAGRAM_IMAGES = [images.instagram1, images.instagram2, images.instagram3, images.instagram4, images.instagram5];
 const INSTAGRAM_POSTS  = [
@@ -317,17 +352,6 @@ const HomePageNew = () => {
                 </div>
             </section>
 
-            {/* ═══════════════════════ WHERE ALUMNI PLAY ═══════════════════════ */}
-            <section className="border-b border-white/[0.08] pt-10 pb-16 md:pb-20">
-                <div className="space-y-10">
-                    <LogoCarousel icons={CLUB_ICONS} folder="clubs" direction="right" duration="110s" />
-                    <LogoCarousel icons={COLLEGE_ICONS} folder="colleges" direction="left" duration="60s" />
-                </div>
-                <Container>
-                    <Label className="text-center mt-12">Clubs and colleges our alumni have played for</Label>
-                </Container>
-            </section>
-
             {/* ═══════════════════════ ABOUT ═══════════════════════ */}
             <section className="border-b border-white/[0.08]">
                 <Container className="pt-24 md:pt-32 pb-16 md:pb-20">
@@ -357,6 +381,17 @@ const HomePageNew = () => {
                             </div>
                         ))}
                     </div>
+                </Container>
+            </section>
+
+            {/* ═══════════════════════ WHERE ALUMNI PLAY ═══════════════════════ */}
+            <section className="border-b border-white/[0.08] py-16 md:py-20">
+                <div className="space-y-10">
+                    <LogoCarousel icons={CLUB_ICONS} folder="clubs" direction="right" duration="110s" />
+                    <LogoCarousel icons={COLLEGE_ICONS} folder="colleges" direction="left" duration="60s" />
+                </div>
+                <Container>
+                    <Label className="text-center mt-12">Clubs and colleges our alumni have played for</Label>
                 </Container>
             </section>
 
@@ -416,14 +451,14 @@ const HomePageNew = () => {
             {/* ═══════════════════════ SOCIAL (unchanged) ═══════════════════════ */}
             <section
                 ref={socialSectionRef}
-                className={`bg-[#f0ead6] flex flex-col justify-center overflow-hidden ${isMobile ? 'py-16' : 'py-24 md:py-32'}`}
+                className={`bg-black border-b border-white/[0.08] flex flex-col justify-center overflow-hidden ${isMobile ? 'py-16' : 'py-24 md:py-32'}`}
                 data-section="instagram"
             >
                 <div className="text-center mb-10 md:mb-12 relative z-10 pointer-events-none select-none">
-                    <h2 className={`font-black leading-none text-black uppercase font-lt-wave ${isMobile ? 'text-[clamp(36px,5.5vw,88px)]' : 'text-[clamp(44px,6.5vw,88px)]'}`}>
+                    <h2 className={`font-black leading-none text-white uppercase font-lt-wave ${isMobile ? 'text-[clamp(36px,5.5vw,88px)]' : 'text-[clamp(44px,6.5vw,88px)]'}`}>
                         WHAT'S UP
                     </h2>
-                    <p className={`font-black text-black uppercase leading-tight font-lt-wave ${isMobile ? 'text-[clamp(28px,4.5vw,72px)]' : 'text-[clamp(36px,5.5vw,72px)]'}`}>
+                    <p className={`font-black text-white uppercase leading-tight font-lt-wave ${isMobile ? 'text-[clamp(28px,4.5vw,72px)]' : 'text-[clamp(36px,5.5vw,72px)]'}`}>
                         ON SOCIALS
                     </p>
                 </div>
@@ -455,13 +490,13 @@ const HomePageNew = () => {
                 </div>
 
                 <div className={`flex justify-center items-center gap-10 relative z-10 ${isMobile ? 'mt-8' : 'mt-10'}`}>
-                    <span className="text-black/30 text-[10px] uppercase tracking-[0.25em] font-lt-wave">Follow</span>
+                    <span className="text-white/30 text-[10px] uppercase tracking-[0.25em] font-lt-wave">Follow</span>
                     <a href="https://www.instagram.com/nextstarsoccer/" target="_blank" rel="noopener noreferrer"
-                        className="text-black text-base md:text-lg font-light lowercase tracking-wide hover:opacity-40 transition-opacity duration-300 font-lt-wave">
+                        className="text-white text-base md:text-lg font-light lowercase tracking-wide hover:opacity-40 transition-opacity duration-300 font-lt-wave">
                         instagram
                     </a>
                     <a href="https://www.facebook.com/nextstarsoccer/" target="_blank" rel="noopener noreferrer"
-                        className="text-black text-base md:text-lg font-light lowercase tracking-wide hover:opacity-40 transition-opacity duration-300 font-lt-wave">
+                        className="text-white text-base md:text-lg font-light lowercase tracking-wide hover:opacity-40 transition-opacity duration-300 font-lt-wave">
                         facebook
                     </a>
                 </div>
@@ -470,26 +505,9 @@ const HomePageNew = () => {
             {/* ═══════════════════════ GALLERY ═══════════════════════ */}
             <section>
                 <Container className="py-24 md:py-32">
-                    <div className="flex flex-wrap items-end justify-between gap-4 mb-12">
-                        <h2 className={HEADING}>On the pitch</h2>
-                        <Label>From Next Star sessions</Label>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-white/[0.08] border border-white/[0.08]">
-                        {COLLAGE_IMAGES.map((item, i) => (
-                            <figure key={item.caption} className={`bg-black ${WIDE_TILES.has(i) ? 'md:col-span-2' : ''}`}>
-                                <img
-                                    src={item.src}
-                                    alt={item.caption}
-                                    className="w-full h-48 sm:h-60 md:h-72 object-cover"
-                                    loading="lazy"
-                                    decoding="async"
-                                />
-                                <figcaption className="px-4 py-3 text-[11px] uppercase tracking-[0.18em] text-white/40">
-                                    {item.caption}
-                                </figcaption>
-                            </figure>
-                        ))}
-                    </div>
+                    <h2 className={`${HEADING} mb-16 md:mb-20`}>On the pitch</h2>
+                    <Scatter spots={SCATTER_MOBILE} className="md:hidden" />
+                    <Scatter spots={SCATTER_DESKTOP} className="hidden md:block" />
                 </Container>
             </section>
 

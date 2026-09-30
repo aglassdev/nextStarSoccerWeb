@@ -129,7 +129,7 @@ const FlipCard: React.FC<{ player: Player }> = ({ player }) => {
       >
         {/* ── FRONT ─────────────────────────────────────────────────────── */}
         <div
-          className="absolute inset-0 rounded-xl overflow-hidden bg-gray-900 border border-white/5"
+          className="absolute inset-0 rounded-xl overflow-hidden bg-neutral-900 border border-white/5"
           style={{ backfaceVisibility: 'hidden' }}
         >
           {/* Photo area — fills ~74% of card height */}
@@ -154,8 +154,8 @@ const FlipCard: React.FC<{ player: Player }> = ({ player }) => {
                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
               />
             ) : (
-              <div className="absolute inset-0 bg-gray-800 flex items-center justify-center">
-                <svg className="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="absolute inset-0 bg-neutral-800 flex items-center justify-center">
+                <svg className="w-8 h-8 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
               </div>
@@ -170,7 +170,7 @@ const FlipCard: React.FC<{ player: Player }> = ({ player }) => {
                 <img src={player.subtitleIcon} alt="" className="w-4 h-4 object-contain flex-shrink-0"
                   onError={(e) => { e.currentTarget.style.display = 'none'; }} />
               )}
-              <p className="text-gray-300 text-xs leading-tight line-clamp-2">{player.subtitle}</p>
+              <p className="text-neutral-300 text-xs leading-tight line-clamp-2">{player.subtitle}</p>
             </div>
           </div>
 
@@ -184,7 +184,7 @@ const FlipCard: React.FC<{ player: Player }> = ({ player }) => {
 
         {/* ── BACK ──────────────────────────────────────────────────────── */}
         <div
-          className="absolute inset-0 rounded-xl overflow-hidden bg-gray-900 border border-white/10 p-3 flex flex-col"
+          className="absolute inset-0 rounded-xl overflow-hidden bg-neutral-900 border border-white/10 p-3 flex flex-col"
           style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
         >
           {/* Header */}
@@ -195,7 +195,7 @@ const FlipCard: React.FC<{ player: Player }> = ({ player }) => {
                 loading="lazy" decoding="async"
                 onError={(e) => { e.currentTarget.style.display = 'none'; }} />
             ) : (
-              <div className="w-10 h-10 rounded-full bg-gray-700 flex-shrink-0" />
+              <div className="w-10 h-10 rounded-full bg-neutral-700 flex-shrink-0" />
             )}
             {/* Name + subtitle */}
             <div className="min-w-0 flex-1">
@@ -205,13 +205,13 @@ const FlipCard: React.FC<{ player: Player }> = ({ player }) => {
                   <img src={player.subtitleIcon} alt="" className="w-3.5 h-3.5 object-contain"
                     onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                 )}
-                <p className="text-gray-400 text-[11px] truncate">{player.subtitle}</p>
+                <p className="text-neutral-400 text-[11px] truncate">{player.subtitle}</p>
               </div>
             </div>
             {/* Position block */}
             {player.position && player.position.trim() !== '' && (
               <div className="flex-shrink-0 text-right">
-                <p className="text-gray-500 text-[9px] uppercase tracking-wider">Position</p>
+                <p className="text-neutral-500 text-[9px] uppercase tracking-wider">Position</p>
                 <p className="text-white text-sm font-bold leading-tight">{player.position}</p>
               </div>
             )}
@@ -221,7 +221,7 @@ const FlipCard: React.FC<{ player: Player }> = ({ player }) => {
           <div className="flex-1 overflow-y-auto space-y-3 scrollbar-hide">
             {infoItems.length > 0 ? infoItems.map((item, i) => (
               <div key={i}>
-                <p className="text-gray-500 text-[10px] uppercase tracking-wider">{item.label}</p>
+                <p className="text-neutral-500 text-[10px] uppercase tracking-wider">{item.label}</p>
                 <div className="flex items-center gap-1.5 mt-0.5">
                   {item.icon && (
                     <img src={item.icon} alt="" className="w-4 h-4 object-contain flex-shrink-0"
@@ -231,12 +231,12 @@ const FlipCard: React.FC<{ player: Player }> = ({ player }) => {
                 </div>
               </div>
             )) : (
-              <p className="text-gray-500 text-xs italic mt-4 text-center">No additional info</p>
+              <p className="text-neutral-500 text-xs italic mt-4 text-center">No additional info</p>
             )}
           </div>
 
           {/* Close hint */}
-          <p className="text-gray-600 text-[10px] text-center mt-3 uppercase tracking-widest">tap to flip back</p>
+          <p className="text-neutral-600 text-[10px] text-center mt-3 uppercase tracking-widest">tap to flip back</p>
         </div>
       </div>
     </div>
@@ -329,7 +329,7 @@ const AlumniPage = () => {
         <div className="flex items-center justify-center min-h-screen px-4">
           <div className="text-center">
             <p className="text-red-500 text-base mb-6 max-w-md">{error}</p>
-            <button onClick={fetchAlumniData} className="bg-white text-black px-6 py-3 rounded-lg font-bold hover:bg-gray-200 transition-colors">Retry</button>
+            <button onClick={fetchAlumniData} className="bg-white text-black px-6 py-3 rounded-lg font-bold hover:bg-neutral-200 transition-colors">Retry</button>
           </div>
         </div>
       </div>
@@ -361,9 +361,9 @@ const AlumniPage = () => {
   });
 
   const renderCheckbox = (label: string, checked: boolean, onPress: () => void, isParent = false) => (
-    <button onClick={onPress} className="flex justify-between items-center ml-2 mt-1 px-2 py-1 rounded-md hover:bg-gray-100 transition-colors w-full text-left">
-      <span className={`text-gray-800 text-sm ${isParent ? 'font-bold' : ''}`}>{label}</span>
-      <div className={`w-4 h-4 border border-gray-800 rounded flex items-center justify-center ${checked ? 'bg-gray-800' : 'bg-transparent'}`}>
+    <button onClick={onPress} className="flex justify-between items-center ml-2 mt-1 px-2 py-1 rounded-md hover:bg-neutral-100 transition-colors w-full text-left">
+      <span className={`text-neutral-800 text-sm ${isParent ? 'font-bold' : ''}`}>{label}</span>
+      <div className={`w-4 h-4 border border-neutral-800 rounded flex items-center justify-center ${checked ? 'bg-neutral-800' : 'bg-transparent'}`}>
         {checked && (
           <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
@@ -436,7 +436,7 @@ const AlumniPage = () => {
                 <div onClick={(e) => e.stopPropagation()} className="absolute top-10 left-0 bg-white rounded-xl p-2 w-44 z-50 shadow-2xl">
                   {SORT_OPTIONS.map((opt) => (
                     <button key={opt} onClick={() => { setSortOption(opt); setSortOpen(false); }}
-                      className={`block w-full text-left px-3 py-1.5 text-sm rounded-lg hover:bg-gray-100 transition-colors ${sortOption === opt ? 'text-gray-900 font-semibold' : 'text-gray-600'}`}>
+                      className={`block w-full text-left px-3 py-1.5 text-sm rounded-lg hover:bg-neutral-100 transition-colors ${sortOption === opt ? 'text-neutral-900 font-semibold' : 'text-neutral-600'}`}>
                       {opt}
                     </button>
                   ))}
@@ -451,10 +451,10 @@ const AlumniPage = () => {
                 placeholder="Search players..."
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
-                className="w-full bg-white/5 border border-white/20 text-white text-sm px-4 py-1.5 rounded-lg outline-none placeholder-gray-500 focus:border-white/40 transition-colors"
+                className="w-full bg-white/5 border border-white/20 text-white text-sm px-4 py-1.5 rounded-lg outline-none placeholder-neutral-500 focus:border-white/40 transition-colors"
               />
               {!searchText && (
-                <svg className="w-3.5 h-3.5 text-gray-500 absolute right-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-3.5 h-3.5 text-neutral-500 absolute right-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               )}
@@ -465,7 +465,7 @@ const AlumniPage = () => {
           <div className="px-3 md:px-6 pb-16">
             {sorted.length === 0 ? (
               <div className="text-center py-16">
-                <p className="text-gray-500 text-lg">No players found</p>
+                <p className="text-neutral-500 text-lg">No players found</p>
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">

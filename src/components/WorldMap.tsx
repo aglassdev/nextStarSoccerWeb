@@ -157,7 +157,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ alumni }) => {
   if (loading) return (
     <div className="w-full rounded-2xl flex items-center justify-center py-20"
          style={{ background: OCEAN }}>
-      <p className="text-gray-600 text-sm">Loading map…</p>
+      <p className="text-neutral-600 text-sm">Loading map…</p>
     </div>
   );
 
