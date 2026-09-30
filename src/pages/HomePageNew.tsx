@@ -342,7 +342,7 @@ const HomePageNew = () => {
                 />
                 <div className="absolute inset-0 bg-black/20" />
                 {/* Melts the bottom of the video into the black page below. */}
-                <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-b from-transparent to-black" />
+                <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-b from-transparent to-black" />
 
                 {/* Navigation sits in normal flow but is fixed — placement here keeps z-order clean */}
                 <Navigation />
