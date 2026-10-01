@@ -246,7 +246,7 @@ const BillModal = ({
                 {tabLabel[status]}
               </span>
             </div>
-            <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors p-1">
+            <button onClick={onClose} className="text-neutral-500 hover:text-white transition-colors p-1">
               <XIcon />
             </button>
           </div>
@@ -264,11 +264,11 @@ const BillModal = ({
               {/* Due Date — editable */}
               <div>
                 <div className="flex items-center gap-2 mb-0.5">
-                  <p className="text-gray-600 text-xs uppercase tracking-wider">Due Date</p>
+                  <p className="text-neutral-600 text-xs uppercase tracking-wider">Due Date</p>
                   {!editingDue && (
                     <button
                       onClick={() => { setEditDueVal(dueDateInput); setEditingDue(true); }}
-                      className="text-gray-600 hover:text-white transition-colors"
+                      className="text-neutral-600 hover:text-white transition-colors"
                       title="Edit due date"
                     >
                       <PencilIcon />
@@ -281,19 +281,19 @@ const BillModal = ({
                       type="date"
                       value={editDueVal}
                       onChange={e => setEditDueVal(e.target.value)}
-                      className="flex-1 min-w-0 bg-[#1a1a1a] border border-gray-700 rounded-lg px-2 py-1 text-white text-sm focus:outline-none focus:ring-1 focus:ring-white/40 [color-scheme:dark]"
+                      className="flex-1 min-w-0 bg-[#1a1a1a] border border-neutral-700 rounded-lg px-2 py-1 text-white text-sm focus:outline-none focus:ring-1 focus:ring-white/40 [color-scheme:dark]"
                       autoFocus
                     />
                     <button
                       onClick={handleSaveDue}
                       disabled={savingDue}
-                      className="p-1.5 bg-white hover:bg-gray-200 text-black rounded-lg transition-colors disabled:opacity-50"
+                      className="p-1.5 bg-white hover:bg-neutral-200 text-black rounded-lg transition-colors disabled:opacity-50"
                     >
                       <CheckIcon />
                     </button>
                     <button
                       onClick={() => setEditingDue(false)}
-                      className="p-1.5 text-gray-500 hover:text-white transition-colors"
+                      className="p-1.5 text-neutral-500 hover:text-white transition-colors"
                     >
                       <XIcon />
                     </button>
@@ -310,11 +310,11 @@ const BillModal = ({
             {/* Total amount — editable */}
             <div className="bg-[#0d0d0d] border border-[#1e1e1e] rounded-xl p-4">
               <div className="flex items-center justify-between mb-1">
-                <p className="text-gray-500 text-xs uppercase tracking-wider">Total Amount</p>
+                <p className="text-neutral-500 text-xs uppercase tracking-wider">Total Amount</p>
                 {!editingTotal && (
                   <button
                     onClick={() => { setEditTotalVal(String(bill.totalAmount ?? '')); setEditingTotal(true); }}
-                    className="text-gray-600 hover:text-white transition-colors"
+                    className="text-neutral-600 hover:text-white transition-colors"
                     title="Edit total"
                   >
                     <PencilIcon />
@@ -323,26 +323,26 @@ const BillModal = ({
               </div>
               {editingTotal ? (
                 <div className="flex items-center gap-2 mt-2">
-                  <span className="text-gray-400">$</span>
+                  <span className="text-neutral-400">$</span>
                   <input
                     type="number"
                     step="0.01"
                     min="0"
                     value={editTotalVal}
                     onChange={e => setEditTotalVal(e.target.value)}
-                    className="flex-1 bg-[#1a1a1a] border border-gray-700 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:ring-1 focus:ring-white/40"
+                    className="flex-1 bg-[#1a1a1a] border border-neutral-700 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:ring-1 focus:ring-white/40"
                     autoFocus
                   />
                   <button
                     onClick={handleSaveTotal}
                     disabled={savingTotal}
-                    className="p-1.5 bg-white hover:bg-gray-200 text-black rounded-lg transition-colors disabled:opacity-50"
+                    className="p-1.5 bg-white hover:bg-neutral-200 text-black rounded-lg transition-colors disabled:opacity-50"
                   >
                     <CheckIcon />
                   </button>
                   <button
                     onClick={() => setEditingTotal(false)}
-                    className="p-1.5 text-gray-500 hover:text-white transition-colors"
+                    className="p-1.5 text-neutral-500 hover:text-white transition-colors"
                   >
                     <XIcon />
                   </button>
@@ -356,13 +356,13 @@ const BillModal = ({
 
             {/* Bill items / sessions */}
             <div>
-              <p className="text-gray-500 text-xs uppercase tracking-wider mb-3">Sessions</p>
+              <p className="text-neutral-500 text-xs uppercase tracking-wider mb-3">Sessions</p>
               {loadingItems ? (
                 <div className="flex items-center justify-center h-16">
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 </div>
               ) : items.length === 0 ? (
-                <p className="text-gray-600 text-sm text-center py-4">No session items found</p>
+                <p className="text-neutral-600 text-sm text-center py-4">No session items found</p>
               ) : (
                 <div className="space-y-2">
                   {items.map(item => (
@@ -371,33 +371,33 @@ const BillModal = ({
                         <div className="flex-1 min-w-0">
                           <p className="text-white text-sm font-medium truncate">{item.eventTitle || '—'}</p>
                           {item.eventDate && (
-                            <p className="text-gray-600 text-xs mt-0.5">{item.eventDate}</p>
+                            <p className="text-neutral-600 text-xs mt-0.5">{item.eventDate}</p>
                           )}
                         </div>
 
                         {/* Amount */}
                         {editingItemId === item.$id ? (
                           <div className="flex items-center gap-1.5">
-                            <span className="text-gray-400 text-sm">$</span>
+                            <span className="text-neutral-400 text-sm">$</span>
                             <input
                               type="number"
                               step="0.01"
                               min="0"
                               value={editItemVal}
                               onChange={e => setEditItemVal(e.target.value)}
-                              className="w-20 bg-[#1a1a1a] border border-gray-700 rounded px-2 py-1 text-white text-sm focus:outline-none focus:ring-1 focus:ring-white/40"
+                              className="w-20 bg-[#1a1a1a] border border-neutral-700 rounded px-2 py-1 text-white text-sm focus:outline-none focus:ring-1 focus:ring-white/40"
                               autoFocus
                             />
                             <button
                               onClick={() => handleSaveItem(item)}
                               disabled={savingItemId === item.$id}
-                              className="p-1 bg-white hover:bg-gray-200 text-black rounded transition-colors disabled:opacity-50"
+                              className="p-1 bg-white hover:bg-neutral-200 text-black rounded transition-colors disabled:opacity-50"
                             >
                               <CheckIcon />
                             </button>
                             <button
                               onClick={() => setEditingItemId(null)}
-                              className="p-1 text-gray-500 hover:text-white transition-colors"
+                              className="p-1 text-neutral-500 hover:text-white transition-colors"
                             >
                               <XIcon />
                             </button>
@@ -409,7 +409,7 @@ const BillModal = ({
                             </span>
                             <button
                               onClick={() => { setEditItemVal(String(item.price)); setEditingItemId(item.$id); }}
-                              className="text-gray-600 hover:text-white transition-colors"
+                              className="text-neutral-600 hover:text-white transition-colors"
                               title="Edit amount"
                             >
                               <PencilIcon />
@@ -417,7 +417,7 @@ const BillModal = ({
                             <button
                               onClick={() => handleDeleteItem(item)}
                               disabled={deletingItemId === item.$id}
-                              className="text-gray-600 hover:text-red-400 transition-colors disabled:opacity-40"
+                              className="text-neutral-600 hover:text-red-400 transition-colors disabled:opacity-40"
                               title="Delete session"
                             >
                               {deletingItemId === item.$id
@@ -439,7 +439,7 @@ const BillModal = ({
           <div className="px-6 py-4 border-t border-[#1e1e1e] flex justify-end">
             <button
               onClick={onClose}
-              className="px-5 py-2 text-sm text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 rounded-lg transition-colors"
+              className="px-5 py-2 text-sm text-neutral-400 hover:text-white border border-neutral-700 hover:border-neutral-500 rounded-lg transition-colors"
             >
               Close
             </button>
@@ -452,10 +452,12 @@ const BillModal = ({
 
 const Field = ({ label, value }: { label: string; value?: string }) => (
   <div>
-    <p className="text-gray-600 text-xs uppercase tracking-wider mb-0.5">{label}</p>
+    <p className="text-neutral-600 text-xs uppercase tracking-wider mb-0.5">{label}</p>
     <p className="text-white text-sm">{value || '—'}</p>
   </div>
 );
+
+const ALL_MONTHS = 'all';
 
 // ── BillsSection ──────────────────────────────────────────────────────────────
 const BillsSection = () => {
@@ -465,6 +467,7 @@ const BillsSection = () => {
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState<BillStatus>('outstanding');
   const [search, setSearch] = useState('');
+  const [month, setMonth] = useState<string>(ALL_MONTHS);
   const [selectedBill, setSelectedBill] = useState<BillRecord | null>(null);
   const [sortKey, setSortKey] = useState<'monthName' | 'name' | 'dueDate' | 'totalAmount' | 'status' | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
@@ -539,7 +542,18 @@ const BillsSection = () => {
     else { setSortKey(key); setSortDir('asc'); }
   };
 
-  const tabBills = bills.filter(b => deriveBillStatus(b) === activeTab);
+  // Every month that has a bill, newest first, labelled the way bills name it.
+  const months = (() => {
+    const labels = new Map<string, string>();
+    for (const b of bills) if (b.month && !labels.has(b.month)) labels.set(b.month, b.monthName || b.month);
+    return [...labels.entries()].sort((a, b) => b[0].localeCompare(a[0]));
+  })();
+  const monthLabel = months.find(([key]) => key === month)?.[1];
+
+  // The month narrows everything under it — the cards, the tabs and the search.
+  const monthBills = month === ALL_MONTHS ? bills : bills.filter(b => b.month === month);
+
+  const tabBills = monthBills.filter(b => deriveBillStatus(b) === activeTab);
   const filtered = tabBills.filter(b => getName(b).toLowerCase().includes(search.toLowerCase()));
 
   const sorted = sortKey ? [...filtered].sort((a, b) => {
@@ -566,13 +580,13 @@ const BillsSection = () => {
       settled: { count: 0, amount: 0 },
       overdue: { count: 0, amount: 0 },
     };
-    for (const b of bills) {
+    for (const b of monthBills) {
       const s = deriveBillStatus(b);
       acc[s].count += 1;
       acc[s].amount += b.totalAmount ?? 0;
     }
     const total = {
-      count: bills.length,
+      count: monthBills.length,
       amount: acc.outstanding.amount + acc.settled.amount + acc.overdue.amount,
     };
     return { ...acc, total };
@@ -586,27 +600,42 @@ const BillsSection = () => {
 
   return (
     <div className="p-6">
-      <h2 className="text-2xl font-bold text-white mb-6">Bills</h2>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <h2 className="text-2xl font-bold text-white">Bills</h2>
+        <select
+          value={month}
+          onChange={e => setMonth(e.target.value)}
+          aria-label="Filter by month"
+          className={`px-3 py-2 text-sm rounded-lg border outline-none transition-colors ${
+            month === ALL_MONTHS
+              ? 'bg-neutral-900 border-neutral-800 text-neutral-300 hover:text-white'
+              : 'bg-white text-black font-medium border-white'
+          }`}
+        >
+          <option value={ALL_MONTHS}>All months</option>
+          {months.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+        </select>
+      </div>
 
       {/* Stats — dollar total per section + overall */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         {statCards.map(({ label, s, color }) => (
-          <div key={label} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-            <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">{label}</p>
+          <div key={label} className="bg-neutral-900 border border-neutral-800 rounded-xl p-4">
+            <p className="text-neutral-400 text-xs uppercase tracking-wider mb-1">{label}</p>
             <p className={`text-2xl font-bold ${color}`}>{fmtMoney(s.amount)}</p>
-            <p className="text-gray-500 text-xs mt-0.5">{s.count} bill{s.count === 1 ? '' : 's'}</p>
+            <p className="text-neutral-500 text-xs mt-0.5">{s.count} bill{s.count === 1 ? '' : 's'}</p>
           </div>
         ))}
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 bg-gray-900 rounded-lg p-1 w-fit border border-gray-800">
+      <div className="flex gap-1 mb-6 bg-neutral-900 rounded-lg p-1 w-fit border border-neutral-800">
         {(['outstanding', 'settled', 'overdue'] as BillStatus[]).map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              activeTab === tab ? 'bg-white text-black font-medium' : 'text-gray-400 hover:text-white'
+              activeTab === tab ? 'bg-white text-black font-medium' : 'text-neutral-400 hover:text-white'
             }`}
           >
             {tabLabel[tab]}
@@ -621,7 +650,7 @@ const BillsSection = () => {
           placeholder="Search by name..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="w-full max-w-md px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-white/40"
+          className="w-full max-w-md px-4 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-white/40"
         />
       </div>
 
@@ -635,10 +664,10 @@ const BillsSection = () => {
       )}
 
       {!loading && !error && (
-        <div className="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden">
+        <div className="bg-neutral-900 rounded-lg border border-neutral-800 overflow-hidden">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-gray-800 bg-gray-950">
+              <tr className="border-b border-neutral-800 bg-neutral-950">
                 {([
                   ['Month', 'monthName'],
                   ['Name', 'name'],
@@ -647,23 +676,23 @@ const BillsSection = () => {
                   ['Status', 'status'],
                 ] as [string, typeof sortKey][]).map(([label, key]) => (
                   <th key={key} onClick={() => toggleSort(key)}
-                    className="text-left px-4 py-3 text-gray-400 text-sm font-medium cursor-pointer select-none hover:text-white transition-colors">
+                    className="text-left px-4 py-3 text-neutral-400 text-sm font-medium cursor-pointer select-none hover:text-white transition-colors">
                     <span className="inline-flex items-center gap-1">
                       {label}
                       {sortKey === key
                         ? <span className="text-white">{sortDir === 'asc' ? '↑' : '↓'}</span>
-                        : <span className="text-gray-700">↕</span>
+                        : <span className="text-neutral-700">↕</span>
                       }
                     </span>
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-800">
+            <tbody className="divide-y divide-neutral-800">
               {sorted.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
-                    No {tabLabel[activeTab].toLowerCase()} bills found
+                  <td colSpan={5} className="px-4 py-8 text-center text-neutral-500">
+                    No {tabLabel[activeTab].toLowerCase()} bills {monthLabel ? `for ${monthLabel}` : 'found'}
                   </td>
                 </tr>
               ) : (
@@ -671,11 +700,11 @@ const BillsSection = () => {
                   <tr
                     key={bill.$id}
                     onClick={() => setSelectedBill(bill)}
-                    className="hover:bg-gray-800/50 cursor-pointer transition-colors"
+                    className="hover:bg-neutral-800/50 cursor-pointer transition-colors"
                   >
                     <td className="px-4 py-3 text-white">{bill.monthName || '—'}</td>
-                    <td className="px-4 py-3 text-gray-300">{getName(bill)}</td>
-                    <td className="px-4 py-3 text-gray-400">
+                    <td className="px-4 py-3 text-neutral-300">{getName(bill)}</td>
+                    <td className="px-4 py-3 text-neutral-400">
                       {fmtDateEST(bill.dueDate)}
                     </td>
                     <td className="px-4 py-3 text-white">
