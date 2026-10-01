@@ -16,6 +16,7 @@ import {
 } from '../../services/payment/billingService';
 import { resolveUserStripeContext } from '../../services/payment/paymentApi';
 import PaymentMethodsSection from './PaymentMethodsSection';
+import PaymentMethodRequiredModal from './PaymentMethodRequiredModal';
 
 // ── Bill detail modal ──────────────────────────────────────────────────────────
 const BillModal = ({
@@ -155,6 +156,14 @@ const PaymentPortalPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
+  // The payment-method prompt stays away once the user is working in Payment
+  // Methods or has a method saved (the app hides it on that screen too).
+  const [paymentPromptSuppressed, setPaymentPromptSuppressed] = useState(false);
+
+  const goToPaymentMethods = () => {
+    setPaymentPromptSuppressed(true);
+    document.getElementById('payment-methods')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -345,12 +354,16 @@ const PaymentPortalPage = () => {
             </section>
 
             {/* Saved payment methods — cards and bank accounts (ACH) */}
-            <section>
+            <section id="payment-methods" className="scroll-mt-6">
               {user?.$id && (
                 <PaymentMethodsSection
                   userId={user.$id}
                   userName={fullName || ''}
                   userEmail={(user as any)?.email || ''}
+                  onMethodsChange={(count) => {
+                    if (count > 0) setPaymentPromptSuppressed(true);
+                  }}
+                  onActivity={() => setPaymentPromptSuppressed(true)}
                 />
               )}
             </section>
@@ -364,6 +377,15 @@ const PaymentPortalPage = () => {
           title={titleFor(selectedBill)}
           onClose={() => setSelectedBill(null)}
           onPay={(bill) => { setSelectedBill(null); payBills([bill.$id]); }}
+        />
+      )}
+
+      {/* Waits for the page so its button has the Payment Methods section to jump to. */}
+      {user?.$id && !loading && !error && (
+        <PaymentMethodRequiredModal
+          userId={user.$id}
+          suppressed={paymentPromptSuppressed}
+          onAddPaymentMethod={goToPaymentMethods}
         />
       )}
     </div>

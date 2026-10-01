@@ -154,7 +154,44 @@ export async function listPaymentMethods(customerId: string): Promise<SavedPayme
   }
 }
 
+/**
+ * True when the customer has at least one saved card or bank account. A failed
+ * lookup counts as true, so a network blip never reads as "no payment method"
+ * (same rule as the app's payment-method prompt).
+ */
+export async function customerHasPaymentMethod(customerId?: string | null): Promise<boolean> {
+  if (!customerId) return false;
+  try {
+    const response = await callFunction(paymentFunctions.listPaymentMethods, { customerId });
+    return ((response.paymentMethods || []) as any[]).length > 0;
+  } catch {
+    return true;
+  }
+}
+
 // ── Saved payment methods: add / remove ───────────────────────────────────────
+
+/**
+ * Record how a save attempt ended (outcome, status, error) on the SetupIntent's
+ * metadata in Stripe, so failures are visible there. Fire and forget: it must
+ * never block or break the flow it describes.
+ */
+export function reportSetupIntentResult(
+  customerId: string,
+  setupIntentId: string,
+  result: { platform: string; outcome: string; status?: string; error?: string },
+): void {
+  functions
+    .createExecution(
+      paymentFunctions.createSetupIntent,
+      JSON.stringify({ action: 'report', customerId, setupIntentId, result }),
+      true,
+      '/',
+      ExecutionMethod.POST,
+      { 'Content-Type': 'application/json' },
+    )
+    .catch(() => {});
+}
 
 /**
  * Create a SetupIntent so a card or bank account can be SAVED for reuse.
