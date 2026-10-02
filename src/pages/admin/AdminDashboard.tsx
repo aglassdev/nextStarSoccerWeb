@@ -316,8 +316,9 @@ const AdminDashboard = () => {
 
         const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1).toISOString();
         // Revenue = one-time/prepaid payments (payments collection) + paid
-        // monthly bills (bills collection — these are NOT mirrored into payments,
-        // so they must be summed here or revenue is undercounted).
+        // monthly bills (bills collection). In-app bill payments also leave a
+        // type "bill" record in payments; those are skipped below so a bill
+        // isn't counted twice.
         const [allPayments, allBillsRes] = await Promise.all([
           collections.payments
             ? databases.listDocuments(databaseId, collections.payments, [Query.greaterThanEqual('$createdAt', sixMonthsAgo), Query.limit(5000)]).catch(() => ({ documents: [] }))
@@ -337,6 +338,9 @@ const AdminDashboard = () => {
           return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
         };
         (allPayments as any).documents.forEach((p: any) => {
+          // Already counted from the bills collection under the bill's month;
+          // counting the record too would add it again in the month it was paid.
+          if (p.type === 'bill') return;
           const key = bucketKey(p.$createdAt);
           if (key in monthly) monthly[key] += (p.price || 0);
         });
