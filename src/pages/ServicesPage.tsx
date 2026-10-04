@@ -249,17 +249,9 @@ const ServicesPage = () => {
             {/* ═══════════════════════ INTRO ═══════════════════════ */}
             <section className="pt-40 md:pt-48 pb-16 md:pb-24 border-b border-white/[0.08]">
                 <div className="max-w-7xl mx-auto px-6 lg:px-8">
-                    <Label>Services</Label>
-                    <h1 className="mt-6 text-white font-medium tracking-[-0.03em] leading-[1.02] text-[clamp(2.6rem,6vw,5rem)]">
-                        Training for<br />every stage
+                    <h1 className="text-white font-medium tracking-[-0.03em] leading-[1.02] text-[clamp(2.6rem,6vw,5rem)]">
+                        Services
                     </h1>
-                    <p className="mt-8 max-w-3xl text-[clamp(1.1rem,1.6vw,1.4rem)] leading-relaxed tracking-[-0.01em]">
-                        <span className="text-white">One-on-one sessions to camps and showcases.</span>{' '}
-                        <span className="text-white/45">
-                            Everything is coached by the same staff of professionals and former players,
-                            and priced per player.
-                        </span>
-                    </p>
                 </div>
             </section>
 
