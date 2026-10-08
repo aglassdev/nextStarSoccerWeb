@@ -190,7 +190,7 @@ const MessagesSection = () => {
   const [newChatSearching, setNewChatSearching] = useState(false);
   const [pendingChat, setPendingChat] = useState<{ conversationId: string; clientId: string; clientName: string } | null>(null);
 
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const threadRef = useRef<HTMLDivElement>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => { fetchConversations(); }, []);
@@ -237,9 +237,17 @@ const MessagesSection = () => {
     finally { setChatLoading(false); }
   };
 
+  // Keep the thread on its newest message. Opening a chat jumps straight there
+  // once the spinner gives way to the messages; a new message glides in.
+  // Scrolling the thread itself (not scrollIntoView) leaves the page alone.
+  const scrolledConv = useRef<string | null>(null);
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatMessages]);
+    const el = threadRef.current;
+    if (!el || chatLoading) return;
+    const opened = scrolledConv.current !== selectedConvId;
+    scrolledConv.current = selectedConvId;
+    el.scrollTo({ top: el.scrollHeight, behavior: opened ? 'auto' : 'smooth' });
+  }, [chatMessages, chatLoading, selectedConvId]);
 
   const selectConv = (conv: WebConversation) => {
     setSelectedConvId(conv.conversationId);
@@ -500,7 +508,7 @@ const MessagesSection = () => {
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-1">
+            <div ref={threadRef} className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-1">
               {chatLoading ? (
                 <div className="flex items-center justify-center h-32">
                   <div className="w-5 h-5 border border-white/10 border-t-white/40 rounded-full animate-spin" />
@@ -544,7 +552,6 @@ const MessagesSection = () => {
                   </div>
                 );
               })}
-              <div ref={bottomRef} />
             </div>
 
             {/* Input */}

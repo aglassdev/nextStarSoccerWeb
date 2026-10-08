@@ -592,8 +592,10 @@ const AdminDashboard = () => {
       {/* ── Main ──────────────────────────────────────────────────────────────── */}
       <main className="flex-1 overflow-y-auto bg-[#0d0b09]">
         {activeSection ? (
-          <div>
-            <div className="sticky top-0 z-10 bg-[#0d0b09]/95 backdrop-blur border-b border-white/[0.07] px-6 h-11 flex items-center gap-3">
+          // Chats fill the window exactly, so the thread scrolls on its own and
+          // the message box stays pinned to the bottom instead of the page.
+          <div className={activeSection === 'messages' ? 'h-full flex flex-col' : undefined}>
+            <div className="sticky top-0 z-10 flex-shrink-0 bg-[#0d0b09]/95 backdrop-blur border-b border-white/[0.07] px-6 h-11 flex items-center gap-3">
               <button onClick={() => setActiveSection(null)} className="text-white/30 hover:text-white transition-colors">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" />
@@ -602,7 +604,9 @@ const AdminDashboard = () => {
               <span className="text-white/20 text-xs">—</span>
               <span className="text-white text-[13px]">{activeSectionLabel}</span>
             </div>
-            {sectionComponents[activeSection]}
+            {activeSection === 'messages'
+              ? <div className="flex-1 min-h-0">{sectionComponents[activeSection]}</div>
+              : sectionComponents[activeSection]}
           </div>
         ) : (
           <div className="px-8 py-7 max-w-[1400px] mx-auto space-y-5">
