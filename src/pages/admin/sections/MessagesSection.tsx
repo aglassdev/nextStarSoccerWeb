@@ -59,23 +59,44 @@ function fmtTime(ts: string) {
   return new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 }
 
-async function resolveClientName(clientId: string): Promise<string> {
-  if (!clientId || clientId === 'admin') return 'Unknown';
-  const colls = [
-    collections.parentUsers, collections.youthPlayers,
-    collections.collegiatePlayers, collections.professionalPlayers,
-  ].filter(Boolean) as string[];
-  for (const c of colls) {
-    try {
-      const r = await databases.listDocuments(databaseId, c, [Query.equal('userId', clientId), Query.limit(1)]);
-      if (r.documents.length) {
-        const d = r.documents[0] as any;
-        const n = `${d.firstName || ''} ${d.lastName || ''}`.trim();
-        if (n) return n;
+// Names live in whichever profile collection the client signed up through.
+// Look every client up at once: one query per collection (in batches of 100
+// ids, Appwrite's cap) all in parallel, instead of one client at a time. With
+// ~120 conversations that was ~160 requests back to back and over 20 seconds.
+// Names are kept for the session so reopening Chats doesn't ask again.
+const nameCache = new Map<string, string>();
+
+async function resolveClientNames(clientIds: string[]): Promise<Map<string, string>> {
+  const missing = [...new Set(clientIds)].filter(id => id && id !== 'admin' && !nameCache.has(id));
+  if (missing.length) {
+    const colls = [
+      collections.parentUsers, collections.youthPlayers,
+      collections.collegiatePlayers, collections.professionalPlayers,
+    ].filter(Boolean) as string[];
+    // Earlier collections win, matching the order the old lookup tried them in.
+    const found = await Promise.all(colls.map(async c => {
+      const names = new Map<string, string>();
+      for (let i = 0; i < missing.length; i += 100) {
+        try {
+          const r = await databases.listDocuments(databaseId, c, [
+            Query.equal('userId', missing.slice(i, i + 100)),
+            Query.select(['userId', 'firstName', 'lastName']),
+            Query.limit(1000),
+          ]);
+          for (const d of r.documents as any[]) {
+            const n = `${d.firstName || ''} ${d.lastName || ''}`.trim();
+            if (n && !names.has(d.userId)) names.set(d.userId, n);
+          }
+        } catch { /* leave these unresolved */ }
       }
-    } catch { /* try next */ }
+      return names;
+    }));
+    for (const id of missing) {
+      const hit = found.find(m => m.has(id));
+      if (hit) nameCache.set(id, hit.get(id)!);
+    }
   }
-  return 'Unknown';
+  return nameCache;
 }
 
 async function buildConversations(docs: any[]): Promise<WebConversation[]> {
@@ -97,25 +118,29 @@ async function buildConversations(docs: any[]): Promise<WebConversation[]> {
       msgs.find((m: any) => m.clientId)?.clientId ||
       msgs.find((m: any) => m.userId && m.userId !== 'admin')?.userId || '';
 
-    const unreadCount = msgs.filter((m: any) => !m.read && m.fromAdmin === false).length;
-    const clientName = clientId ? await resolveClientName(clientId) : 'Unknown';
-
     result.push({
       conversationId: convId,
       clientId,
-      clientName,
+      clientName: 'Unknown',
       lastMessage: latest.message || '',
       lastTimestamp: latest.timestamp || latest.$createdAt,
       lastFromAdmin: latest.fromAdmin === true,
-      unreadCount,
+      unreadCount: msgs.filter((m: any) => !m.read && m.fromAdmin === false).length,
     });
   }
+
+  const names = await resolveClientNames(result.map(c => c.clientId));
+  for (const c of result) c.clientName = names.get(c.clientId) || 'Unknown';
 
   result.sort((a, b) =>
     new Date(b.lastTimestamp).getTime() - new Date(a.lastTimestamp).getTime()
   );
   return result;
 }
+
+// The last list loaded, shown straight away when Chats is reopened while a
+// fresh copy loads behind it.
+let cachedConversations: WebConversation[] | null = null;
 
 // ── Event card bubble ─────────────────────────────────────────────────────────
 const EventBubble = ({ msg, fromMe, onAccept, onReject, accepting }: {
@@ -170,8 +195,8 @@ const EventBubble = ({ msg, fromMe, onAccept, onReject, accepting }: {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 const MessagesSection = () => {
-  const [conversations, setConversations] = useState<WebConversation[]>([]);
-  const [convLoading, setConvLoading] = useState(true);
+  const [conversations, setConversations] = useState<WebConversation[]>(cachedConversations ?? []);
+  const [convLoading, setConvLoading] = useState(!cachedConversations);
   const [convSearch, setConvSearch] = useState('');
 
   const [selectedConvId, setSelectedConvId] = useState<string | null>(null);
@@ -194,10 +219,12 @@ const MessagesSection = () => {
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => { fetchConversations(); }, []);
+  // Keep the remembered list in step with reads and sends made here.
+  useEffect(() => { if (cachedConversations) cachedConversations = conversations; }, [conversations]);
 
   const fetchConversations = async () => {
     if (!collections.messages) { setConvLoading(false); return; }
-    setConvLoading(true);
+    if (!cachedConversations) setConvLoading(true);
     try {
       const all: any[] = [];
       let offset = 0;
@@ -209,7 +236,8 @@ const MessagesSection = () => {
         if (page.documents.length < 500) break;
         offset += 500;
       }
-      setConversations(await buildConversations(all));
+      cachedConversations = await buildConversations(all);
+      setConversations(cachedConversations);
     } catch { /* ignore */ }
     finally { setConvLoading(false); }
   };
@@ -223,11 +251,12 @@ const MessagesSection = () => {
       ]);
       const msgs = res.documents as unknown as ChatMsg[];
       setChatMessages(msgs);
-      // Mark unread client messages as read
+      // Mark unread client messages as read in the background; the thread
+      // shows without waiting for those saves.
       const unread = msgs.filter(m => !m.read && m.fromAdmin === false);
-      await Promise.all(unread.map(m =>
+      unread.forEach(m =>
         databases.updateDocument(databaseId, collections.messages!, m.$id, { read: true }).catch(() => {})
-      ));
+      );
       if (unread.length) {
         setConversations(prev => prev.map(c =>
           c.conversationId === convId ? { ...c, unreadCount: 0 } : c
