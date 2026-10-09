@@ -7,7 +7,7 @@ import {
 } from '../../../services/coachPayouts';
 
 // Bumped whenever the cached shape changes, so an old payload is never drawn.
-const CACHE_KEY = 'nss.coachPayouts.v10';
+const CACHE_KEY = 'nss.coachPayouts.v11';
 
 const ALL_MONTHS = 'all';
 
@@ -472,7 +472,7 @@ const CoachPaymentsSection = () => {
                         `= ${fmtMoney(s.profit)} now, ${fmtMoney(s.expectedProfit)} once all bills are paid`,
                         s.expectedAdminFee > 0 ? `− Admin 5% ${fmtMoney(s.adminFee)} (${fmtMoney(s.expectedAdminFee)} expected)` : null,
                         s.gyauEligible
-                          ? `Gyau ${s.gyauAttended ? '50%' : '30%'} of the rest → ${fmtMoney(s.gyauShare)} (${fmtMoney(s.expectedGyauShare)} expected)`
+                          ? `Gyau ${s.gyauAttended ? '50%' : '30%'} of profit, less the admin fee → ${fmtMoney(s.gyauShare)} (${fmtMoney(s.expectedGyauShare)} expected)`
                           : 'Gyau share: not eligible',
                       ].filter(Boolean).join('\n');
                       return (
@@ -521,7 +521,7 @@ const CoachPaymentsSection = () => {
                               {fmtMoney(s.profit)}
                             </span>
                             <Expected value={s.expectedProfit} of={s.profit} />
-                            {s.gyauEligible && s.expectedGyauShare > 0 && (
+                            {s.gyauEligible && s.expectedGyauShare !== 0 && (
                               <p className="text-white/30 text-[10px]">
                                 Gyau {s.gyauAttended ? '50%' : '30%'} · {fmtMoney(s.gyauShare)}
                               </p>

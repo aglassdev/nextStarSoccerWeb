@@ -49,13 +49,17 @@ const HEAD_COACHES = new Set([GYAU, PAUL_TORRES]);
 
 // Booked as a session cost rather than a coach — a photographer, not staff.
 // The figure comes out of session profit but earns no payout row of its own.
+// Credited on sessions but neither paid here nor a cost to them: Peabo is a
+// photographer, not staff, and his fee is not taken off session profit.
+const NOT_PAID_HERE = new Set(["peabo"]);
+
 export const SESSION_EXPENSES: Record<string, { label: string; amount: number }> = {
-  peabo: { label: "Peabo · photographer", amount: 250 },
 };
 
-// Phillip Gyau takes a share of what the session nets after facility hire and
-// every other cost on it. Admin comes off that net first; his 50/30 is of what
-// is left afterwards, not of the profit itself.
+// Phillip Gyau takes 50% (present) or 30% (absent) of each session's profit
+// after facility hire and coach pay. The 5% admin fee is then taken from his
+// share, flat: 5% of the whole session profit, not 5% of his part of it.
+// Profits and losses both count, so a losing session reduces what he is owed.
 export const ADMIN_FEE_RATE = 0.05;
 export const GYAU_ATTENDED_SHARE = 0.5;
 export const GYAU_ABSENT_SHARE = 0.3;
@@ -385,6 +389,7 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
     for (const name of attendees) {
       const key = normalizeName(name);
       if (HEAD_COACHES.has(key)) continue;
+      if (NOT_PAID_HERE.has(key)) continue;
       const expense = SESSION_EXPENSES[key];
       if (expense) { otherCosts.push({ label: expense.label, amount: expense.amount }); continue; }
       const rate = rateForCoach(name, payableEventFor(event.id, name, event), headCoachPresent);
@@ -402,11 +407,12 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
     const eligible = gyauEligible(event);
     const attended = attendees.some(n => normalizeName(n) === GYAU);
     const shareRate = attended ? GYAU_ATTENDED_SHARE : GYAU_ABSENT_SHARE;
-    // Neither the fee nor his share goes negative on a session that lost money.
+    // Only sessions he has a row for count: one he missed that billed nothing
+    // is no business of his.
+    const counts = eligible && (attended || expectedRevenue > 0);
     const split = (p: number) => {
-      const net = Math.max(0, p);
-      const fee = eligible ? net * ADMIN_FEE_RATE : 0;
-      return { fee, share: eligible ? (net - fee) * shareRate : 0 };
+      const fee = counts ? p * ADMIN_FEE_RATE : 0;
+      return { fee, share: counts ? p * shareRate - fee : 0 };
     };
     const { fee: adminFee, share: gyauShare } = split(profit);
     const { fee: expectedAdminFee, share: expectedGyauShare } = split(expectedProfit);
@@ -468,8 +474,6 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
     // Gyau earns from every eligible session, whether or not he was there.
     if (!session.gyauEligible) continue;
     if (!session.gyauAttended && session.expectedRevenue <= 0) continue;
-    const net = Math.max(0, session.expectedProfit);
-    const afterAdmin = net - session.expectedAdminFee;
     rows.push({
       id: `${session.id}::${GYAU}`,
       eventId: session.eventId,
@@ -485,10 +489,9 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
       expectedRevenue: session.expectedRevenue,
       payment: session.gyauShare,
       expectedPayment: session.expectedGyauShare,
-      basis: `${session.gyauAttended ? '50%' : '30%'} ${session.gyauAttended ? '(attended)' : '(did not attend)'} — `
-        + `earned on ${fmtUsd(session.revenue)} collected, `
-        + `expected once all ${fmtUsd(session.expectedRevenue)} billed is in: `
-        + `${fmtUsd(afterAdmin)} net of 5% admin`,
+      basis: `${session.gyauAttended ? '50%' : '30%'} ${session.gyauAttended ? '(attended)' : '(did not attend)'} of `
+        + `${fmtUsd(session.profit)} profit, less 5% admin of ${fmtUsd(session.adminFee)} `
+        + `(expected: ${fmtUsd(session.expectedProfit)} profit, ${fmtUsd(session.expectedAdminFee)} admin)`,
       attended: session.gyauAttended,
     });
   }
