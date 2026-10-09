@@ -11,6 +11,12 @@ const CACHE_KEY = 'nss.coachPayouts.v10';
 
 const ALL_MONTHS = 'all';
 
+// Gyau's rows split on whether he was at the session: 50% when present, 30%
+// when absent. Every other coach's row is a session they worked.
+type Presence = 'all' | 'present' | 'absent';
+const GYAU_NAME = 'phillip gyau';
+const isGyauRow = (r: PayoutRow) => r.coach.trim().toLowerCase() === GYAU_NAME;
+
 const fmtMoney = (n: number) =>
   n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 });
 const fmtDateTime = (iso: string, dateOnly?: boolean) => {
@@ -110,6 +116,7 @@ const CoachPaymentsSection = () => {
   const [view, setView] = useState<View>('session');
   const [month, setMonth] = useState<string>(ALL_MONTHS);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
+  const [presence, setPresence] = useState<Presence>('all');
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'startDateTime', dir: 'desc' });
 
   const recalculate = useCallback(async (isCancelled: () => boolean = () => false) => {
@@ -211,6 +218,7 @@ const CoachPaymentsSection = () => {
     if (filters.sessionTitle) rows = rows.filter(r => has(r.sessionTitle, filters.sessionTitle));
     if (filters.facility) rows = rows.filter(r => r.facility === filters.facility);
     if (filters.supportCoaches) rows = rows.filter(r => has((r.supportCoaches ?? []).join(', '), filters.supportCoaches));
+    if (presence !== 'all') rows = rows.filter(r => isGyauRow(r) && r.attended === (presence === 'present'));
 
     const dir = sort.dir === 'asc' ? 1 : -1;
     const val = (r: PayoutRow): string | number => {
@@ -229,7 +237,21 @@ const CoachPaymentsSection = () => {
       if (av === bv) return Date.parse(b.startDateTime) - Date.parse(a.startDateTime);
       return av > bv ? dir : -dir;
     });
-  }, [scoped, filters, sort]);
+  }, [scoped, filters, sort, presence]);
+
+  // Gyau's totals split by whether he was there, over the month in view.
+  const gyauSplit = useMemo(() => {
+    const rows = (scoped?.rows ?? []).filter(isGyauRow);
+    const sum = (attended: boolean) => {
+      const r = rows.filter(x => x.attended === attended);
+      return {
+        sessions: r.length,
+        total: r.reduce((s, x) => s + (x.payment ?? 0), 0),
+        expected: r.reduce((s, x) => s + (x.expectedPayment ?? 0), 0),
+      };
+    };
+    return { present: sum(true), absent: sum(false) };
+  }, [scoped]);
 
   const sessionProfitTotal = useMemo(
     () => visibleSessions.reduce((s, r) => s + r.profit, 0),
@@ -248,7 +270,12 @@ const CoachPaymentsSection = () => {
     [visibleRows]
   );
 
-  const filtersActive = JSON.stringify(filters) !== JSON.stringify(EMPTY_FILTERS);
+  const filtersActive = JSON.stringify(filters) !== JSON.stringify(EMPTY_FILTERS) || presence !== 'all';
+
+  const showPresence = (p: Presence) => {
+    setView('coach');
+    setPresence(cur => (cur === p ? 'all' : p));
+  };
 
   return (
     <div className="px-5 py-5">
@@ -333,6 +360,26 @@ const CoachPaymentsSection = () => {
                     <p className="text-white/45 text-[11px]">{fmtMoney(t.expectedTotal)} expected</p>
                   )}
                   <p className="text-white/30 text-[10px]">{t.sessions} session{t.sessions === 1 ? '' : 's'}</p>
+                  {t.coach.trim().toLowerCase() === GYAU_NAME && (
+                    <div className="mt-1 pt-1 border-t border-white/[0.08] space-y-0.5">
+                      {([['present', 'Present · 50%', gyauSplit.present], ['absent', 'Absent · 30%', gyauSplit.absent]] as const).map(([p, label, v]) => (
+                        <span
+                          key={p}
+                          role="button"
+                          onClick={e => { e.stopPropagation(); showPresence(p); }}
+                          className={`flex items-baseline justify-between gap-3 text-[10px] rounded px-1 -mx-1 ${
+                            presence === p ? 'bg-white/[0.12] text-white' : 'text-white/45 hover:text-white'
+                          }`}
+                        >
+                          <span>{label} · {v.sessions}</span>
+                          <span className="text-emerald-300/90">
+                            {fmtMoney(v.total)}
+                            {Math.abs(v.expected - v.total) >= 0.005 && <span className="text-white/30"> / {fmtMoney(v.expected)}</span>}
+                          </span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   {t.expectedAdminFee !== undefined && t.expectedAdminFee > 0 && (
                     <p className="text-white/35 text-[10px] mt-1 pt-1 border-t border-white/[0.08]">
                       net of {fmtMoney(t.adminFee ?? 0)} admin
@@ -348,11 +395,26 @@ const CoachPaymentsSection = () => {
             <div className="flex items-center gap-3">
               {filtersActive && (
                 <button
-                  onClick={() => setFilters(EMPTY_FILTERS)}
+                  onClick={() => { setFilters(EMPTY_FILTERS); setPresence('all'); }}
                   className="px-3 py-1.5 text-[12px] text-white/60 hover:text-white border border-white/10 hover:border-white/25 rounded-lg transition-colors"
                 >
                   Clear filters
                 </button>
+              )}
+              {view === 'coach' && (
+                <div className="flex bg-white/[0.04] border border-white/10 rounded-lg p-0.5">
+                  {([['all', 'All'], ['present', 'Gyau present'], ['absent', 'Gyau absent']] as [Presence, string][]).map(([p, label]) => (
+                    <button
+                      key={p}
+                      onClick={() => setPresence(p)}
+                      className={`px-3 py-1 text-[11px] rounded-md transition-colors ${
+                        presence === p ? 'bg-white text-black font-medium' : 'text-white/60 hover:text-white'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
               )}
               <p className="text-white/25 text-[11px]">Click a row to open it in the Attendance Manager</p>
             </div>
