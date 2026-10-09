@@ -47,11 +47,13 @@ const GYAU = "phillip gyau";
 const PAUL_TORRES = "paul torres";
 const HEAD_COACHES = new Set([GYAU, PAUL_TORRES]);
 
-// Booked as a session cost rather than a coach — a photographer, not staff.
-// The figure comes out of session profit but earns no payout row of its own.
-export const SESSION_EXPENSES: Record<string, { label: string; amount: number }> = {
-  peabo: { label: "Peabo · photographer", amount: 250 },
-};
+// Credited on sessions but neither paid here nor a cost to them: Peabo is a
+// photographer, not staff, and his fee is no longer taken off session profit.
+const NOT_PAID_HERE = new Set(["peabo"]);
+
+// Booked as a session cost rather than a coach. Empty for now; kept so a
+// future one-off cost can be added without a code path of its own.
+export const SESSION_EXPENSES: Record<string, { label: string; amount: number }> = {};
 
 // Phillip Gyau takes a share of what the session nets after facility hire and
 // every other cost on it. Admin comes off that net first; his 50/30 is of what
@@ -385,6 +387,7 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
     for (const name of attendees) {
       const key = normalizeName(name);
       if (HEAD_COACHES.has(key)) continue;
+      if (NOT_PAID_HERE.has(key)) continue;
       const expense = SESSION_EXPENSES[key];
       if (expense) { otherCosts.push({ label: expense.label, amount: expense.amount }); continue; }
       const rate = rateForCoach(name, payableEventFor(event.id, name, event), headCoachPresent);
