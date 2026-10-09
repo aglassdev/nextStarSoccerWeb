@@ -2,13 +2,23 @@ import { CoachAttendanceData, normalizeName } from "./coachAttendance";
 import { CalendarEvent } from "./googleCalendar";
 import { computeFacilityCost } from "./facilityCost";
 
-// Payouts only cover sessions from this date onward; anything earlier is
-// already settled. Anchored to Eastern time, where the season is scheduled.
+// Payouts only cover sessions from these dates onward; anything earlier is
+// already settled. Gyau's share reaches back a month further than hourly pay:
+// April's hourly coaches were paid at the time, but his share of April was
+// not. Anchored to Eastern time, where the season is scheduled.
 export const PAYOUT_START = "2026-05-01T00:00:00-04:00";
+export const GYAU_PAYOUT_START = "2026-04-01T00:00:00-04:00";
 const PAYOUT_START_MS = Date.parse(PAYOUT_START);
+const GYAU_PAYOUT_START_MS = Date.parse(GYAU_PAYOUT_START);
 
+// Every session something is still owed on, which reaches back to Gyau's start.
 export const isWithinPayoutWindow = (event: CalendarEvent): boolean =>
-  Date.parse(event.startDateTime) >= PAYOUT_START_MS;
+  Date.parse(event.startDateTime) >= GYAU_PAYOUT_START_MS;
+
+// Before PAYOUT_START hourly pay is settled. It still comes off the session's
+// profit, since it was spent, but it is no longer owed to anyone.
+const isHourlySettled = (startDateTime: string): boolean =>
+  Date.parse(startDateTime) < PAYOUT_START_MS;
 
 // ── Rates ─────────────────────────────────────────────────────────────────────
 
@@ -378,7 +388,8 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
       const expense = SESSION_EXPENSES[key];
       if (expense) { otherCosts.push({ label: expense.label, amount: expense.amount }); continue; }
       const rate = rateForCoach(name, payableEventFor(event.id, name, event), headCoachPresent);
-      supportCoaches.push({ name, amount: rate.amount ?? 0, basis: rate.basis });
+      const basis = isHourlySettled(event.startDateTime) ? `${rate.basis} · already paid` : rate.basis;
+      supportCoaches.push({ name, amount: rate.amount ?? 0, basis });
     }
 
     const supportCost = supportCoaches.reduce((s, c) => s + c.amount, 0);
@@ -432,7 +443,8 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
   for (const session of sessions) {
     const supportNames = session.supportCoaches.map(c => c.name);
 
-    for (const support of session.supportCoaches) {
+    // Settled hourly pay has no row of its own; it only reduces Gyau's share.
+    for (const support of isHourlySettled(session.startDateTime) ? [] : session.supportCoaches) {
       rows.push({
         id: `${session.id}::${normalizeName(support.name)}`,
         eventId: session.eventId,
