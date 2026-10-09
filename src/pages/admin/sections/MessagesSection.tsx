@@ -1,6 +1,114 @@
 import { useState, useEffect, useRef } from 'react';
 import { Query, ID } from 'appwrite';
 import { databases, databaseId, collections } from '../../../services/appwrite';
+import { createCalendarEvent } from '../../../services/calendarAdmin';
+
+// ── Accepting a session request ───────────────────────────────────────────────
+// Requests from the app's "Request a Session" screens store the date as text
+// ("Friday, October 9, 2026") and send only a start time; event cards made in
+// the app's chat store "2026-10-09". Accepting has to turn either into a real
+// calendar event and a signup for the player it's for.
+const MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+const SESSION_TYPES = ['Individual Session', 'Two Person Session', 'Small Group Session'];
+const ANALYSIS_TYPES = ['Game Analysis', 'Parent Consultation'];
+
+const toIsoDate = (s?: string): string | null => {
+  if (!s) return null;
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  const m = s.match(/([A-Za-z]+)\s+(\d{1,2}),?\s*(\d{4})/);
+  const month = m ? MONTHS.indexOf(m[1].toLowerCase()) : -1;
+  if (!m || month < 0) return null;
+  return `${m[3]}-${String(month + 1).padStart(2, '0')}-${m[2].padStart(2, '0')}`;
+};
+
+const to24h = (t?: string): string | null => {
+  const m = String(t || '').trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?$/i);
+  if (!m) return null;
+  let h = Number(m[1]);
+  const ap = (m[3] || '').toUpperCase();
+  if (ap === 'PM' && h !== 12) h += 12;
+  if (ap === 'AM' && h === 12) h = 0;
+  return `${String(h).padStart(2, '0')}:${m[2] || '00'}`;
+};
+
+const addHour = (hhmm: string) => `${String((Number(hhmm.slice(0, 2)) + 1) % 24).padStart(2, '0')}${hhmm.slice(2)}`;
+const normName = (f?: string, l?: string) => `${f || ''} ${l || ''}`.trim().toLowerCase().replace(/\s+/g, ' ');
+
+async function findPlayer(userId: string): Promise<any | null> {
+  for (const col of [collections.youthPlayers, collections.collegiatePlayers, collections.professionalPlayers]) {
+    if (!col) continue;
+    const r = await databases.listDocuments(databaseId, col, [Query.equal('userId', userId), Query.limit(1)]);
+    if (r.documents[0]) return r.documents[0];
+  }
+  return null;
+}
+
+// Creates the calendar event and the player's signup for an accepted request.
+// Returns what went wrong (shown to the admin), or null when everything worked.
+async function createAcceptedSession(msg: ChatMsg): Promise<string | null> {
+  const date = toIsoDate(msg.eventDate);
+  const start = to24h(msg.eventStartTime);
+  const end = msg.eventEndTime ? to24h(msg.eventEndTime) : start ? addHour(start) : null; // sessions run an hour
+  if (!date || !start || !end) {
+    return `The date or time couldn't be read ("${msg.eventDate || '?'}, ${msg.eventStartTime || '?'}"), so it wasn't added to the calendar.`;
+  }
+  const title = SESSION_TYPES.includes(msg.eventType || '') ? 'Private Session' : (msg.eventType || 'Session');
+  let ev: any;
+  try {
+    const body = await createCalendarEvent(ANALYSIS_TYPES.includes(msg.eventType || '') ? 'analysis' : 'private', {
+      title, location: msg.eventLocation || '', description: '',
+      startDateTime: `${date}T${start}:00`, endDateTime: `${date}T${end}:00`,
+    } as any);
+    ev = body.data;
+  } catch (e: any) {
+    return `It couldn't be added to the calendar: ${e?.message || e}`;
+  }
+  if (!collections.signups || !ev?.id) return null;
+
+  // A parent's request names the child ("For: Noah Yoseph"); parents can't be
+  // signed up themselves. A player's own request signs up the player.
+  const requester = msg.clientId || '';
+  const forName = ((msg.message || '').match(/For:\s*(.+)/i)?.[1] || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  const base = { eventID: ev.id, eventTitle: title, eventDate: ev.start?.dateTime || `${date}T${start}:00`, type: 'bill' };
+  try {
+    const proxies = collections.proxyChildren
+      ? (await databases.listDocuments(databaseId, collections.proxyChildren, [Query.equal('parentUserId', requester), Query.limit(50)])).documents as any[]
+      : [];
+    const links = collections.familyRelationships001
+      ? (await databases.listDocuments(databaseId, collections.familyRelationships001, [Query.equal('parentUserId', requester), Query.equal('status', 'active'), Query.limit(50)])).documents as any[]
+      : [];
+    const proxy = forName ? proxies.find(p => normName(p.firstName, p.lastName) === forName) : undefined;
+    if (proxy) {
+      await databases.createDocument(databaseId, collections.signups, ID.unique(), {
+        ...base, firstName: proxy.firstName, lastName: proxy.lastName,
+        userId: requester, onBehalfOfUserId: null, onBehalfOfProxyId: proxy.proxyId, isProxySignup: true, parentSignupId: requester,
+      });
+      return null;
+    }
+    for (const link of links.filter(l => l.childUserId)) {
+      const kid = await findPlayer(link.childUserId);
+      if (kid && forName && normName(kid.firstName, kid.lastName) === forName) {
+        await databases.createDocument(databaseId, collections.signups, ID.unique(), {
+          ...base, firstName: kid.firstName, lastName: kid.lastName,
+          userId: requester, onBehalfOfUserId: link.childUserId, onBehalfOfProxyId: null, isProxySignup: false, parentSignupId: requester,
+        });
+        return null;
+      }
+    }
+    if (proxies.length || links.length) {
+      return `It's on the calendar, but no player was signed up: couldn't match ${forName ? `"${forName}"` : 'the request'} to one of this family's children. Add them in the Event Assistant.`;
+    }
+    const player = await findPlayer(requester);
+    if (!player) return "It's on the calendar, but no player was signed up: the requester has no player profile or children on file.";
+    await databases.createDocument(databaseId, collections.signups, ID.unique(), {
+      ...base, firstName: player.firstName, lastName: player.lastName,
+      userId: requester, onBehalfOfUserId: null, onBehalfOfProxyId: null, isProxySignup: false,
+    });
+    return null;
+  } catch (e: any) {
+    return `It's on the calendar, but the player couldn't be signed up: ${e?.message || e}`;
+  }
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface WebConversation {
@@ -347,6 +455,8 @@ const MessagesSection = () => {
         ...prev.map(m => m.$id === msg.$id ? { ...m, eventStatus: 'accepted' } : m),
         { ...(doc as any), fromAdmin: true },
       ]);
+      const problem = await createAcceptedSession(msg);
+      if (problem) window.alert(`Event accepted, but there's a problem:\n\n${problem}`);
     } catch { /* ignore */ }
     finally { setAcceptingId(''); }
   };
