@@ -29,13 +29,6 @@ const TEAM_IMAGE = '/assets/images/collage2.png';
 const FUNDAMENTALS_VIDEO =
     'https://nyc.cloud.appwrite.io/v1/storage/buckets/6a1fa457000995c2a83f/files/6a1fa81c001bd64cf360/view?project=68577380002195dec512';
 
-const FLOAT_SHADOW = [
-    '0 0 0 1px rgba(255,255,255,0.10)',
-    '0 2px 0 0 rgba(255,255,255,0.06) inset',
-    '0 30px 60px -12px rgba(0,0,0,0.9)',
-    '0 50px 120px -30px rgba(255,255,255,0.22)',
-].join(', ');
-
 const STORY: {
     label: string; title: [string, string?]; body: string; cta: string; to: string;
     image?: string; video?: string; alt?: string;
@@ -222,6 +215,123 @@ const Label = ({ children, className = '' }: { children: React.ReactNode; classN
 
 const HEADING = 'text-white font-medium tracking-[-0.025em] leading-[1.05] text-[clamp(2.25rem,4.4vw,3.6rem)]';
 
+type Chapter = (typeof STORY)[number];
+
+const StoryText = ({ chapter: ch }: { chapter: Chapter }) => (
+    <>
+        <Label>{ch.label}</Label>
+        <h2 className={`mt-6 ${HEADING}`}>
+            {ch.title[0]}{ch.title[1] && <><br /><span className="text-white/40">{ch.title[1]}</span></>}
+        </h2>
+        <p className="mt-6 text-[clamp(1.05rem,1.45vw,1.25rem)] leading-relaxed text-white/60">{ch.body}</p>
+        <Link to={ch.to} className="mt-8 inline-flex items-center gap-1.5 text-[14px] text-white/50 hover:text-white transition-colors">
+            {ch.cta} <span aria-hidden="true">→</span>
+        </Link>
+    </>
+);
+
+// About Us plays out over a pinned screen while the page scrolls past it:
+//   1. the photo fills the frame on its own;
+//   2. a black card grows out of the middle to 3/4 of the frame, overshooting
+//      a touch and settling back (the bounce);
+//   3. it holds there for a stretch of scroll, so reading feels like a pause;
+//   4. then it keeps growing until the black has taken over the whole frame.
+// Scroll progress drives CSS variables directly, so nothing re-renders.
+const REVEAL_HEIGHT = 340; // vh of scroll the sequence spans
+const GROW_END = 0.32, HOLD_END = 0.62;
+const REST = 0.75; // the card's size, as a share of the frame, while it holds
+
+const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
+// Ease-out with a small overshoot past 1 that settles back.
+const easeOutBack = (t: number) => { const c = 1.9; return 1 + (c + 1) * (t - 1) ** 3 + c * (t - 1) ** 2; };
+const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+
+const AboutReveal = ({ chapter }: { chapter: Chapter }) => {
+    const wrapRef = useRef<HTMLDivElement>(null);
+    const cardRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const wrap = wrapRef.current, card = cardRef.current;
+        if (!wrap || !card) return;
+        const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        let raf = 0;
+
+        const paint = () => {
+            raf = 0;
+            const r = wrap.getBoundingClientRect();
+            const span = r.height - window.innerHeight;
+            const p = reduced ? (GROW_END + HOLD_END) / 2 : clamp01(-r.top / span);
+            let size: number, text: number;
+            if (p < GROW_END) {
+                const t = clamp01(p / GROW_END);
+                size = REST * easeOutBack(t);
+                text = clamp01((t - 0.55) / 0.45);
+            } else if (p < HOLD_END) {
+                size = REST; text = 1;
+            } else {
+                const t = easeInOut(clamp01((p - HOLD_END) / (1 - HOLD_END)));
+                size = REST + (1 - REST) * t; text = 1;
+            }
+            card.style.setProperty('--size', String(Math.max(0, size)));
+            card.style.setProperty('--text', String(text));
+        };
+        const onScroll = () => { if (!raf) raf = requestAnimationFrame(paint); };
+
+        // The pause: if scrolling comes to rest close to the hold, ease the
+        // page onto it so the card sits squarely in view. Never while the
+        // user is mid-scroll, so it never fights them.
+        let idle: ReturnType<typeof setTimeout> | undefined;
+        const settle = () => {
+            clearTimeout(idle);
+            idle = setTimeout(() => {
+                const r = wrap.getBoundingClientRect();
+                const span = r.height - window.innerHeight;
+                const p = -r.top / span;
+                const target = GROW_END + 0.02;
+                if (p > GROW_END - 0.1 && p < GROW_END) {
+                    window.scrollTo({ top: window.scrollY + (target - p) * span, behavior: 'smooth' });
+                }
+            }, 140);
+        };
+
+        paint();
+        window.addEventListener('scroll', onScroll, { passive: true });
+        window.addEventListener('resize', onScroll);
+        if (!reduced) window.addEventListener('scroll', settle, { passive: true });
+        return () => {
+            cancelAnimationFrame(raf); clearTimeout(idle);
+            window.removeEventListener('scroll', onScroll);
+            window.removeEventListener('resize', onScroll);
+            window.removeEventListener('scroll', settle);
+        };
+    }, []);
+
+    return (
+        <section ref={wrapRef} className="relative border-b border-white/[0.08]" style={{ height: `${REVEAL_HEIGHT}vh` }}>
+            <div className="sticky top-0 h-screen overflow-hidden">
+                <img src={chapter.image} alt={chapter.alt} className="absolute inset-0 w-full h-full object-cover" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                    <div
+                        ref={cardRef}
+                        className="relative bg-black flex items-center justify-center overflow-hidden"
+                        style={{
+                            width: 'calc(var(--size, 0) * 100%)',
+                            height: 'calc(var(--size, 0) * 100%)',
+                        } as React.CSSProperties}
+                    >
+                        <div
+                            className="w-[min(36rem,calc(100vw-3rem))] px-6 text-center flex-shrink-0 [&_a]:justify-center"
+                            style={{ opacity: 'var(--text, 0)', transform: 'translateY(calc((1 - var(--text, 0)) * 16px))' } as React.CSSProperties}
+                        >
+                            <StoryText chapter={chapter} />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    );
+};
+
 /* ─── Component ─────────────────────────────────────────────────────────────── */
 
 const HomePageNew = () => {
@@ -317,7 +427,7 @@ const HomePageNew = () => {
 
     /* ─── JSX ─── */
     return (
-        <div className="min-h-screen bg-black font-lt-wave overflow-x-hidden">
+        <div className="min-h-screen bg-black font-lt-wave overflow-x-clip">
 
             {/* ═══════════════════════ VIDEO LOADING OVERLAY ═══════════════════════ */}
             <div
@@ -394,49 +504,29 @@ const HomePageNew = () => {
                 <LogoCarousel icons={COLLEGE_ICONS} folder="colleges" direction="left" duration="60s" />
             </section>
 
-            {/* ═══════════════════════ STORY — one continuous section ═══════════════════════ */}
-            {/* Text and media alternate sides, and each piece of media drops below
-                the text beside it, so the three chapters stagger down the page
-                as one run instead of three boxed halves. */}
-            <section className="border-b border-white/[0.08]">
-                <Container className="py-24 md:py-32 space-y-24 md:space-y-10">
-                    {STORY.map((ch, i) => {
-                        const mediaLeft = i % 2 === 1;
-                        return (
-                            <div key={ch.label} className="grid md:grid-cols-12 gap-10 md:gap-8 items-start">
-                                <div className={`md:col-span-5 ${mediaLeft ? 'md:col-start-8 md:row-start-1' : 'md:col-start-1'} md:pt-8`}>
-                                    <Label>{ch.label}</Label>
-                                    <h2 className={`mt-6 ${HEADING}`}>
-                                        {ch.title[0]}{ch.title[1] && <><br /><span className="text-white/40">{ch.title[1]}</span></>}
-                                    </h2>
-                                    <p className="mt-6 text-[clamp(1.05rem,1.45vw,1.25rem)] leading-relaxed text-white/60">{ch.body}</p>
-                                    <Link
-                                        to={ch.to}
-                                        className="mt-8 inline-flex items-center gap-1.5 text-[14px] text-white/50 hover:text-white transition-colors"
-                                    >
-                                        {ch.cta} <span aria-hidden="true">→</span>
-                                    </Link>
-                                </div>
-                                <div className={`md:col-span-6 ${mediaLeft ? 'md:col-start-1 md:row-start-1' : 'md:col-start-7'} md:mt-40`}>
-                                    {/* Square corners, lifted off the page: a hairline rim catches the
-                                        edge, and a soft pale glow underneath reads as the shadow a
-                                        raised card would cast on black, where a dark one vanishes. */}
-                                    <div
-                                        className={`relative overflow-hidden bg-neutral-900 -translate-y-2 ${ch.video ? 'aspect-[16/10]' : 'aspect-[4/5]'}`}
-                                        style={{ boxShadow: FLOAT_SHADOW }}
-                                    >
-                                        {ch.video ? (
-                                            <video src={ch.video} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" />
-                                        ) : (
-                                            <img src={ch.image} alt={ch.alt} className="absolute inset-0 w-full h-full object-cover" />
-                                        )}
-                                    </div>
-                                </div>
+            {/* ═══════════════════════ ABOUT US — scroll reveal ═══════════════════════ */}
+            <AboutReveal chapter={STORY[0]} />
+
+            {/* ═══════════════════════ FUNDAMENTALS + TEAM — half and half ═══════════════════════ */}
+            {STORY.slice(1).map(ch => {
+                const mediaLeft = !!ch.video;
+                return (
+                    <section key={ch.label} className="border-b border-white/[0.08] grid md:grid-cols-2">
+                        <div className={`relative min-h-[360px] md:min-h-[600px] bg-neutral-900 order-2 ${mediaLeft ? 'md:order-1' : 'md:order-2'}`}>
+                            {ch.video ? (
+                                <video src={ch.video} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" />
+                            ) : (
+                                <img src={ch.image} alt={ch.alt} className="absolute inset-0 w-full h-full object-cover" />
+                            )}
+                        </div>
+                        <div className={`flex items-center px-4 sm:px-6 lg:px-8 py-16 md:py-24 order-1 ${mediaLeft ? 'md:order-2' : 'md:order-1'}`}>
+                            <div className={`max-w-xl ${mediaLeft ? 'md:mr-auto md:ml-12 lg:ml-16' : 'md:ml-auto md:mr-12 lg:mr-16'}`}>
+                                <StoryText chapter={ch} />
                             </div>
-                        );
-                    })}
-                </Container>
-            </section>
+                        </div>
+                    </section>
+                );
+            })}
 
             {/* ═══════════════════════ SOCIAL (unchanged) ═══════════════════════ */}
             <section
