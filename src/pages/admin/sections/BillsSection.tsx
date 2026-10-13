@@ -140,6 +140,7 @@ const BillModal = ({
   const [editItemVal, setEditItemVal] = useState('');
   const [savingItemId, setSavingItemId] = useState<string | null>(null);
   const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
+  const [deletingBill, setDeletingBill] = useState(false);
 
   const [error, setError] = useState('');
 
@@ -226,6 +227,34 @@ const BillModal = ({
       setError(e.message || 'Failed to delete item');
     } finally {
       setDeletingItemId(null);
+    }
+  };
+
+  // Removes the bill and every session on it. Items go first, so a failure
+  // part way leaves the bill in place to retry rather than orphaned items.
+  const handleDeleteBill = async () => {
+    const paid = status === 'settled';
+    const msg = `Delete ${getName(bill)}'s ${bill.monthName} bill`
+      + ` (${items.length} session${items.length === 1 ? '' : 's'}, $${(bill.totalAmount ?? 0).toFixed(2)})?`
+      + (paid ? '\n\nThis bill is already settled.' : '')
+      + '\n\nThis cannot be undone.';
+    if (!confirm(msg)) return;
+    setDeletingBill(true);
+    setError('');
+    try {
+      if (collections.billItems) {
+        for (const item of items) {
+          await databases.deleteDocument(databaseId, collections.billItems, item.$id);
+        }
+      }
+      await databases.deleteDocument(databaseId, collections.bills, bill.$id);
+      onBillUpdated();
+      onClose();
+    } catch (e: any) {
+      setError(e.message || 'Failed to delete bill');
+      fetchItems();
+    } finally {
+      setDeletingBill(false);
     }
   };
 
@@ -436,7 +465,14 @@ const BillModal = ({
           </div>
 
           {/* Footer */}
-          <div className="px-6 py-4 border-t border-[#1e1e1e] flex justify-end">
+          <div className="px-6 py-4 border-t border-[#1e1e1e] flex justify-between">
+            <button
+              onClick={handleDeleteBill}
+              disabled={deletingBill || loadingItems}
+              className="px-4 py-2 text-sm text-red-400 hover:text-white hover:bg-red-600 border border-red-500/40 hover:border-red-600 rounded-lg transition-colors disabled:opacity-40"
+            >
+              {deletingBill ? 'Deleting…' : 'Delete bill'}
+            </button>
             <button
               onClick={onClose}
               className="px-5 py-2 text-sm text-neutral-400 hover:text-white border border-neutral-700 hover:border-neutral-500 rounded-lg transition-colors"
