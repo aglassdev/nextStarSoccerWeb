@@ -231,20 +231,24 @@ const StoryText = ({ chapter: ch }: { chapter: Chapter }) => (
 );
 
 // About Us plays out over a pinned screen while the page scrolls past it:
-//   1. the photo fills the frame on its own;
-//   2. a black card grows out of the middle to 3/4 of the frame, overshooting
-//      a touch and settling back (the bounce);
+//   1. the black card starts growing out of the middle once the photo is
+//      about half on screen, its text already in place and revealed as the
+//      card opens around it;
+//   2. it reaches 3/4 of the frame, overshooting a touch and settling back;
 //   3. it holds there for a stretch of scroll, so reading feels like a pause;
 //   4. then it keeps growing until the black has taken over the whole frame.
-// Scroll progress drives CSS variables directly, so nothing re-renders.
-const REVEAL_HEIGHT = 340; // vh of scroll the sequence spans
-const GROW_END = 0.32, HOLD_END = 0.62;
+// The card is a full-size black layer cut down with clip-path, so growing it
+// never re-lays-out the text, and its size eases toward the scroll position
+// every frame rather than jumping with each scroll event.
+const REVEAL_HEIGHT = 300; // vh of scroll the pinned part spans
+const GROW_END = 0.36, HOLD_END = 0.64;
 const REST = 0.75; // the card's size, as a share of the frame, while it holds
+const FOLLOW = 0.12; // share of the remaining distance covered each frame
 
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
 // Ease-out with a small overshoot past 1 that settles back.
-const easeOutBack = (t: number) => { const c = 1.9; return 1 + (c + 1) * (t - 1) ** 3 + c * (t - 1) ** 2; };
-const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+const easeOutBack = (t: number) => { const c = 1.4; return 1 + (c + 1) * (t - 1) ** 3 + c * (t - 1) ** 2; };
+const easeInOut = (t: number) => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2);
 
 const AboutReveal = ({ chapter }: { chapter: Chapter }) => {
     const wrapRef = useRef<HTMLDivElement>(null);
@@ -254,54 +258,63 @@ const AboutReveal = ({ chapter }: { chapter: Chapter }) => {
         const wrap = wrapRef.current, card = cardRef.current;
         if (!wrap || !card) return;
         const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        let raf = 0;
 
-        const paint = () => {
-            raf = 0;
+        // 0 when the photo's top is halfway up the screen, 1 when the pinned
+        // stretch ends, so the card is already growing as the photo arrives.
+        const progress = () => {
             const r = wrap.getBoundingClientRect();
-            const span = r.height - window.innerHeight;
-            const p = reduced ? (GROW_END + HOLD_END) / 2 : clamp01(-r.top / span);
-            let size: number, text: number;
-            if (p < GROW_END) {
-                const t = clamp01(p / GROW_END);
-                size = REST * easeOutBack(t);
-                text = clamp01((t - 0.55) / 0.45);
-            } else if (p < HOLD_END) {
-                size = REST; text = 1;
-            } else {
-                const t = easeInOut(clamp01((p - HOLD_END) / (1 - HOLD_END)));
-                size = REST + (1 - REST) * t; text = 1;
-            }
-            card.style.setProperty('--size', String(Math.max(0, size)));
-            card.style.setProperty('--text', String(text));
+            const lead = window.innerHeight * 0.5;
+            const span = r.height - window.innerHeight + lead;
+            return clamp01((lead - r.top) / span);
         };
-        const onScroll = () => { if (!raf) raf = requestAnimationFrame(paint); };
+        const sizeAt = (p: number) => {
+            if (p < GROW_END) return REST * easeOutBack(p / GROW_END);
+            if (p < HOLD_END) return REST;
+            return REST + (1 - REST) * easeInOut((p - HOLD_END) / (1 - HOLD_END));
+        };
+        const draw = (size: number) => {
+            const inset = `${((1 - Math.max(0, size)) / 2) * 100}%`;
+            card.style.clipPath = `inset(${inset} ${inset} ${inset} ${inset})`;
+        };
 
-        // The pause: if scrolling comes to rest close to the hold, ease the
-        // page onto it so the card sits squarely in view. Never while the
-        // user is mid-scroll, so it never fights them.
+        if (reduced) { draw(REST); return; }
+
+        let current = sizeAt(progress());
+        let raf = 0;
+        const tick = () => {
+            const target = sizeAt(progress());
+            current += (target - current) * FOLLOW;
+            if (Math.abs(target - current) < 0.0004) current = target;
+            draw(current);
+            raf = current === target ? 0 : requestAnimationFrame(tick);
+        };
+        const wake = () => { if (!raf) raf = requestAnimationFrame(tick); };
+
+        // The pause: if scrolling comes to rest just short of the hold, ease
+        // the page onto it. Never mid-scroll, so it never fights the reader.
         let idle: ReturnType<typeof setTimeout> | undefined;
         const settle = () => {
             clearTimeout(idle);
             idle = setTimeout(() => {
                 const r = wrap.getBoundingClientRect();
-                const span = r.height - window.innerHeight;
-                const p = -r.top / span;
-                const target = GROW_END + 0.02;
+                const lead = window.innerHeight * 0.5;
+                const span = r.height - window.innerHeight + lead;
+                const p = (lead - r.top) / span;
+                const target = GROW_END + 0.03;
                 if (p > GROW_END - 0.1 && p < GROW_END) {
                     window.scrollTo({ top: window.scrollY + (target - p) * span, behavior: 'smooth' });
                 }
-            }, 140);
+            }, 160);
         };
 
-        paint();
-        window.addEventListener('scroll', onScroll, { passive: true });
-        window.addEventListener('resize', onScroll);
-        if (!reduced) window.addEventListener('scroll', settle, { passive: true });
+        draw(current);
+        window.addEventListener('scroll', wake, { passive: true });
+        window.addEventListener('resize', wake);
+        window.addEventListener('scroll', settle, { passive: true });
         return () => {
             cancelAnimationFrame(raf); clearTimeout(idle);
-            window.removeEventListener('scroll', onScroll);
-            window.removeEventListener('resize', onScroll);
+            window.removeEventListener('scroll', wake);
+            window.removeEventListener('resize', wake);
             window.removeEventListener('scroll', settle);
         };
     }, []);
@@ -310,21 +323,13 @@ const AboutReveal = ({ chapter }: { chapter: Chapter }) => {
         <section ref={wrapRef} className="relative border-b border-white/[0.08]" style={{ height: `${REVEAL_HEIGHT}vh` }}>
             <div className="sticky top-0 h-screen overflow-hidden">
                 <img src={chapter.image} alt={chapter.alt} className="absolute inset-0 w-full h-full object-cover" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                    <div
-                        ref={cardRef}
-                        className="relative bg-black flex items-center justify-center overflow-hidden"
-                        style={{
-                            width: 'calc(var(--size, 0) * 100%)',
-                            height: 'calc(var(--size, 0) * 100%)',
-                        } as React.CSSProperties}
-                    >
-                        <div
-                            className="w-[min(36rem,calc(100vw-3rem))] px-6 text-center flex-shrink-0 [&_a]:justify-center"
-                            style={{ opacity: 'var(--text, 0)', transform: 'translateY(calc((1 - var(--text, 0)) * 16px))' } as React.CSSProperties}
-                        >
-                            <StoryText chapter={chapter} />
-                        </div>
+                <div
+                    ref={cardRef}
+                    className="absolute inset-0 bg-black flex items-center justify-center will-change-[clip-path]"
+                    style={{ clipPath: 'inset(50% 50% 50% 50%)' }}
+                >
+                    <div className="w-[min(36rem,calc(100vw-3rem))] px-6 text-center [&_a]:justify-center">
+                        <StoryText chapter={chapter} />
                     </div>
                 </div>
             </div>
