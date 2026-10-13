@@ -240,8 +240,10 @@ const StoryText = ({ chapter: ch }: { chapter: Chapter }) => (
 // The card is a full-size black layer cut down with clip-path, so growing it
 // never re-lays-out the text, and its size eases toward the scroll position
 // every frame rather than jumping with each scroll event.
-const REVEAL_HEIGHT = 300; // vh of scroll the pinned part spans
-const GROW_END = 0.38, HOLD_END = 0.52;
+const REVEAL_HEIGHT = 225; // vh of scroll the pinned part spans
+// About a screen of scroll to grow, a short pause, then a quicker half
+// screen for the black to take over.
+const GROW_END = 0.54, HOLD_END = 0.71;
 const REST = 0.75; // the card's size, as a share of the frame, while it holds
 const FOLLOW = 0.07; // share of the remaining distance covered each frame
 
