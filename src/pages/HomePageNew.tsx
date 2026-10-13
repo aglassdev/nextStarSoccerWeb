@@ -22,26 +22,10 @@ const STATS: { end: number; suffix: string; label: string; detail: string }[] = 
     { end: 100,  suffix: '+', label: 'NCAA Division III',     detail: 'Alumni playing at the collegiate Division III level.' },
 ];
 
-// What used to be four paragraphs, cut down to the three things Next Star
-// actually does for a player.
-const PILLARS = [
-    {
-        title: 'Development',
-        body: 'Technical and physical work built around each player, from private sessions to group training, planned and reviewed by professional coaches.',
-    },
-    {
-        title: 'Pathways',
-        body: 'Insight into youth leagues, MLS academy programs, college recruitment and professional routes — the parts of the game most players have to figure out alone.',
-    },
-    {
-        title: 'The whole player',
-        body: 'Sports psychology, nutrition and discipline, with parents kept closely involved at every stage of the journey.',
-    },
-];
-
-// Filler media for the two split sections below, until the real photo and
-// video are uploaded. Swap these two values to replace them.
+// Filler media for the three split sections below, until the real photos and
+// video are uploaded. Swap these values to replace them.
 const ABOUT_IMAGE = '/assets/images/collage1.png';
+const TEAM_IMAGE = '/assets/images/collage2.png';
 const FUNDAMENTALS_VIDEO =
     'https://nyc.cloud.appwrite.io/v1/storage/buckets/6a1fa457000995c2a83f/files/6a1fa81c001bd64cf360/view?project=68577380002195dec512';
 
@@ -337,38 +321,6 @@ const HomePageNew = () => {
                 </div>
             </section>
 
-            {/* ═══════════════════════ ABOUT ═══════════════════════ */}
-            <section className="border-b border-white/[0.08]">
-                <Container className="pt-24 md:pt-32 pb-16 md:pb-20">
-                    <Label>About Next Star</Label>
-                    <p className="mt-8 max-w-5xl text-[clamp(1.75rem,3.3vw,2.85rem)] leading-[1.18] tracking-[-0.02em] font-medium">
-                        <span className="text-white">Passion and diligence drive success.</span>{' '}
-                        <span className="text-white/40">
-                            Led by experienced coaches and ex-pros, Next Star nurtures both in every player,
-                            and gives them a real understanding of the game on the way.
-                        </span>
-                    </p>
-                </Container>
-                <Container>
-                    <div className="grid md:grid-cols-3 border-t border-white/[0.08]">
-                        {PILLARS.map((p, i) => (
-                            <div
-                                key={p.title}
-                                className={[
-                                    'py-10 md:py-14',
-                                    i > 0 ? 'border-t md:border-t-0 md:border-l border-white/[0.08] md:pl-10' : '',
-                                    i < PILLARS.length - 1 ? 'md:pr-10' : '',
-                                ].join(' ')}
-                            >
-                                <Label className="tabular-nums">0{i + 1}</Label>
-                                <h3 className="mt-8 text-white text-[16px] font-medium">{p.title}</h3>
-                                <p className="mt-2 text-[14px] text-white/50 leading-relaxed">{p.body}</p>
-                            </div>
-                        ))}
-                    </div>
-                </Container>
-            </section>
-
             {/* ═══════════════════════ WHERE ALUMNI PLAY ═══════════════════════ */}
             {/* Clubs above the numbers, colleges below them. */}
             <section className="border-b border-white/[0.08] py-14 md:py-16">
@@ -420,18 +372,18 @@ const HomePageNew = () => {
                     <div className="max-w-xl md:ml-auto md:mr-12 lg:mr-16">
                         <Label>About us</Label>
                         <h2 className={`mt-6 ${HEADING}`}>
-                            Built by players,<br /><span className="text-white/40">for players</span>
+                            Founded in 2018,<br /><span className="text-white/40">built in the DC area</span>
                         </h2>
                         <p className="mt-6 text-[clamp(1.05rem,1.45vw,1.25rem)] leading-relaxed text-white/60">
-                            Next Star is led by experienced coaches and former professionals who have walked the path
-                            our players are on. We train the technical and physical side of the game, and guide
-                            families through youth leagues, academies, college recruitment and the professional game.
+                            Founded in 2018, Next Star started with a simple goal: give young players the coaching,
+                            guidance and opportunities to reach their potential. Today it trains players of every age
+                            across the DC area, with alumni competing in college and professional soccer around the world.
                         </p>
                         <Link
-                            to="/coaches"
+                            to="/alumni"
                             className="mt-8 inline-flex items-center gap-1.5 text-[14px] text-white/50 hover:text-white transition-colors"
                         >
-                            Meet the coaches <span aria-hidden="true">→</span>
+                            See where our alumni play <span aria-hidden="true">→</span>
                         </Link>
                     </div>
                 </div>
@@ -468,6 +420,32 @@ const HomePageNew = () => {
                             Explore services <span aria-hidden="true">→</span>
                         </Link>
                     </div>
+                </div>
+            </section>
+
+            {/* ═══════════════════════ OUR TEAM — text left, photo right ═══════════════════════ */}
+            <section className="border-b border-white/[0.08] grid md:grid-cols-2">
+                <div className="flex items-center px-4 sm:px-6 lg:px-8 py-16 md:py-24">
+                    <div className="max-w-xl md:ml-auto md:mr-12 lg:mr-16">
+                        <Label>Our team</Label>
+                        <h2 className={`mt-6 ${HEADING}`}>
+                            Built by players,<br /><span className="text-white/40">for players</span>
+                        </h2>
+                        <p className="mt-6 text-[clamp(1.05rem,1.45vw,1.25rem)] leading-relaxed text-white/60">
+                            Next Star is led by experienced coaches and former professionals who have walked the path
+                            our players are on. We train the technical and physical side of the game, and guide
+                            families through youth leagues, academies, college recruitment and the professional game.
+                        </p>
+                        <Link
+                            to="/coaches"
+                            className="mt-8 inline-flex items-center gap-1.5 text-[14px] text-white/50 hover:text-white transition-colors"
+                        >
+                            Meet the coaches <span aria-hidden="true">→</span>
+                        </Link>
+                    </div>
+                </div>
+                <div className="relative min-h-[360px] md:min-h-[600px] bg-neutral-900">
+                    <img src={TEAM_IMAGE} alt="Next Star coaches" className="absolute inset-0 w-full h-full object-cover" />
                 </div>
             </section>
 
