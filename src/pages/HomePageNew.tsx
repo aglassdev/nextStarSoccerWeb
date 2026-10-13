@@ -26,8 +26,7 @@ const STATS: { end: number; suffix: string; label: string; detail: string }[] = 
 // video are uploaded. Swap these values to replace them.
 const ABOUT_IMAGE = '/assets/images/collage1.png';
 const TEAM_IMAGE = '/assets/images/collage2.png';
-const FUNDAMENTALS_VIDEO =
-    'https://nyc.cloud.appwrite.io/v1/storage/buckets/6a1fa457000995c2a83f/files/6a1fa81c001bd64cf360/view?project=68577380002195dec512';
+const FUNDAMENTALS_VIDEO = '/assets/fundamentals.mp4';
 
 const STORY: {
     label: string; title: [string, string?]; body: string; cta: string; to: string;
