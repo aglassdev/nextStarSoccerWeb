@@ -39,26 +39,11 @@ const PILLARS = [
     },
 ];
 
-const EXPLORE: { title: [string, string]; body: string; cta: string; to: string }[] = [
-    {
-        title: ['Training', 'for every stage'],
-        body: 'Private sessions, two-person and small-group work, and group training throughout the week — from first touches to college and professional preparation.',
-        cta: 'Explore services',
-        to: '/services',
-    },
-    {
-        title: ['Alumni', 'around the world'],
-        body: 'Next Star players have gone on to NCAA programs and professional clubs across the United States, Europe and Latin America.',
-        cta: 'See where they play',
-        to: '/alumni',
-    },
-    {
-        title: ['Camps', 'all year round'],
-        body: 'Seasonal camps at venues across the DC area, including Next Star x Nike camps for youth and pro/college groups.',
-        cta: 'View camps',
-        to: '/services/camps',
-    },
-];
+// Filler media for the two split sections below, until the real photo and
+// video are uploaded. Swap these two values to replace them.
+const ABOUT_IMAGE = '/assets/images/collage1.png';
+const FUNDAMENTALS_VIDEO =
+    'https://nyc.cloud.appwrite.io/v1/storage/buckets/6a1fa457000995c2a83f/files/6a1fa81c001bd64cf360/view?project=68577380002195dec512';
 
 const CLUB_ICONS = [
   '568289-removebg-preview.png','Annapolis_Blues_FC_Logo.png','Chattanooga_FC_logo.svg.png',
@@ -385,14 +370,12 @@ const HomePageNew = () => {
             </section>
 
             {/* ═══════════════════════ WHERE ALUMNI PLAY ═══════════════════════ */}
-            <section className="border-b border-white/[0.08] py-16 md:py-20">
-                <div className="space-y-10">
-                    <LogoCarousel icons={CLUB_ICONS} folder="clubs" direction="right" duration="110s" />
-                    <LogoCarousel icons={COLLEGE_ICONS} folder="colleges" direction="left" duration="60s" />
-                </div>
+            {/* Clubs above the numbers, colleges below them. */}
+            <section className="border-b border-white/[0.08] py-14 md:py-16">
                 <Container>
-                    <Label className="text-center mt-12">Clubs and colleges our alumni have played for</Label>
+                    <Label className="text-center mb-10">Clubs our alumni have played for</Label>
                 </Container>
+                <LogoCarousel icons={CLUB_ICONS} folder="clubs" direction="right" duration="110s" />
             </section>
 
             {/* ═══════════════════════ NUMBERS ═══════════════════════ */}
@@ -424,28 +407,68 @@ const HomePageNew = () => {
                 </Container>
             </section>
 
-            {/* ═══════════════════════ EXPLORE ═══════════════════════ */}
-            <section>
-                {EXPLORE.map((row) => (
-                    <div key={row.to} className="border-b border-white/[0.08]">
-                        <Container className="py-16 md:py-24 grid md:grid-cols-2 gap-8 md:gap-12">
-                            <h2 className={HEADING}>
-                                {row.title[0]}<br />{row.title[1]}
-                            </h2>
-                            <div className="md:pt-2">
-                                <p className="text-[clamp(1.05rem,1.45vw,1.3rem)] leading-relaxed text-white/60 max-w-xl">
-                                    {row.body}
-                                </p>
-                                <Link
-                                    to={row.to}
-                                    className="mt-6 inline-flex items-center gap-1.5 text-[14px] text-white/50 hover:text-white transition-colors"
-                                >
-                                    {row.cta} <span aria-hidden="true">→</span>
-                                </Link>
-                            </div>
-                        </Container>
+            <section className="border-b border-white/[0.08] py-14 md:py-16">
+                <LogoCarousel icons={COLLEGE_ICONS} folder="colleges" direction="left" duration="60s" />
+                <Container>
+                    <Label className="text-center mt-10">Colleges our alumni have played for</Label>
+                </Container>
+            </section>
+
+            {/* ═══════════════════════ ABOUT US — text left, photo right ═══════════════════════ */}
+            <section className="border-b border-white/[0.08] grid md:grid-cols-2">
+                <div className="flex items-center px-4 sm:px-6 lg:px-8 py-16 md:py-24">
+                    <div className="max-w-xl md:ml-auto md:mr-12 lg:mr-16">
+                        <Label>About us</Label>
+                        <h2 className={`mt-6 ${HEADING}`}>
+                            Built by players,<br /><span className="text-white/40">for players</span>
+                        </h2>
+                        <p className="mt-6 text-[clamp(1.05rem,1.45vw,1.25rem)] leading-relaxed text-white/60">
+                            Next Star is led by experienced coaches and former professionals who have walked the path
+                            our players are on. We train the technical and physical side of the game, and guide
+                            families through youth leagues, academies, college recruitment and the professional game.
+                        </p>
+                        <Link
+                            to="/coaches"
+                            className="mt-8 inline-flex items-center gap-1.5 text-[14px] text-white/50 hover:text-white transition-colors"
+                        >
+                            Meet the coaches <span aria-hidden="true">→</span>
+                        </Link>
                     </div>
-                ))}
+                </div>
+                <div className="relative min-h-[360px] md:min-h-[600px] bg-neutral-900">
+                    <img src={ABOUT_IMAGE} alt="Next Star players training" className="absolute inset-0 w-full h-full object-cover" />
+                </div>
+            </section>
+
+            {/* ═══════════════════════ THE FUNDAMENTALS — video left, text right ═══════════════════════ */}
+            <section className="border-b border-white/[0.08] grid md:grid-cols-2">
+                <div className="relative min-h-[360px] md:min-h-[600px] bg-neutral-900 order-2 md:order-1">
+                    <video
+                        src={FUNDAMENTALS_VIDEO}
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        className="absolute inset-0 w-full h-full object-cover"
+                    />
+                </div>
+                <div className="flex items-center px-4 sm:px-6 lg:px-8 py-16 md:py-24 order-1 md:order-2">
+                    <div className="max-w-xl md:mr-auto md:ml-12 lg:ml-16">
+                        <Label>Our approach</Label>
+                        <h2 className={`mt-6 ${HEADING}`}>The Fundamentals</h2>
+                        <p className="mt-6 text-[clamp(1.05rem,1.45vw,1.25rem)] leading-relaxed text-white/60">
+                            Every session comes back to the basics that decide games: first touch, passing, movement
+                            and decision-making under pressure. Mastered early and repeated often, they are what
+                            every level after them is built on.
+                        </p>
+                        <Link
+                            to="/services"
+                            className="mt-8 inline-flex items-center gap-1.5 text-[14px] text-white/50 hover:text-white transition-colors"
+                        >
+                            Explore services <span aria-hidden="true">→</span>
+                        </Link>
+                    </div>
+                </div>
             </section>
 
             {/* ═══════════════════════ SOCIAL (unchanged) ═══════════════════════ */}
