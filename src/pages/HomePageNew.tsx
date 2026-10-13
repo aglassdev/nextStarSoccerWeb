@@ -234,29 +234,28 @@ const StoryText = ({ chapter: ch }: { chapter: Chapter }) => (
 //   1. the black card starts growing out of the middle once the photo is
 //      about half on screen, its text already in place and revealed as the
 //      card opens around it;
-//   2. it reaches 3/4 of the frame, overshooting a touch and settling back;
+//   2. it eases up to 3/4 of the frame, the text growing along with it;
 //   3. it holds there for a stretch of scroll, so reading feels like a pause;
 //   4. then it keeps growing until the black has taken over the whole frame.
 // The card is a full-size black layer cut down with clip-path, so growing it
 // never re-lays-out the text, and its size eases toward the scroll position
 // every frame rather than jumping with each scroll event.
 const REVEAL_HEIGHT = 300; // vh of scroll the pinned part spans
-const GROW_END = 0.36, HOLD_END = 0.64;
+const GROW_END = 0.38, HOLD_END = 0.52;
 const REST = 0.75; // the card's size, as a share of the frame, while it holds
-const FOLLOW = 0.12; // share of the remaining distance covered each frame
+const FOLLOW = 0.07; // share of the remaining distance covered each frame
 
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
-// Ease-out with a small overshoot past 1 that settles back.
-const easeOutBack = (t: number) => { const c = 1.4; return 1 + (c + 1) * (t - 1) ** 3 + c * (t - 1) ** 2; };
 const easeInOut = (t: number) => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2);
 
 const AboutReveal = ({ chapter }: { chapter: Chapter }) => {
     const wrapRef = useRef<HTMLDivElement>(null);
     const cardRef = useRef<HTMLDivElement>(null);
+    const textRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        const wrap = wrapRef.current, card = cardRef.current;
-        if (!wrap || !card) return;
+        const wrap = wrapRef.current, card = cardRef.current, text = textRef.current;
+        if (!wrap || !card || !text) return;
         const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
         // 0 when the photo's top is halfway up the screen, 1 when the pinned
@@ -268,13 +267,15 @@ const AboutReveal = ({ chapter }: { chapter: Chapter }) => {
             return clamp01((lead - r.top) / span);
         };
         const sizeAt = (p: number) => {
-            if (p < GROW_END) return REST * easeOutBack(p / GROW_END);
+            if (p < GROW_END) return REST * easeInOut(p / GROW_END);
             if (p < HOLD_END) return REST;
             return REST + (1 - REST) * easeInOut((p - HOLD_END) / (1 - HOLD_END));
         };
         const draw = (size: number) => {
             const inset = `${((1 - Math.max(0, size)) / 2) * 100}%`;
             card.style.clipPath = `inset(${inset} ${inset} ${inset} ${inset})`;
+            // The text scales with the card: full size at the 3/4 rest.
+            text.style.transform = `scale(${Math.max(0.05, size / REST)})`;
         };
 
         if (reduced) { draw(REST); return; }
@@ -328,7 +329,7 @@ const AboutReveal = ({ chapter }: { chapter: Chapter }) => {
                     className="absolute inset-0 bg-black flex items-center justify-center will-change-[clip-path]"
                     style={{ clipPath: 'inset(50% 50% 50% 50%)' }}
                 >
-                    <div className="w-[min(36rem,calc(100vw-3rem))] px-6 text-center [&_a]:justify-center">
+                    <div ref={textRef} className="w-[min(36rem,calc(100vw-3rem))] px-6 text-center [&_a]:justify-center will-change-transform" style={{ transform: 'scale(0.05)' }}>
                         <StoryText chapter={chapter} />
                     </div>
                 </div>
