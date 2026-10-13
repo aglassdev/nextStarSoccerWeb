@@ -29,6 +29,33 @@ const TEAM_IMAGE = '/assets/images/collage2.png';
 const FUNDAMENTALS_VIDEO =
     'https://nyc.cloud.appwrite.io/v1/storage/buckets/6a1fa457000995c2a83f/files/6a1fa81c001bd64cf360/view?project=68577380002195dec512';
 
+const STORY: {
+    label: string; title: [string, string?]; body: string; cta: string; to: string;
+    image?: string; video?: string; alt?: string;
+}[] = [
+    {
+        label: 'About us',
+        title: ['Founded in 2018,', 'built in the DC area'],
+        body: 'Founded in 2018, Next Star started with a simple goal: give young players the coaching, guidance and opportunities to reach their potential. Today it trains players of every age across the DC area, with alumni competing in college and professional soccer around the world.',
+        cta: 'See where our alumni play', to: '/alumni',
+        image: ABOUT_IMAGE, alt: 'Next Star players training',
+    },
+    {
+        label: 'Our approach',
+        title: ['The Fundamentals'],
+        body: 'Every session comes back to the basics that decide games: first touch, passing, movement and decision-making under pressure. Mastered early and repeated often, they are what every level after them is built on.',
+        cta: 'Explore services', to: '/services',
+        video: FUNDAMENTALS_VIDEO,
+    },
+    {
+        label: 'Our team',
+        title: ['Built by players,', 'for players'],
+        body: 'Next Star is led by experienced coaches and former professionals who have walked the path our players are on. We train the technical and physical side of the game, and guide families through youth leagues, academies, college recruitment and the professional game.',
+        cta: 'Meet the coaches', to: '/coaches',
+        image: TEAM_IMAGE, alt: 'Next Star coaches',
+    },
+];
+
 const CLUB_ICONS = [
   '568289-removebg-preview.png','Annapolis_Blues_FC_Logo.png','Chattanooga_FC_logo.svg.png',
   'Club_Deportivo_Águila_logo.svg.png','Dukla_bb.png','H4.png','New_York_Red_Bulls_logo.svg.png',
@@ -322,17 +349,14 @@ const HomePageNew = () => {
             </section>
 
             {/* ═══════════════════════ WHERE ALUMNI PLAY ═══════════════════════ */}
-            {/* Clubs above the numbers, colleges below them. */}
-            <section className="border-b border-white/[0.08] py-14 md:py-16">
-                <Container>
-                    <Label className="text-center mb-10">Clubs our alumni have played for</Label>
-                </Container>
+            {/* Clubs above the numbers, colleges below them, all one band. */}
+            <section className="pt-12 md:pt-16">
                 <LogoCarousel icons={CLUB_ICONS} folder="clubs" direction="right" duration="110s" />
             </section>
 
             {/* ═══════════════════════ NUMBERS ═══════════════════════ */}
-            <section className="border-b border-white/[0.08]">
-                <Container className="py-24 md:py-32 grid md:grid-cols-12 gap-12">
+            <section>
+                <Container className="py-14 md:py-16 grid md:grid-cols-12 gap-12">
                     <div className="md:col-span-4">
                         <h2 className={HEADING}>
                             Next Star<br />
@@ -359,94 +383,46 @@ const HomePageNew = () => {
                 </Container>
             </section>
 
-            <section className="border-b border-white/[0.08] py-14 md:py-16">
+            <section className="border-b border-white/[0.08] pb-12 md:pb-16">
                 <LogoCarousel icons={COLLEGE_ICONS} folder="colleges" direction="left" duration="60s" />
-                <Container>
-                    <Label className="text-center mt-10">Colleges our alumni have played for</Label>
+            </section>
+
+            {/* ═══════════════════════ STORY — one continuous section ═══════════════════════ */}
+            {/* Text and media alternate sides, and each piece of media drops below
+                the text beside it, so the three chapters stagger down the page
+                as one run instead of three boxed halves. */}
+            <section className="border-b border-white/[0.08]">
+                <Container className="py-24 md:py-32 space-y-24 md:space-y-10">
+                    {STORY.map((ch, i) => {
+                        const mediaLeft = i % 2 === 1;
+                        return (
+                            <div key={ch.label} className="grid md:grid-cols-12 gap-10 md:gap-8 items-start">
+                                <div className={`md:col-span-5 ${mediaLeft ? 'md:col-start-8 md:row-start-1' : 'md:col-start-1'} md:pt-8`}>
+                                    <Label>{ch.label}</Label>
+                                    <h2 className={`mt-6 ${HEADING}`}>
+                                        {ch.title[0]}{ch.title[1] && <><br /><span className="text-white/40">{ch.title[1]}</span></>}
+                                    </h2>
+                                    <p className="mt-6 text-[clamp(1.05rem,1.45vw,1.25rem)] leading-relaxed text-white/60">{ch.body}</p>
+                                    <Link
+                                        to={ch.to}
+                                        className="mt-8 inline-flex items-center gap-1.5 text-[14px] text-white/50 hover:text-white transition-colors"
+                                    >
+                                        {ch.cta} <span aria-hidden="true">→</span>
+                                    </Link>
+                                </div>
+                                <div className={`md:col-span-6 ${mediaLeft ? 'md:col-start-1 md:row-start-1' : 'md:col-start-7'} md:mt-40`}>
+                                    <div className={`relative overflow-hidden rounded-2xl bg-neutral-900 ${ch.video ? 'aspect-[16/10]' : 'aspect-[4/5]'}`}>
+                                        {ch.video ? (
+                                            <video src={ch.video} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" />
+                                        ) : (
+                                            <img src={ch.image} alt={ch.alt} className="absolute inset-0 w-full h-full object-cover" />
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
                 </Container>
-            </section>
-
-            {/* ═══════════════════════ ABOUT US — text left, photo right ═══════════════════════ */}
-            <section className="border-b border-white/[0.08] grid md:grid-cols-2">
-                <div className="flex items-center px-4 sm:px-6 lg:px-8 py-16 md:py-24">
-                    <div className="max-w-xl md:ml-auto md:mr-12 lg:mr-16">
-                        <Label>About us</Label>
-                        <h2 className={`mt-6 ${HEADING}`}>
-                            Founded in 2018,<br /><span className="text-white/40">built in the DC area</span>
-                        </h2>
-                        <p className="mt-6 text-[clamp(1.05rem,1.45vw,1.25rem)] leading-relaxed text-white/60">
-                            Founded in 2018, Next Star started with a simple goal: give young players the coaching,
-                            guidance and opportunities to reach their potential. Today it trains players of every age
-                            across the DC area, with alumni competing in college and professional soccer around the world.
-                        </p>
-                        <Link
-                            to="/alumni"
-                            className="mt-8 inline-flex items-center gap-1.5 text-[14px] text-white/50 hover:text-white transition-colors"
-                        >
-                            See where our alumni play <span aria-hidden="true">→</span>
-                        </Link>
-                    </div>
-                </div>
-                <div className="relative min-h-[360px] md:min-h-[600px] bg-neutral-900">
-                    <img src={ABOUT_IMAGE} alt="Next Star players training" className="absolute inset-0 w-full h-full object-cover" />
-                </div>
-            </section>
-
-            {/* ═══════════════════════ THE FUNDAMENTALS — video left, text right ═══════════════════════ */}
-            <section className="border-b border-white/[0.08] grid md:grid-cols-2">
-                <div className="relative min-h-[360px] md:min-h-[600px] bg-neutral-900 order-2 md:order-1">
-                    <video
-                        src={FUNDAMENTALS_VIDEO}
-                        autoPlay
-                        loop
-                        muted
-                        playsInline
-                        className="absolute inset-0 w-full h-full object-cover"
-                    />
-                </div>
-                <div className="flex items-center px-4 sm:px-6 lg:px-8 py-16 md:py-24 order-1 md:order-2">
-                    <div className="max-w-xl md:mr-auto md:ml-12 lg:ml-16">
-                        <Label>Our approach</Label>
-                        <h2 className={`mt-6 ${HEADING}`}>The Fundamentals</h2>
-                        <p className="mt-6 text-[clamp(1.05rem,1.45vw,1.25rem)] leading-relaxed text-white/60">
-                            Every session comes back to the basics that decide games: first touch, passing, movement
-                            and decision-making under pressure. Mastered early and repeated often, they are what
-                            every level after them is built on.
-                        </p>
-                        <Link
-                            to="/services"
-                            className="mt-8 inline-flex items-center gap-1.5 text-[14px] text-white/50 hover:text-white transition-colors"
-                        >
-                            Explore services <span aria-hidden="true">→</span>
-                        </Link>
-                    </div>
-                </div>
-            </section>
-
-            {/* ═══════════════════════ OUR TEAM — text left, photo right ═══════════════════════ */}
-            <section className="border-b border-white/[0.08] grid md:grid-cols-2">
-                <div className="flex items-center px-4 sm:px-6 lg:px-8 py-16 md:py-24">
-                    <div className="max-w-xl md:ml-auto md:mr-12 lg:mr-16">
-                        <Label>Our team</Label>
-                        <h2 className={`mt-6 ${HEADING}`}>
-                            Built by players,<br /><span className="text-white/40">for players</span>
-                        </h2>
-                        <p className="mt-6 text-[clamp(1.05rem,1.45vw,1.25rem)] leading-relaxed text-white/60">
-                            Next Star is led by experienced coaches and former professionals who have walked the path
-                            our players are on. We train the technical and physical side of the game, and guide
-                            families through youth leagues, academies, college recruitment and the professional game.
-                        </p>
-                        <Link
-                            to="/coaches"
-                            className="mt-8 inline-flex items-center gap-1.5 text-[14px] text-white/50 hover:text-white transition-colors"
-                        >
-                            Meet the coaches <span aria-hidden="true">→</span>
-                        </Link>
-                    </div>
-                </div>
-                <div className="relative min-h-[360px] md:min-h-[600px] bg-neutral-900">
-                    <img src={TEAM_IMAGE} alt="Next Star coaches" className="absolute inset-0 w-full h-full object-cover" />
-                </div>
             </section>
 
             {/* ═══════════════════════ SOCIAL (unchanged) ═══════════════════════ */}
