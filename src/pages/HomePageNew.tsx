@@ -29,6 +29,13 @@ const TEAM_IMAGE = '/assets/images/collage2.png';
 const FUNDAMENTALS_VIDEO =
     'https://nyc.cloud.appwrite.io/v1/storage/buckets/6a1fa457000995c2a83f/files/6a1fa81c001bd64cf360/view?project=68577380002195dec512';
 
+const FLOAT_SHADOW = [
+    '0 0 0 1px rgba(255,255,255,0.10)',
+    '0 2px 0 0 rgba(255,255,255,0.06) inset',
+    '0 30px 60px -12px rgba(0,0,0,0.9)',
+    '0 50px 120px -30px rgba(255,255,255,0.22)',
+].join(', ');
+
 const STORY: {
     label: string; title: [string, string?]; body: string; cta: string; to: string;
     image?: string; video?: string; alt?: string;
@@ -411,7 +418,13 @@ const HomePageNew = () => {
                                     </Link>
                                 </div>
                                 <div className={`md:col-span-6 ${mediaLeft ? 'md:col-start-1 md:row-start-1' : 'md:col-start-7'} md:mt-40`}>
-                                    <div className={`relative overflow-hidden rounded-2xl bg-neutral-900 ${ch.video ? 'aspect-[16/10]' : 'aspect-[4/5]'}`}>
+                                    {/* Square corners, lifted off the page: a hairline rim catches the
+                                        edge, and a soft pale glow underneath reads as the shadow a
+                                        raised card would cast on black, where a dark one vanishes. */}
+                                    <div
+                                        className={`relative overflow-hidden bg-neutral-900 -translate-y-2 ${ch.video ? 'aspect-[16/10]' : 'aspect-[4/5]'}`}
+                                        style={{ boxShadow: FLOAT_SHADOW }}
+                                    >
                                         {ch.video ? (
                                             <video src={ch.video} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" />
                                         ) : (
