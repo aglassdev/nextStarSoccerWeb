@@ -156,14 +156,10 @@ const PaymentPortalPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
-  // The payment-method prompt stays away once the user is working in Payment
-  // Methods or has a method saved (the app hides it on that screen too).
+  // The payment-method prompt goes away only once a method is saved.
   const [paymentPromptSuppressed, setPaymentPromptSuppressed] = useState(false);
-
-  const goToPaymentMethods = () => {
-    setPaymentPromptSuppressed(true);
-    document.getElementById('payment-methods')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
+  // Remounts Payment Methods so a method added in the prompt shows up there.
+  const [methodsKey, setMethodsKey] = useState(0);
 
   useEffect(() => {
     if (!user) return;
@@ -357,13 +353,13 @@ const PaymentPortalPage = () => {
             <section id="payment-methods" className="scroll-mt-6">
               {user?.$id && (
                 <PaymentMethodsSection
+                  key={methodsKey}
                   userId={user.$id}
                   userName={fullName || ''}
                   userEmail={(user as any)?.email || ''}
                   onMethodsChange={(count) => {
                     if (count > 0) setPaymentPromptSuppressed(true);
                   }}
-                  onActivity={() => setPaymentPromptSuppressed(true)}
                 />
               )}
             </section>
@@ -380,12 +376,17 @@ const PaymentPortalPage = () => {
         />
       )}
 
-      {/* Waits for the page so its button has the Payment Methods section to jump to. */}
-      {user?.$id && !loading && !error && (
+      {/* Required until a card or bank account is saved; it can't be dismissed. */}
+      {user?.$id && !loading && (
         <PaymentMethodRequiredModal
           userId={user.$id}
+          userName={fullName || ''}
+          userEmail={(user as any)?.email || ''}
           suppressed={paymentPromptSuppressed}
-          onAddPaymentMethod={goToPaymentMethods}
+          onMethodAdded={() => {
+            setPaymentPromptSuppressed(true);
+            setMethodsKey((k) => k + 1);
+          }}
         />
       )}
     </div>

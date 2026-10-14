@@ -1,34 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { Elements, CardElement } from '@stripe/react-stripe-js';
 import { getStripe } from '../../services/payment/stripeClient';
 import {
   SavedPaymentMethod,
   listPaymentMethods,
-  createSetupIntent,
-  attachPaymentMethod,
   detachPaymentMethod,
   resolveUserStripeContext,
-  createStripeCustomer,
-  saveUserStripeId,
-  reportSetupIntentResult,
 } from '../../services/payment/paymentApi';
+import { CARD_ELEMENT_STYLE, usePaymentMethodActions } from './usePaymentMethodActions';
 
 // Saved payment methods management for the /user portal: list, add a card, add
 // a bank account (ACH Direct Debit), remove. Deliberately uses CardElement
 // rather than the Payment Element so no Apple Pay / Google Pay wallet buttons
 // are ever shown on the website.
-
-const CARD_ELEMENT_STYLE = {
-  style: {
-    base: {
-      color: '#ffffff',
-      fontFamily: 'inherit',
-      fontSize: '15px',
-      '::placeholder': { color: 'rgba(255,255,255,0.4)' },
-    },
-    invalid: { color: '#f87171', iconColor: '#f87171' },
-  },
-};
 
 const methodLabel = (m: SavedPaymentMethod) =>
   m.kind === 'bank'
@@ -46,15 +30,10 @@ type Props = {
   userEmail: string;
   /** Called with the number of saved methods whenever the list changes. */
   onMethodsChange?: (count: number) => void;
-  /** Called when the user starts adding a card or bank account. */
-  onActivity?: () => void;
 };
 
-const Inner = ({ userId, userName, userEmail, onMethodsChange, onActivity }: Props) => {
-  const stripe = useStripe();
-  const elements = useElements();
-
-  const [customerId, setCustomerId] = useState<string | null>(null);
+const Inner = ({ userId, userName, userEmail, onMethodsChange }: Props) => {
+  const { customerId, setCustomerId, saveCard, saveBank } = usePaymentMethodActions({ userId, userName, userEmail });
   const [methods, setMethods] = useState<SavedPaymentMethod[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
@@ -69,8 +48,6 @@ const Inner = ({ userId, userName, userEmail, onMethodsChange, onActivity }: Pro
   // Held in refs so a parent passing inline callbacks doesn't re-trigger loading.
   const onMethodsChangeRef = useRef(onMethodsChange);
   onMethodsChangeRef.current = onMethodsChange;
-  const onActivityRef = useRef(onActivity);
-  onActivityRef.current = onActivity;
 
   const refresh = useCallback(async (cid: string) => {
     const list = await listPaymentMethods(cid);
@@ -92,161 +69,32 @@ const Inner = ({ userId, userName, userEmail, onMethodsChange, onActivity }: Pro
     })();
   }, [userId, refresh]);
 
-  // A method can only be saved against a Stripe customer. Create one on demand
-  // for the few accounts that have none, as the app does.
-  const ensureCustomer = async (): Promise<string | null> => {
-    if (customerId) return customerId;
-    const ctx = await resolveUserStripeContext(userId);
-    if (ctx.stripeId) {
-      setCustomerId(ctx.stripeId);
-      return ctx.stripeId;
-    }
-    const email = ctx.profile?.email || userEmail;
-    if (!ctx.profile || !ctx.collectionId || !email) return null;
-    const name =
-      `${ctx.profile.firstName || ''} ${ctx.profile.lastName || ''}`.trim() ||
-      userName ||
-      'Next Star Player';
-    const { stripeCustomerId } = await createStripeCustomer({
-      email,
-      name,
-      userId,
-      userType: ctx.userType || 'parent',
-    });
-    if (!stripeCustomerId) return null;
-    await saveUserStripeId(ctx.collectionId, ctx.profile.$id, stripeCustomerId);
-    setCustomerId(stripeCustomerId);
-    return stripeCustomerId;
-  };
-
   const addCard = async () => {
-    if (!stripe || !elements) return;
-    const card = elements.getElement(CardElement);
-    if (!card) return;
-
     setBusy('card');
     setMessage(null);
-    try {
-      const cid = await ensureCustomer();
-      if (!cid) throw new Error('Could not set up your payment account. Please try again.');
-
-      const { error, paymentMethod } = await stripe.createPaymentMethod({
-        type: 'card',
-        card,
-        billing_details: { name: userName || undefined, email: userEmail || undefined },
-      });
-      if (error || !paymentMethod) throw new Error(error?.message || 'Could not read card details');
-
-      await attachPaymentMethod(paymentMethod.id, cid);
-      card.clear();
+    const r = await saveCard();
+    if (r.state === 'saved') {
       setShowCardForm(false);
       setCardComplete(false);
-      await refresh(cid);
-      setMessage({ kind: 'ok', text: 'Card saved.' });
-    } catch (e: any) {
-      setMessage({ kind: 'err', text: e?.message || 'Could not save card.' });
-    } finally {
-      setBusy(null);
+      await refresh(r.customerId);
+      setMessage({ kind: 'ok', text: r.message });
+    } else if (r.state === 'error') {
+      setMessage({ kind: 'err', text: r.message });
     }
+    setBusy(null);
   };
 
   const addBankAccount = async () => {
-    if (!stripe) return;
-    onActivityRef.current?.();
     setBusy('bank');
     setMessage(null);
-
-    // The outcome is recorded on the SetupIntent in Stripe, so a failed link
-    // shows up there instead of vanishing.
-    let cid: string | null = null;
-    let setupIntentId = '';
-    const report = (outcome: string, extra: { status?: string; error?: string } = {}) => {
-      if (cid && setupIntentId) {
-        reportSetupIntentResult(cid, setupIntentId, { platform: 'web', outcome, ...extra });
-      }
-    };
-
-    try {
-      cid = await ensureCustomer();
-      if (!cid) throw new Error('Could not set up your payment account. Please try again.');
-
-      // A SetupIntent is what makes the bank account reusable later.
-      const created = await createSetupIntent(cid, ['us_bank_account']);
-      const { clientSecret } = created;
-      setupIntentId = created.setupIntentId;
-
-      const collected = await stripe.collectBankAccountForSetup({
-        clientSecret,
-        params: {
-          payment_method_type: 'us_bank_account',
-          payment_method_data: {
-            billing_details: { name: userName || 'Account holder', email: userEmail || undefined },
-          },
-        },
-      });
-
-      if (collected.error) {
-        const canceled = /cancel/i.test(collected.error.message || '');
-        report(canceled ? 'canceled' : 'failed', {
-          error: `${collected.error.code || collected.error.type}: ${collected.error.message}`,
-        });
-        // Closing the bank sheet is a normal cancel, not an error to shout about.
-        if (canceled) return;
-        throw new Error(collected.error.message);
-      }
-
-      // Closing Stripe's bank dialog without linking an account hands the
-      // intent back untouched rather than as an error. Also a normal cancel.
-      if (collected.setupIntent?.status === 'requires_payment_method') {
-        report('canceled', { status: 'requires_payment_method' });
-        return;
-      }
-
-      // Collection leaves the intent needing confirmation — that final step
-      // records the ACH mandate and attaches the method to the customer.
-      let intent = collected.setupIntent;
-      if (intent?.status === 'requires_confirmation') {
-        const confirmed = await stripe.confirmUsBankAccountSetup(clientSecret);
-        if (confirmed.error) {
-          report('failed', {
-            error: `${confirmed.error.code || confirmed.error.type}: ${confirmed.error.message}`,
-          });
-          throw new Error(confirmed.error.message);
-        }
-        intent = confirmed.setupIntent;
-      }
-
-      const status = intent?.status;
-      report(status === 'succeeded' ? 'success' : `status ${status}`, { status: String(status) });
-
-      // Accounts that can't be verified by logging in get a small test deposit
-      // instead; Stripe saves the account once the customer confirms it.
-      const micro =
-        intent?.next_action?.type === 'verify_with_microdeposits'
-          ? intent.next_action.verify_with_microdeposits
-          : undefined;
-      if (status === 'requires_action' && micro) {
-        setMessage({
-          kind: 'ok',
-          text: 'Stripe is sending a small deposit to verify this account. It should arrive in 1–2 business days. Once it does, confirm it using the link Stripe emails you, and the account will be saved.',
-          link: micro.hosted_verification_url
-            ? { href: micro.hosted_verification_url, label: 'Open verification page' }
-            : undefined,
-        });
-        return;
-      }
-
-      await refresh(cid);
-      setMessage(
-        status === 'succeeded'
-          ? { kind: 'ok', text: 'Bank account saved. You can use it at checkout.' }
-          : { kind: 'ok', text: "Stripe is still verifying this account. It will show up here once that's done." },
-      );
-    } catch (e: any) {
-      setMessage({ kind: 'err', text: e?.message || 'Could not add bank account.' });
-    } finally {
-      setBusy(null);
+    const r = await saveBank();
+    if (r.state === 'saved' || r.state === 'verifying') {
+      await refresh(r.customerId);
+      setMessage({ kind: 'ok', text: r.message, link: r.state === 'verifying' ? r.link : undefined });
+    } else if (r.state === 'error') {
+      setMessage({ kind: 'err', text: r.message });
     }
+    setBusy(null);
   };
 
   // Every account has to keep a method on file, so the last one can only be
@@ -366,7 +214,7 @@ const Inner = ({ userId, userName, userEmail, onMethodsChange, onActivity }: Pro
           <div className="flex flex-wrap gap-3 mt-4">
             {!showCardForm && (
               <button
-                onClick={() => { onActivityRef.current?.(); setShowCardForm(true); setMessage(null); }}
+                onClick={() => { setShowCardForm(true); setMessage(null); }}
                 disabled={!!busy}
                 className="text-sm text-white border border-white/20 hover:border-white/50 rounded-lg px-4 py-2 transition-colors disabled:opacity-50"
               >
