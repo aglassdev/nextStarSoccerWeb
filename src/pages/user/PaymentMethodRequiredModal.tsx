@@ -19,13 +19,27 @@ import { CARD_ELEMENT_STYLE, SaveResult, usePaymentMethodActions } from './usePa
 // Admin accounts, as in the app's constants/adminConfig.ts.
 const ADMIN_USER_IDS = ['mi363q40_q03mtr0sknh', 'mi36bdeg_o704o948kfd', 'mj7d9825_hhgqztus4tb'];
 
+// A coach — including a player+coach hybrid — has a Coaches doc keyed by
+// their userId, same as the app's role detection.
+async function hasCoachProfile(userId: string): Promise<boolean> {
+  try {
+    await databases.getDocument(databaseId, collections.coaches, userId);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function needsPaymentMethod(userId: string): Promise<boolean> {
   if (ADMIN_USER_IDS.includes(userId)) return false;
 
-  const ctx = await resolveUserStripeContext(userId);
-  // No payer profile, or a pure coach: coaches are never billed. (A
-  // player+coach hybrid resolves to their player profile, so still pays.)
-  if (!ctx.profile || ctx.userType === 'coach') return false;
+  const [ctx, isCoach] = await Promise.all([
+    resolveUserStripeContext(userId),
+    hasCoachProfile(userId),
+  ]);
+  // No payer profile, or any coach (player+coach hybrids included): coaches
+  // are never held to the requirement.
+  if (!ctx.profile || ctx.userType === 'coach' || isCoach) return false;
 
   if (await customerHasPaymentMethod(ctx.stripeId)) return false;
 
