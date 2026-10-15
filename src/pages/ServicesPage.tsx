@@ -233,8 +233,9 @@ const ServicesPage = () => {
             <Navigation />
 
             {/* ═══════════════════════ INTRO ═══════════════════════ */}
-            <section className="pt-28 md:pt-32 pb-8 md:pb-10">
-                <div className="max-w-7xl mx-auto px-6 lg:px-8">
+            {/* Same spot as the Coaches and Alumni headings. */}
+            <section className="pt-32 pb-10 px-6 md:px-10 lg:px-14">
+                <div className="max-w-[1560px] mx-auto">
                     <h1 className="text-white font-bold leading-none" style={{ fontSize: '29px' }}>
                         Services
                     </h1>
@@ -242,8 +243,8 @@ const ServicesPage = () => {
             </section>
 
             {/* ═══════════════════════ CARDS ═══════════════════════ */}
-            <section className="pb-20 md:pb-28 border-b border-white/[0.08]">
-                <div className="max-w-7xl mx-auto px-6 lg:px-8">
+            <section className="pb-20 md:pb-28 border-b border-white/[0.08] px-6 md:px-10 lg:px-14">
+                <div className="max-w-[1560px] mx-auto">
                     <LayoutBento open={setOpenService} />
                 </div>
             </section>
