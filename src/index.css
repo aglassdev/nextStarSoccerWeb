@@ -94,3 +94,19 @@ body {
     @apply py-8 md:py-12 lg:py-16;
   }
 }
+
+/* Admin light mode: invert the dark admin UI once at the root, and invert
+   photos and video back so they keep their real colours. The hue rotation
+   keeps green, red and amber accents their own colour after the flip. */
+html.admin-light {
+  filter: invert(1) hue-rotate(180deg);
+  background: #000;
+}
+html.admin-light img,
+html.admin-light video,
+html.admin-light picture,
+html.admin-light canvas,
+html.admin-light iframe,
+html.admin-light [data-keep-colors] {
+  filter: invert(1) hue-rotate(180deg);
+}

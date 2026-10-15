@@ -10,6 +10,7 @@ import ParentsSection from './sections/ParentsSection';
 import BillsSection from './sections/BillsSection';
 // import PaymentsSection from './sections/PaymentsSection'; // Payments page shelved — no data to show yet
 import MessagesSection from './sections/MessagesSection';
+import { AdminTheme, useAdminTheme, setAdminTheme } from '../../hooks/useAdminTheme';
 import InquiriesSection from './sections/InquiriesSection';
 import DevelopmentSection from './sections/DevelopmentSection';
 import AppFeedbackSection from './sections/AppFeedbackSection';
@@ -577,7 +578,8 @@ const AdminDashboard = () => {
         </div>
 
         {/* Sign out */}
-        <div className={`${sidebarCollapsed ? 'px-1' : 'px-3'} py-3 border-t border-white/[0.07]`}>
+        <div className={`${sidebarCollapsed ? 'px-1' : 'px-3'} py-3 border-t border-white/[0.07] space-y-2`}>
+          <ThemeToggle collapsed={sidebarCollapsed} />
           <button onClick={handleLogout}
             title={sidebarCollapsed ? 'Sign out' : undefined}
             className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center py-[7px]' : 'gap-2.5 px-3 py-[7px]'} rounded-md text-[13px] text-white hover:bg-white/[0.05] transition-all duration-150`}>
@@ -780,6 +782,48 @@ const AdminDashboard = () => {
           </div>
         )}
       </main>
+    </div>
+  );
+};
+
+// ─── Appearance: System / Light / Dark ─────────────────────────────────────
+const THEME_OPTIONS: { value: AdminTheme; label: string }[] = [
+  { value: 'system', label: 'System' },
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+];
+
+const ThemeToggle = ({ collapsed }: { collapsed: boolean }) => {
+  const theme = useAdminTheme();
+  if (collapsed) {
+    // Too narrow for three buttons: one that steps through them.
+    const i = THEME_OPTIONS.findIndex(o => o.value === theme);
+    const next = THEME_OPTIONS[(i + 1) % THEME_OPTIONS.length];
+    return (
+      <button
+        onClick={() => setAdminTheme(next.value)}
+        title={`Appearance: ${THEME_OPTIONS[i].label} (click for ${next.label})`}
+        className="w-full flex items-center justify-center py-[7px] rounded-md text-white hover:bg-white/[0.05] text-[10px] font-semibold"
+      >
+        {THEME_OPTIONS[i].label[0]}
+      </button>
+    );
+  }
+  return (
+    <div role="radiogroup" aria-label="Appearance" className="flex bg-white/[0.04] border border-white/[0.08] rounded-md p-0.5">
+      {THEME_OPTIONS.map(o => (
+        <button
+          key={o.value}
+          role="radio"
+          aria-checked={theme === o.value}
+          onClick={() => setAdminTheme(o.value)}
+          className={`flex-1 py-1 text-[11px] rounded transition-colors ${
+            theme === o.value ? 'bg-white text-black font-medium' : 'text-white/55 hover:text-white'
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
     </div>
   );
 };

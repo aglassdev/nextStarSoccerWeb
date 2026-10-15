@@ -38,11 +38,19 @@ import PaymentPortalPage from './pages/user/PaymentPortalPage';
 import CheckoutPage from './pages/user/CheckoutPage';
 import StatusPage from './pages/StatusPage';
 import AppDownloadPopup from './components/common/AppDownloadPopup';
+import { useApplyAdminTheme } from './hooks/useAdminTheme';
 
 // Scroll to top on every route change
 const ScrollToTop = () => {
   const { pathname } = useLocation();
   useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+  return null;
+};
+
+// Light, dark or system appearance on the admin pages only.
+const AdminThemeRoot = () => {
+  const { pathname } = useLocation();
+  useApplyAdminTheme(pathname.startsWith('/admin'));
   return null;
 };
 
@@ -186,6 +194,7 @@ function App() {
     <AuthProvider>
       <BrowserRouter>
         <ScrollToTop />
+        <AdminThemeRoot />
         <AppRoutes />
         <AppDownloadPopup />
         <Analytics />
