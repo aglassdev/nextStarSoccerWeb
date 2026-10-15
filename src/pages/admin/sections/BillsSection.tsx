@@ -141,6 +141,7 @@ const BillModal = ({
   const [savingItemId, setSavingItemId] = useState<string | null>(null);
   const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
   const [deletingBill, setDeletingBill] = useState(false);
+  const [, redraw] = useState(0); // the total lives on the bill object; this shows a change to it
 
   const [error, setError] = useState('');
 
@@ -199,6 +200,16 @@ const BillModal = ({
     }
   };
 
+  // Moves the bill total by `delta` and saves it, never below zero.
+  const shiftBillTotal = async (delta: number) => {
+    if (!delta) return;
+    const next = Math.max(0, Math.round(((Number(bill.totalAmount) || 0) + delta) * 100) / 100);
+    await databases.updateDocument(databaseId, collections.bills, bill.$id, { totalAmount: next });
+    bill.totalAmount = next;
+    redraw(n => n + 1);
+    onBillUpdated();
+  };
+
   const handleSaveItem = async (item: BillItemRecord) => {
     const val = parseFloat(editItemVal);
     if (isNaN(val) || val < 0) { setError('Invalid amount'); return; }
@@ -208,6 +219,9 @@ const BillModal = ({
       await databases.updateDocument(databaseId, collections.billItems, item.$id, { price: val });
       setItems(prev => prev.map(i => i.$id === item.$id ? { ...i, price: val } : i));
       setEditingItemId(null);
+      // The bill total follows its items: it moves by exactly the change.
+      // (Editing the total never touches the items.)
+      await shiftBillTotal(val - (Number(item.price) || 0));
     } catch (e: any) {
       setError(e.message || 'Failed to update item');
     } finally {
@@ -222,7 +236,8 @@ const BillModal = ({
     try {
       await databases.deleteDocument(databaseId, collections.billItems, item.$id);
       setItems(prev => prev.filter(i => i.$id !== item.$id));
-      onBillUpdated();
+      // A removed session comes off the bill total too.
+      await shiftBillTotal(-(Number(item.price) || 0));
     } catch (e: any) {
       setError(e.message || 'Failed to delete item');
     } finally {
