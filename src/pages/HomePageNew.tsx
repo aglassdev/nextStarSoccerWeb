@@ -162,6 +162,10 @@ const COLLAGE_IMAGES = [
 // two share a top edge, so it never settles into rows. Phones get a denser
 // arrangement of their own, since the desktop one would shrink to thumbnails.
 type Spot = [left: number, top: number, width: number];
+// The "On the pitch" photo gallery is switched off for now, so the page ends
+// at the social cards.
+const SHOW_GALLERY = false;
+
 const SCATTER_DESKTOP: Spot[] = [
     [6, 31, 21], [41, 8, 18], [58, 69, 19], [88, 46, 12], [66, 2, 15],
     [34, 42, 16], [14, 72, 17], [86, 14, 14], [55, 40, 27], [0, 0, 34],
@@ -589,7 +593,8 @@ const HomePageNew = () => {
                 </div>
             </section>
 
-            {/* ═══════════════════════ GALLERY ═══════════════════════ */}
+            {/* ═══════════════════════ GALLERY — hidden for now; set SHOW_GALLERY to bring it back ═══════════════════════ */}
+            {SHOW_GALLERY && (
             <section>
                 <Container className="py-24 md:py-32">
                     <h2 className={`${HEADING} mb-16 md:mb-20`}>On the pitch</h2>
@@ -597,6 +602,7 @@ const HomePageNew = () => {
                     <Scatter spots={SCATTER_DESKTOP} className="hidden md:block" />
                 </Container>
             </section>
+            )}
 
             {/* ═══════════════════════ FOOTER ═══════════════════════ */}
             <Footer />
