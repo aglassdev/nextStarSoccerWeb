@@ -235,7 +235,7 @@ const ServicesPage = () => {
             {/* ═══════════════════════ INTRO ═══════════════════════ */}
             <section className="pt-28 md:pt-32 pb-8 md:pb-10">
                 <div className="max-w-7xl mx-auto px-6 lg:px-8">
-                    <h1 className="text-white font-medium tracking-[-0.03em] leading-[1.02] text-[clamp(2.6rem,6vw,5rem)]">
+                    <h1 className="text-white font-bold leading-none" style={{ fontSize: '29px' }}>
                         Services
                     </h1>
                 </div>
