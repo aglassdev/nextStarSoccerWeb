@@ -389,8 +389,10 @@ const CheckoutForm = ({
               </button>
             </div>
           ) : (
+            // The site runs in dark color-scheme, which paints any unstyled
+            // field dark grey; this sheet is white, so the form opts back to light.
             <form
-              className="flex gap-2"
+              className="flex gap-2 [color-scheme:light]"
               onSubmit={(e) => {
                 e.preventDefault();
                 applyPromoCode();
@@ -408,12 +410,12 @@ const CheckoutForm = ({
                 autoCapitalize="characters"
                 autoComplete="off"
                 spellCheck={false}
-                className="flex-1 min-w-0 rounded-xl border border-black/15 px-4 py-2.5 text-sm tracking-wider text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-black/40"
+                className="flex-1 min-w-0 rounded-xl border border-black/15 bg-white px-4 py-2.5 text-sm tracking-wider text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-black/40"
               />
               <button
                 type="submit"
                 disabled={!promoInput.trim() || processing}
-                className="px-4 py-2.5 rounded-xl border border-black/15 text-sm font-medium text-gray-900 hover:border-black/40 transition-colors disabled:opacity-40"
+                className="px-4 py-2.5 rounded-xl border border-black/15 bg-white text-sm font-medium text-gray-900 hover:border-black/40 transition-colors disabled:opacity-40"
               >
                 Apply
               </button>
