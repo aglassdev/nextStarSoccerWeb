@@ -29,7 +29,7 @@ interface ReviewGroup {
 const Stars = ({ value, max = 5 }: { value: number; max?: number }) => (
   <span className="tracking-tight">
     {Array.from({ length: max }).map((_, i) => (
-      <span key={i} style={{ color: i < Math.round(value) ? '#facc15' : 'rgba(255,255,255,0.15)', fontSize: 14 }}>
+      <span key={i} className={i < Math.round(value) ? undefined : 'text-white/15'} style={{ color: i < Math.round(value) ? '#facc15' : undefined, fontSize: 14 }}>
         ★
       </span>
     ))}

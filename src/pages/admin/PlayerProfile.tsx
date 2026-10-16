@@ -44,13 +44,13 @@ const LineGraph = ({ series, months }: {
   const yTicks = Array.from(new Set([0, Math.round(max / 2), max]));
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" preserveAspectRatio="none">
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full text-white" preserveAspectRatio="none">
       {yTicks.map(tick => (
         <g key={tick}>
           <line x1={padL} y1={getY(tick)} x2={W - padR} y2={getY(tick)}
-            stroke="rgba(255,255,255,0.05)" strokeWidth={1} />
+            stroke="currentColor" strokeOpacity={0.05} strokeWidth={1} />
           <text x={padL - 4} y={getY(tick) + 3} textAnchor="end"
-            fill="rgba(255,255,255,0.3)" fontSize={8} fontFamily="system-ui">
+            fill="currentColor" fillOpacity={0.3} fontSize={8} fontFamily="system-ui">
             {tick}
           </text>
         </g>
@@ -67,7 +67,7 @@ const LineGraph = ({ series, months }: {
       })}
       {months.map((m, i) => (
         <text key={i} x={getX(i)} y={H - 4} textAnchor="middle"
-          fill="rgba(255,255,255,0.3)" fontSize={8} fontFamily="system-ui">{m}</text>
+          fill="currentColor" fillOpacity={0.3} fontSize={8} fontFamily="system-ui">{m}</text>
       ))}
     </svg>
   );
@@ -508,7 +508,7 @@ const PlayerProfile = () => {
       <div className="grid grid-cols-3 gap-4">
         <Card title="Sessions Over Time" className="col-span-2">
           <LineGraph
-            series={[{ label: fullName, color: 'white', counts: monthCounts }]}
+            series={[{ label: fullName, color: 'currentColor', counts: monthCounts }]}
             months={months}
           />
           <p className="text-white/25 text-[11px] mt-1 text-center">Check-ins per month · last 6 months</p>

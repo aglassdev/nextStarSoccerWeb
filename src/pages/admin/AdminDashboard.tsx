@@ -80,12 +80,13 @@ const BarChart = ({ data }: { data: { label: string; value: number; highlight?: 
   const gap = 14;
   const svgW = data.length * (barW + gap) - gap;
   const baseline = topPad + chartH; // y of the bar baseline (bottom of the plot area)
+  // Drawn in currentColor (white text), so the bars follow the text colour in light mode.
 
   return (
-    <svg viewBox={`0 0 ${svgW} ${baseline + 22}`} className="w-full" preserveAspectRatio="none">
+    <svg viewBox={`0 0 ${svgW} ${baseline + 22}`} className="w-full text-white" preserveAspectRatio="none">
       {[0.5, 1].map(pct => (
         <line key={pct} x1={0} y1={baseline - pct * chartH} x2={svgW} y2={baseline - pct * chartH}
-          stroke="rgba(255,255,255,0.06)" strokeWidth={1} />
+          stroke="currentColor" strokeOpacity={0.06} strokeWidth={1} />
       ))}
       {data.map((d, i) => {
         const barH = Math.max((d.value / max) * chartH, 2);
@@ -94,12 +95,12 @@ const BarChart = ({ data }: { data: { label: string; value: number; highlight?: 
         return (
           <g key={i}>
             <rect x={x} y={y} width={barW} height={barH} rx={2}
-              fill="white" fillOpacity={d.highlight ? 0.75 : 0.18} />
+              fill="currentColor" fillOpacity={d.highlight ? 0.75 : 0.18} />
             <text x={x + barW / 2} y={baseline + 15} textAnchor="middle"
-              fill="rgba(255,255,255,0.35)" fontSize={9} fontFamily="system-ui">{d.label}</text>
+              fill="currentColor" fillOpacity={0.35} fontSize={9} fontFamily="system-ui">{d.label}</text>
             {d.value > 0 && (
               <text x={x + barW / 2} y={y - 4} textAnchor="middle"
-                fill={d.highlight ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.35)'}
+                fill="currentColor" fillOpacity={d.highlight ? 0.9 : 0.35}
                 fontSize={8} fontFamily="system-ui">
                 ${d.value >= 1000 ? `${(d.value / 1000).toFixed(0)}k` : d.value}
               </text>
@@ -120,8 +121,8 @@ const DonutChart = ({ segments, centerLabel, centerSub }: {
   const r = 36; const cx = 52; const cy = 52; const circ = 2 * Math.PI * r;
   let cumulative = 0;
   return (
-    <svg width="104" height="104" viewBox="0 0 104 104">
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth={11} />
+    <svg width="104" height="104" viewBox="0 0 104 104" className="text-white">
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="currentColor" strokeOpacity={0.05} strokeWidth={11} />
       {segments.filter(s => s.value > 0).map((seg, i) => {
         const pct = seg.value / total;
         const dash = pct * circ; const gap = circ - dash;
@@ -132,8 +133,8 @@ const DonutChart = ({ segments, centerLabel, centerSub }: {
             strokeDasharray={`${dash} ${gap}`} transform={`rotate(${rot} ${cx} ${cy})`} strokeLinecap="butt" />
         );
       })}
-      <text x={cx} y={cy - 3} textAnchor="middle" fill="white" fontSize={14} fontWeight="600" fontFamily="system-ui">{centerLabel}</text>
-      <text x={cx} y={cy + 12} textAnchor="middle" fill="rgba(255,255,255,0.45)" fontSize={8} fontFamily="system-ui">{centerSub}</text>
+      <text x={cx} y={cy - 3} textAnchor="middle" fill="currentColor" fontSize={14} fontWeight="600" fontFamily="system-ui">{centerLabel}</text>
+      <text x={cx} y={cy + 12} textAnchor="middle" fill="currentColor" fillOpacity={0.45} fontSize={8} fontFamily="system-ui">{centerSub}</text>
     </svg>
   );
 };
