@@ -132,7 +132,7 @@ const CheckoutForm = ({
     }
     setCouponByBill(byBill);
     setAppliedCoupon(entry.code);
-    setCouponLabel(`${entry.label} — ${sessions} session${sessions > 1 ? 's' : ''}`);
+    setCouponLabel(entry.label);
   };
 
   const removePromoCode = () => {
@@ -374,11 +374,11 @@ const CheckoutForm = ({
         </div>
         <div className="border-t border-black/10 pt-4 pb-4">
           {appliedCoupon ? (
-            <div className="flex items-center justify-between gap-3 rounded-xl border border-green-600/30 bg-green-50 px-4 py-3">
-              <div className="min-w-0">
-                <p className="text-green-700 text-sm font-bold tracking-wider">{appliedCoupon}</p>
-                {couponLabel && <p className="text-gray-500 text-xs mt-0.5">{couponLabel}</p>}
-              </div>
+            // Just the discount, in green and underlined, with a way to take it off.
+            <div className="flex items-center justify-between gap-3">
+              <p className="min-w-0 text-green-700 text-sm font-medium underline underline-offset-4">
+                {couponLabel || appliedCoupon}
+              </p>
               <button
                 type="button"
                 onClick={removePromoCode}
