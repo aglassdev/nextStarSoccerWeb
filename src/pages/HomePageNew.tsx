@@ -23,7 +23,7 @@ const STATS: { end: number; suffix: string; label: string; detail: string }[] = 
 ];
 
 // ?v= changes whenever the hero is replaced, so browsers drop the old copy.
-const HERO_VERSION = '1015';
+const HERO_VERSION = '1015hq';
 const HERO_VIDEO = `/assets/hero-1080.mp4?v=${HERO_VERSION}`;
 const HERO_VIDEO_MOBILE = `/assets/hero-720.mp4?v=${HERO_VERSION}`;
 const HERO_POSTER = `/assets/hero-poster.jpg?v=${HERO_VERSION}`;
@@ -32,7 +32,7 @@ const HERO_POSTER = `/assets/hero-poster.jpg?v=${HERO_VERSION}`;
 // video are uploaded. Swap these values to replace them.
 const ABOUT_IMAGE = '/assets/about-us.jpg';
 const TEAM_IMAGE = '/assets/our-team.jpg';
-const FUNDAMENTALS_VIDEO = '/assets/fundamentals.mp4';
+const FUNDAMENTALS_VIDEO = '/assets/fundamentals.mp4?v=15hq';
 const FUNDAMENTALS_POSTER = '/assets/fundamentals-poster.jpg';
 
 const STORY: {
