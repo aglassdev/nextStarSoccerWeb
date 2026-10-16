@@ -22,9 +22,11 @@ const STATS: { end: number; suffix: string; label: string; detail: string }[] = 
     { end: 100,  suffix: '+', label: 'NCAA Division III',     detail: 'Alumni playing at the collegiate Division III level.' },
 ];
 
-const HERO_VIDEO = '/assets/hero-1080.mp4';
-const HERO_VIDEO_MOBILE = '/assets/hero-720.mp4';
-const HERO_POSTER = '/assets/hero-poster.jpg';
+// ?v= changes whenever the hero is replaced, so browsers drop the old copy.
+const HERO_VERSION = '1015';
+const HERO_VIDEO = `/assets/hero-1080.mp4?v=${HERO_VERSION}`;
+const HERO_VIDEO_MOBILE = `/assets/hero-720.mp4?v=${HERO_VERSION}`;
+const HERO_POSTER = `/assets/hero-poster.jpg?v=${HERO_VERSION}`;
 
 // Filler media for the three split sections below, until the real photos and
 // video are uploaded. Swap these values to replace them.
