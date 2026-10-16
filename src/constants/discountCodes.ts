@@ -41,6 +41,8 @@ const GYAU50_RATE = 0.5;
  *  - camps are out, which matters because "Summer Camp, Youth Group" and
  *    "Summer Camp, Pro/College Group" both contain the word "Group";
  *  - privates, individual and small-group sessions are out;
+ *  - Patrick Mullins sessions are out ("Group Training by MLS Star Patrick
+ *    Mullins" runs Fri 5pm and Sun 3pm but isn't part of the promo);
  *  - venue suffixes are in ("Morning Group Training @Walt Whitman").
  *
  * Friday is the only day where time matters, because Friday also has a 10:00
@@ -56,6 +58,7 @@ export function isWeekendGroupSession(item: DiscountableItem): boolean {
   if (title.includes("camp")) return false;
   if (title.includes("small group")) return false;
   if (title.includes("private") || title.includes("individual")) return false;
+  if (title.includes("patrick mullins")) return false;
   if (!title.includes("group training")) return false;
 
   // Anchor bare dates at noon so the weekday survives the timezone conversion.
