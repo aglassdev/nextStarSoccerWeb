@@ -244,21 +244,17 @@ const StoryText = ({ chapter: ch }: { chapter: Chapter }) => (
 //   1. the black card starts growing out of the middle once the photo is
 //      about half on screen, its text already in place and revealed as the
 //      card opens around it;
-//   2. it eases up to 3/4 of the frame, the text growing along with it;
-//   3. and stays there, the photo still showing around its edges, for the
-//      rest of the pinned stretch before the page moves on.
+//   2. it grows at one steady rate to 3/4 of the frame, the text growing
+//      with it, and the page unpins as soon as it arrives, so it never
+//      sits still under the reader's scroll; the photo still shows around it.
 // The card is a full-size black layer cut down with clip-path, so growing it
 // never re-lays-out the text, and its size eases toward the scroll position
 // every frame rather than jumping with each scroll event.
-const REVEAL_HEIGHT = 160; // vh of scroll the pinned part spans
-// Most of the pinned stretch is the growth; only a short beat is held at
-// rest, so the page never sits still for long under the reader's scroll.
-const GROW_END = 0.78;
-const REST = 0.75; // the card's size, as a share of the frame, while it holds
-const FOLLOW = 0.14; // share of the remaining distance covered each frame
+const REVEAL_HEIGHT = 150; // vh of scroll the pinned part spans
+const REST = 0.75; // the card's final size, as a share of the frame
+const FOLLOW = 0.2; // share of the remaining distance covered each frame
 
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
-const easeOut = (t: number) => 1 - (1 - t) ** 3;
 
 const AboutReveal = ({ chapter }: { chapter: Chapter }) => {
     const wrapRef = useRef<HTMLDivElement>(null);
@@ -279,10 +275,9 @@ const AboutReveal = ({ chapter }: { chapter: Chapter }) => {
             return clamp01((lead - r.top) / span);
         };
         const sizeAt = (p: number) => {
-            // Eases out, so the card answers the scroll straight away and slows
-            // only as it settles, rather than starting slow.
-            if (p < GROW_END) return REST * easeOut(p / GROW_END);
-            return REST;
+            // One steady rate from start to 3/4: no easing, no held stretch.
+            // The page unpins the moment it gets there.
+            return REST * p;
         };
         const draw = (size: number) => {
             const inset = `${((1 - Math.max(0, size)) / 2) * 100}%`;
