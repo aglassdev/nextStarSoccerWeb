@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 
-// The admin pages are built dark. Light mode inverts the whole page once at
-// the root (see `html.admin-light` in index.css) and flips photos and video
-// back, which turns every hand-picked dark shade into its light counterpart
-// without restyling each section.
+// The admin pages are built dark. Light mode sets `admin-light` on <html>,
+// which switches on a light counterpart for every dark colour class the admin
+// uses (src/styles/admin-light.generated.css, built by
+// scripts/gen-admin-light.mjs).
 export type AdminTheme = 'system' | 'light' | 'dark';
 
 const KEY = 'nss.adminTheme';

@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App.tsx';
 import ErrorBoundary from './components/ErrorBoundary.tsx';
 import './index.css';
+import './styles/admin-light.generated.css';
 
 console.log('🚀 Next Star Soccer Web App Starting...');
 console.log('📍 Environment:', import.meta.env.MODE);
