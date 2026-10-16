@@ -5,7 +5,7 @@ import Footer from '../components/layout/Footer';
 import { coaches } from '../constants/coachesData';
 
 // ── Video Player ──────────────────────────────────────────────────────────────
-const VideoPlayer = ({ src }: { src: string }) => {
+const VideoPlayer = ({ src, poster }: { src: string; poster?: string }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const seekRef = useRef<HTMLDivElement>(null);
@@ -17,6 +17,8 @@ const VideoPlayer = ({ src }: { src: string }) => {
   const [fullscreen, setFullscreen] = useState(false);
   const [seeking, setSeeking] = useState(false);
   const [showControls, setShowControls] = useState(true);
+  // True while playback is waiting on data, so a spinner shows instead of a frozen frame.
+  const [buffering, setBuffering] = useState(false);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fmt = (s: number) => {
@@ -28,7 +30,11 @@ const VideoPlayer = ({ src }: { src: string }) => {
   const togglePlay = () => {
     const v = videoRef.current;
     if (!v) return;
-    if (v.paused) { v.play(); setPlaying(true); }
+    if (v.paused) {
+      if (v.readyState < 3) setBuffering(true);
+      v.play().catch(() => setBuffering(false));
+      setPlaying(true);
+    }
     else { v.pause(); setPlaying(false); }
   };
 
@@ -37,8 +43,7 @@ const VideoPlayer = ({ src }: { src: string }) => {
     const v = videoRef.current;
     if (!v) return;
     setDuration(v.duration ?? 0);
-    // Seek to first frame so the browser renders a thumbnail
-    v.currentTime = 0.001;
+    // The poster stands in as the thumbnail, so nothing is fetched until play.
   };
   const handleEnded = () => setPlaying(false);
 
@@ -134,9 +139,19 @@ const VideoPlayer = ({ src }: { src: string }) => {
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoaded}
         onEnded={handleEnded}
+        onWaiting={() => setBuffering(true)}
+        onPlaying={() => setBuffering(false)}
+        onCanPlay={() => setBuffering(false)}
         playsInline
         preload="metadata"
+        poster={poster}
       />
+
+      {buffering && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="w-10 h-10 border-2 border-white/25 border-t-white rounded-full animate-spin" />
+        </div>
+      )}
 
       {/* Controls overlay */}
       <div
@@ -226,24 +241,23 @@ const VideoPlayer = ({ src }: { src: string }) => {
   );
 };
 
-const COACH_VIDEOS: Record<string, string[]> = {
-  'paul-torres': [
-    'https://nyc.cloud.appwrite.io/v1/storage/buckets/69f691c700097947a134/files/69f691d20027926a600e/view?project=68577380002195dec512&mode=admin',
-    'https://nyc.cloud.appwrite.io/v1/storage/buckets/69f691c700097947a134/files/69f691db000a78c0bf98/view?project=68577380002195dec512&mode=admin',
-  ],
-  'chris-pontius': [
-    'https://nyc.cloud.appwrite.io/v1/storage/buckets/69f691c700097947a134/files/69f69462003b81d263ed/view?project=68577380002195dec512&mode=admin',
-    'https://nyc.cloud.appwrite.io/v1/storage/buckets/69f691c700097947a134/files/69f694590015d8fae8e6/view?project=68577380002195dec512&mode=admin',
-  ],
-  'marco-etcheverry': [
-    'https://nyc.cloud.appwrite.io/v1/storage/buckets/69f691c700097947a134/files/69f694b9002f044fc033/view?project=68577380002195dec512&mode=admin',
-    'https://nyc.cloud.appwrite.io/v1/storage/buckets/69f691c700097947a134/files/69f694b30029c4461181/view?project=68577380002195dec512&mode=admin',
-  ],
-  'patrick-mullins': [
-    'https://nyc.cloud.appwrite.io/v1/storage/buckets/69f691c700097947a134/files/69f6946e000a7e34b93d/view?project=68577380002195dec512&mode=admin',
-    'https://nyc.cloud.appwrite.io/v1/storage/buckets/69f691c700097947a134/files/69f69551000754f0e1eb/view?project=68577380002195dec512&mode=admin',
-  ],
+// Highlight reels, served from the site itself (Appwrite storage streamed them
+// too slowly to start). Each has a poster frame so it is never a black box.
+const COACH_VIDEO_COUNT: Record<string, number> = {
+  'paul-torres': 2,
+  'chris-pontius': 2,
+  'marco-etcheverry': 2,
+  'patrick-mullins': 2,
 };
+const COACH_VIDEOS: Record<string, { src: string; poster: string }[]> = Object.fromEntries(
+  Object.entries(COACH_VIDEO_COUNT).map(([slug, n]) => [
+    slug,
+    Array.from({ length: n }, (_, i) => ({
+      src: `/assets/coaches/${slug}-${i + 1}.mp4`,
+      poster: `/assets/coaches/${slug}-${i + 1}-poster.jpg`,
+    })),
+  ]),
+);
 
 const CoachDetailPage = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -395,8 +409,8 @@ const CoachDetailPage = () => {
                 <div className="h-px flex-1 bg-white/8" />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {COACH_VIDEOS[coach.slug].map((src, i) => (
-                  <VideoPlayer key={i} src={src} />
+                {COACH_VIDEOS[coach.slug].map((v, i) => (
+                  <VideoPlayer key={i} src={v.src} poster={v.poster} />
                 ))}
               </div>
             </div>
