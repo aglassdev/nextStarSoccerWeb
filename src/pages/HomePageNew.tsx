@@ -22,6 +22,10 @@ const STATS: { end: number; suffix: string; label: string; detail: string }[] = 
     { end: 100,  suffix: '+', label: 'NCAA Division III',     detail: 'Alumni playing at the collegiate Division III level.' },
 ];
 
+const HERO_VIDEO = '/assets/hero-1080.mp4';
+const HERO_VIDEO_MOBILE = '/assets/hero-720.mp4';
+const HERO_POSTER = '/assets/hero-poster.jpg';
+
 // Filler media for the three split sections below, until the real photos and
 // video are uploaded. Swap these values to replace them.
 const ABOUT_IMAGE = '/assets/images/collage1.png';
@@ -348,7 +352,6 @@ const AboutReveal = ({ chapter }: { chapter: Chapter }) => {
 const HomePageNew = () => {
     const [countersVisible, setCountersVisible] = useState(false);
     const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
-    const [videoReady, setVideoReady] = useState(false);
 
     const statsRef         = useRef<HTMLDivElement>(null);
     const socialSectionRef = useRef<HTMLDivElement>(null);
@@ -361,26 +364,9 @@ const HomePageNew = () => {
         return () => window.removeEventListener('resize', fn);
     }, []);
 
-    /* ── Video autoplay + loading-screen fallback ──
-         On iOS/mobile autoplay may be blocked and canplay may never fire before
-         the user sees the page.  We dismiss the overlay on whichever event
-         arrives first: playing (video is rendering frames), loadeddata (first
-         frame decoded), canplay, or an error.  Hard timeout is 3 s.           */
+    /* ── Autoplay nudge: some mobile browsers hold back autoplay until asked. ── */
     useEffect(() => {
-        const vid = videoRef.current;
-        if (!vid) return;
-        const done = () => setVideoReady(true);
-        vid.addEventListener('playing',    done, { once: true });
-        vid.addEventListener('loadeddata', done, { once: true });
-        vid.addEventListener('canplay',    done, { once: true });
-        vid.play().catch(done);
-        const timer = setTimeout(done, 3000);
-        return () => {
-            vid.removeEventListener('playing',    done);
-            vid.removeEventListener('loadeddata', done);
-            vid.removeEventListener('canplay',    done);
-            clearTimeout(timer);
-        };
+        videoRef.current?.play().catch(() => { /* the poster stays up */ });
     }, []);
 
     /* ── Counters start counting once the grid is on screen. Nothing fades in:
@@ -440,30 +426,25 @@ const HomePageNew = () => {
     return (
         <div className="min-h-screen bg-black font-lt-wave overflow-x-clip">
 
-            {/* ═══════════════════════ VIDEO LOADING OVERLAY ═══════════════════════ */}
-            <div
-                className="fixed inset-0 z-[9999] bg-black flex items-center justify-center transition-opacity duration-700 pointer-events-none"
-                style={{ opacity: videoReady ? 0 : 1 }}
-            >
-                <img
-                    src="/assets/images/NextStarBall.png"
-                    alt=""
-                    className="w-20 h-20 object-contain animate-scale-pulse"
-                />
-            </div>
-
             {/* ═══════════════════════ HERO ═══════════════════════ */}
             <section className="relative h-screen overflow-hidden bg-black">
+                {/* Served from the site itself rather than Appwrite storage, which
+                    sent the 107 MB original slowly and kept dropping the line.
+                    Phones get a lighter 720p cut. The poster is the first frame,
+                    so the hero is never black while the video starts. */}
                 <video
                     ref={videoRef}
-                    src="https://nyc.cloud.appwrite.io/v1/storage/buckets/6a1fa457000995c2a83f/files/6a1fa81c001bd64cf360/view?project=68577380002195dec512"
                     autoPlay
                     loop
                     muted
                     playsInline
-                    onError={() => setVideoReady(true)}
+                    preload="auto"
+                    poster={HERO_POSTER}
                     className="absolute inset-0 w-full h-full object-cover"
-                />
+                >
+                    <source src={HERO_VIDEO_MOBILE} type="video/mp4" media="(max-width: 767px)" />
+                    <source src={HERO_VIDEO} type="video/mp4" />
+                </video>
                 <div className="absolute inset-0 bg-black/20" />
                 {/* Melts the bottom of the video into the black page below. */}
                 <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-b from-transparent to-black" />
