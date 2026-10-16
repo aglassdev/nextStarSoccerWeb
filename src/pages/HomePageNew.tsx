@@ -31,10 +31,11 @@ const HERO_POSTER = '/assets/hero-poster.jpg';
 const ABOUT_IMAGE = '/assets/about-us.jpg';
 const TEAM_IMAGE = '/assets/our-team.jpg';
 const FUNDAMENTALS_VIDEO = '/assets/fundamentals.mp4';
+const FUNDAMENTALS_POSTER = '/assets/fundamentals-poster.jpg';
 
 const STORY: {
     label: string; title: [string, string?]; body: string; cta: string; to: string;
-    image?: string; video?: string; alt?: string;
+    image?: string; video?: string; poster?: string; alt?: string;
 }[] = [
     {
         label: 'About us',
@@ -48,7 +49,7 @@ const STORY: {
         title: ['The Fundamentals'],
         body: 'Every session comes back to the basics that decide games: first touch, passing, movement and decision-making under pressure. Mastered early and repeated often, they are what every level after them is built on.',
         cta: 'Explore services', to: '/services',
-        video: FUNDAMENTALS_VIDEO,
+        video: FUNDAMENTALS_VIDEO, poster: FUNDAMENTALS_POSTER,
     },
     {
         label: 'Our team',
@@ -489,7 +490,7 @@ const HomePageNew = () => {
                     <section key={ch.label} className="border-b border-white/[0.08] grid md:grid-cols-2">
                         <div className={`relative min-h-[360px] md:min-h-[600px] bg-neutral-900 order-2 ${mediaLeft ? 'md:order-1' : 'md:order-2'}`}>
                             {ch.video ? (
-                                <video src={ch.video} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" />
+                                <video src={ch.video} poster={ch.poster} autoPlay loop muted playsInline preload="metadata" className="absolute inset-0 w-full h-full object-cover" />
                             ) : (
                                 <img src={ch.image} alt={ch.alt} className="absolute inset-0 w-full h-full object-cover" />
                             )}
