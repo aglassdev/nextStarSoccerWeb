@@ -298,32 +298,14 @@ const AboutReveal = ({ chapter }: { chapter: Chapter }) => {
         };
         const wake = () => { if (!raf) raf = requestAnimationFrame(tick); };
 
-        // The pause: if scrolling comes to rest just short of the hold, ease
-        // the page onto it. Never mid-scroll, so it never fights the reader.
-        let idle: ReturnType<typeof setTimeout> | undefined;
-        const settle = () => {
-            clearTimeout(idle);
-            idle = setTimeout(() => {
-                const r = wrap.getBoundingClientRect();
-                const lead = window.innerHeight * 0.5;
-                const span = r.height - window.innerHeight + lead;
-                const p = (lead - r.top) / span;
-                const target = GROW_END + 0.03;
-                if (p > GROW_END - 0.1 && p < GROW_END) {
-                    window.scrollTo({ top: window.scrollY + (target - p) * span, behavior: 'smooth' });
-                }
-            }, 160);
-        };
 
         draw(current);
         window.addEventListener('scroll', wake, { passive: true });
         window.addEventListener('resize', wake);
-        window.addEventListener('scroll', settle, { passive: true });
         return () => {
-            cancelAnimationFrame(raf); clearTimeout(idle);
+            cancelAnimationFrame(raf);
             window.removeEventListener('scroll', wake);
             window.removeEventListener('resize', wake);
-            window.removeEventListener('scroll', settle);
         };
     }, []);
 
