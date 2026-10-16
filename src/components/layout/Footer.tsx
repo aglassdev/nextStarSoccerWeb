@@ -135,11 +135,12 @@ const Footer = () => {
 
       {/* ── Bottom bar ────────────────────────────────────────────────── */}
       <div className="border-t border-white/10">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-5 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-5 grid grid-cols-1 sm:grid-cols-3 items-center gap-3 text-center sm:text-left">
           <p className="text-gray-600 text-xs">
             © {new Date().getFullYear()} Next Star Soccer. All rights reserved.
           </p>
-          <div className="flex items-center gap-6">
+          <p className="text-gray-600 text-xs sm:text-center">A Glass Production</p>
+          <div className="flex items-center justify-center sm:justify-end gap-6">
             <Link to="/privacy" className="text-gray-600 text-xs hover:text-gray-400 transition-colors">
               Privacy Policy
             </Link>

@@ -28,8 +28,8 @@ const HERO_POSTER = '/assets/hero-poster.jpg';
 
 // Filler media for the three split sections below, until the real photos and
 // video are uploaded. Swap these values to replace them.
-const ABOUT_IMAGE = '/assets/images/collage1.png';
-const TEAM_IMAGE = '/assets/images/collage2.png';
+const ABOUT_IMAGE = '/assets/about-us.jpg';
+const TEAM_IMAGE = '/assets/our-team.jpg';
 const FUNDAMENTALS_VIDEO = '/assets/fundamentals.mp4';
 
 const STORY: {
@@ -242,15 +242,14 @@ const StoryText = ({ chapter: ch }: { chapter: Chapter }) => (
 //      about half on screen, its text already in place and revealed as the
 //      card opens around it;
 //   2. it eases up to 3/4 of the frame, the text growing along with it;
-//   3. it holds there for a stretch of scroll, so reading feels like a pause;
-//   4. then it keeps growing until the black has taken over the whole frame.
+//   3. and stays there, the photo still showing around its edges, for the
+//      rest of the pinned stretch before the page moves on.
 // The card is a full-size black layer cut down with clip-path, so growing it
 // never re-lays-out the text, and its size eases toward the scroll position
 // every frame rather than jumping with each scroll event.
-const REVEAL_HEIGHT = 225; // vh of scroll the pinned part spans
-// About a screen of scroll to grow, a short pause, then a quicker half
-// screen for the black to take over.
-const GROW_END = 0.54, HOLD_END = 0.71;
+const REVEAL_HEIGHT = 195; // vh of scroll the pinned part spans
+// About a screen of scroll to grow, then half a screen held at rest.
+const GROW_END = 0.66;
 const REST = 0.75; // the card's size, as a share of the frame, while it holds
 const FOLLOW = 0.07; // share of the remaining distance covered each frame
 
@@ -277,8 +276,7 @@ const AboutReveal = ({ chapter }: { chapter: Chapter }) => {
         };
         const sizeAt = (p: number) => {
             if (p < GROW_END) return REST * easeInOut(p / GROW_END);
-            if (p < HOLD_END) return REST;
-            return REST + (1 - REST) * easeInOut((p - HOLD_END) / (1 - HOLD_END));
+            return REST;
         };
         const draw = (size: number) => {
             const inset = `${((1 - Math.max(0, size)) / 2) * 100}%`;
