@@ -462,10 +462,10 @@ const HomePageNew = () => {
             {/* ═══════════════════════ NUMBERS ═══════════════════════ */}
             <section>
                 <Container className="py-14 md:py-16 grid md:grid-cols-12 gap-12">
-                    {/* Larger than the other headings, set low and flush right so
-                        it sits against the grid of figures beside it. */}
-                    <div className="md:col-span-4 flex md:items-end md:justify-end">
-                        <h2 className="text-white font-medium tracking-[-0.03em] leading-[1.02] text-[clamp(2.75rem,5.6vw,4.75rem)] md:text-right md:pb-2">
+                    {/* Larger than the other headings, centred on the grid's height and
+                        flush right so it sits against the figures beside it. */}
+                    <div className="md:col-span-4 flex md:items-center md:justify-end">
+                        <h2 className="text-white font-medium tracking-[-0.03em] leading-[1.02] text-[clamp(2.75rem,5.6vw,4.75rem)] md:text-right">
                             Next Star<br />
                             <span className="text-white/40">in numbers</span>
                         </h2>
