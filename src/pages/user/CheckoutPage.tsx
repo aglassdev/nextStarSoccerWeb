@@ -15,7 +15,9 @@ import {
   formatSessionDate,
   billTitle,
   calculateLateFee,
+  applyBillCoupon,
 } from '../../services/payment/billingService';
+import { findHardcodedCode, DiscountableItem } from '../../constants/discountCodes';
 import {
   createPaymentIntent,
   listPaymentMethods,
@@ -92,10 +94,67 @@ const CheckoutForm = ({
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState('');
 
+  // ── Promo code ──
+  // Scored against each bill's own line items (see constants/discountCodes.ts);
+  // with several bills each is scored separately and the discounts are summed.
+  const [promoInput, setPromoInput] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState('');
+  const [couponLabel, setCouponLabel] = useState('');
+  const [couponError, setCouponError] = useState('');
+  const [couponByBill, setCouponByBill] = useState<Record<string, number>>({});
+  const couponDiscount = useMemo(
+    () => Math.round(Object.values(couponByBill).reduce((s, v) => s + v, 0) * 100) / 100,
+    [couponByBill],
+  );
+
+  const applyPromoCode = () => {
+    setCouponError('');
+    const entry = findHardcodedCode(promoInput);
+    if (!entry) {
+      setCouponError("That code isn't valid.");
+      return;
+    }
+    const byBill: Record<string, number> = {};
+    let sessions = 0;
+    let reason = '';
+    for (const b of bills) {
+      const result = entry.evaluate(b.month, b.items as DiscountableItem[]);
+      if (result.amount > 0) {
+        byBill[b.$id] = result.amount;
+        sessions += result.qualifyingItems.length;
+      } else if (!reason) {
+        reason = result.reason || '';
+      }
+    }
+    if (Object.keys(byBill).length === 0) {
+      setCouponError(reason || "This code doesn't apply to this bill.");
+      return;
+    }
+    setCouponByBill(byBill);
+    setAppliedCoupon(entry.code);
+    setCouponLabel(`${entry.label} — ${sessions} session${sessions > 1 ? 's' : ''}`);
+  };
+
+  const removePromoCode = () => {
+    setCouponByBill({});
+    setAppliedCoupon('');
+    setCouponLabel('');
+    setCouponError('');
+    setPromoInput('');
+  };
+
+  // Put the discount on the bill before it's marked paid/processing, so the
+  // receipt (which reads the bill back) shows it.
+  const recordCoupon = async (billId: string) => {
+    const discount = couponByBill[billId] || 0;
+    if (!appliedCoupon || discount <= 0) return;
+    try { await applyBillCoupon(billId, discount); } catch (e) { console.error(e); }
+  };
+
   // ── Money math ──
   const subtotal = useMemo(() => bills.reduce((s, b) => s + b.totalAmount, 0), [bills]);
   const lateFeeTotal = useMemo(() => bills.reduce((s, b) => s + b.lateFee, 0), [bills]);
-  const baseAmount = subtotal + lateFeeTotal;
+  const baseAmount = Math.max(0, subtotal + lateFeeTotal - couponDiscount);
   const processingFee = useMemo(() => Math.round(baseAmount * PROCESSING_FEE_RATE * 100) / 100, [baseAmount]);
   const total = baseAmount + processingFee;
 
@@ -141,11 +200,20 @@ const CheckoutForm = ({
   const settlePaid = async (methodLabel: string) => {
     await Promise.all(
       bills.map(async (b) => {
+        await recordCoupon(b.$id);
         try { await markBillAsPaid(b.$id, methodLabel); } catch (e) { console.error(e); }
         await sendPaymentReceipt(b.$id, user!.$id);
       }),
     );
   };
+
+  const markAllProcessing = () =>
+    Promise.all(
+      bills.map(async (b) => {
+        await recordCoupon(b.$id);
+        await markBillProcessing(b.$id, 'bank transfer').catch(() => {});
+      }),
+    );
 
   const handlePay = async () => {
     if (!user) return;
@@ -191,9 +259,7 @@ const CheckoutForm = ({
           await settlePaid('bank transfer');
           onPaid();
         } else if (res.status === 'processing') {
-          await Promise.all(
-            bills.map((b) => markBillProcessing(b.$id, 'bank transfer').catch(() => {})),
-          );
+          await markAllProcessing();
           onProcessing();
         } else {
           throw new Error('The bank transfer could not be completed. Please try another method.');
@@ -228,7 +294,7 @@ const CheckoutForm = ({
           await settlePaid('bank transfer');
           onPaid();
         } else if (intent?.status === 'processing') {
-          await Promise.all(bills.map((b) => markBillProcessing(b.$id, 'bank transfer').catch(() => {})));
+          await markAllProcessing();
           onProcessing();
         } else if (intent?.status === 'requires_payment_method') {
           throw new Error('Bank account was not confirmed. Please try again.');
@@ -306,11 +372,66 @@ const CheckoutForm = ({
             </div>
           ))}
         </div>
+        <div className="border-t border-black/10 pt-4 pb-4">
+          {appliedCoupon ? (
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-green-600/30 bg-green-50 px-4 py-3">
+              <div className="min-w-0">
+                <p className="text-green-700 text-sm font-bold tracking-wider">{appliedCoupon}</p>
+                {couponLabel && <p className="text-gray-500 text-xs mt-0.5">{couponLabel}</p>}
+              </div>
+              <button
+                type="button"
+                onClick={removePromoCode}
+                disabled={processing}
+                className="text-gray-500 hover:text-gray-900 text-sm flex-shrink-0 disabled:opacity-40"
+              >
+                Remove
+              </button>
+            </div>
+          ) : (
+            <form
+              className="flex gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                applyPromoCode();
+              }}
+            >
+              <input
+                type="text"
+                value={promoInput}
+                onChange={(e) => {
+                  setPromoInput(e.target.value.toUpperCase());
+                  if (couponError) setCouponError('');
+                }}
+                placeholder="Promo code"
+                aria-label="Promo code"
+                autoCapitalize="characters"
+                autoComplete="off"
+                spellCheck={false}
+                className="flex-1 min-w-0 rounded-xl border border-black/15 px-4 py-2.5 text-sm tracking-wider text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-black/40"
+              />
+              <button
+                type="submit"
+                disabled={!promoInput.trim() || processing}
+                className="px-4 py-2.5 rounded-xl border border-black/15 text-sm font-medium text-gray-900 hover:border-black/40 transition-colors disabled:opacity-40"
+              >
+                Apply
+              </button>
+            </form>
+          )}
+          {couponError && <p className="text-red-600 text-sm mt-2">{couponError}</p>}
+        </div>
         <div className="border-t border-black/10 pt-4 space-y-2">
           <div className="flex justify-between text-sm">
             <span className="text-gray-500">Subtotal</span>
-            <span className="text-gray-900">{formatMoney(baseAmount)}</span>
+            <span className="text-gray-900">{formatMoney(subtotal + lateFeeTotal)}</span>
           </div>
+          {couponDiscount > 0 && (
+            <div className="flex justify-between text-sm">
+              <span className="text-green-700">Discount ({appliedCoupon})</span>
+              <span className="text-green-700">-{formatMoney(couponDiscount)}</span>
+            </div>
+          )}
           <div className="flex justify-between text-sm">
             <span className="text-gray-500">Processing fee (3%)</span>
             <span className="text-gray-900">{formatMoney(processingFee)}</span>

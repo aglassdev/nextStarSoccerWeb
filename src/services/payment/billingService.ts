@@ -250,6 +250,16 @@ export async function markBillAsPaid(billId: string, paymentMethod: string): Pro
   return updated as unknown as Bill;
 }
 
+// ── Record a promo code on a bill ───────────────────────────────────────────────
+// `couponValue` is an integer attribute, so the dollar discount is stored in
+// cents (same as the app's billingService.applyBillCoupon).
+export async function applyBillCoupon(billId: string, discountDollars: number): Promise<void> {
+  await databases.updateDocument(databaseId, collections.bills, billId, {
+    coupon: true,
+    couponValue: Math.round(discountDollars * 100),
+  });
+}
+
 // ── Mark a bill as processing (ACH submitted, awaiting settlement) ─────────────
 export async function markBillProcessing(billId: string, paymentMethod: string): Promise<Bill> {
   const updated = await databases.updateDocument(databaseId, collections.bills, billId, {
