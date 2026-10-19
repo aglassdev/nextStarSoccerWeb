@@ -1,6 +1,20 @@
 import { Query } from "appwrite";
 import { functions, databases, collections } from "./appwrite";
 
+// Next Star schedules in Eastern time; the calendar shows it that way everywhere.
+export const EASTERN = "America/New_York";
+
+// "2026-10-19" for the day an event falls on in Eastern time. All-day events
+// are already a plain date.
+export const easternDateKey = (iso: string, dateOnly = false): string =>
+  dateOnly ? iso.slice(0, 10) : new Intl.DateTimeFormat("en-CA", { timeZone: EASTERN }).format(new Date(iso));
+
+// Today's year, month (0-11) and day in Eastern time.
+export const easternToday = () => {
+  const [y, m, d] = easternDateKey(new Date().toISOString()).split("-").map(Number);
+  return { year: y, month: m - 1, day: d };
+};
+
 const databaseId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
 
 // Which Google calendar an event was read from. Group training lives on the
@@ -364,64 +378,43 @@ class GoogleCalendarService {
     }
   }
 
+  // Sessions are shown in Eastern time (EST or EDT, whichever applies) for
+  // every visitor, so a 5:30 PM session reads 5:30 PM wherever they are.
+  // All-day events carry no time of day, so their date is read as written.
   formatEventDateTime(startDateTime: string, endDateTime: string, dateOnly: boolean) {
-    const startDate = new Date(startDateTime);
-    const endDate = new Date(endDateTime);
-
     if (dateOnly) {
+      const [y, m, d] = startDateTime.slice(0, 10).split("-").map(Number);
+      const day = new Date(y, m - 1, d);
       return {
-        date: startDate.toLocaleDateString("en-US", {
-          weekday: "long",
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        }),
+        date: day.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
         time: "All Day",
-        shortDate: startDate.toLocaleDateString("en-US", {
-          weekday: "short",
-          month: "short",
-          day: "numeric",
-        }),
+        shortDate: day.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }),
       };
     }
 
-    const date = startDate.toLocaleDateString("en-US", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
+    const tz = { timeZone: EASTERN } as const;
+    const startDate = new Date(startDateTime);
+    const endDate = new Date(endDateTime);
+    const clock = (d: Date) => d.toLocaleTimeString("en-US", { ...tz, hour: "numeric", minute: "2-digit", hour12: true });
 
-    const time = `${startDate.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    })} - ${endDate.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    })}`;
-
-    const shortDate = startDate.toLocaleDateString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-    });
-
-    return { date, time, shortDate };
+    return {
+      date: startDate.toLocaleDateString("en-US", { ...tz, weekday: "long", year: "numeric", month: "long", day: "numeric" }),
+      time: `${clock(startDate)} - ${clock(endDate)}`,
+      shortDate: startDate.toLocaleDateString("en-US", { ...tz, weekday: "short", month: "short", day: "numeric" }),
+    };
   }
 
   async getTodaysEvents(): Promise<CalendarEvent[]> {
-    const now = new Date();
-    const events = await this.getEventsForMonth(now.getFullYear(), now.getMonth());
-    // Use local date components to avoid UTC day-flip issues in EDT/EST
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    return events.filter((event) => event.startDateTime.split("T")[0] === today);
+    // "Today" is today in Eastern time, wherever the visitor is.
+    const { year, month } = easternToday();
+    const events = await this.getEventsForMonth(year, month);
+    const today = easternDateKey(new Date().toISOString());
+    return events.filter((event) => easternDateKey(event.startDateTime, event.dateOnly) === today);
   }
 
   async getCurrentMonthEvents(): Promise<CalendarEvent[]> {
-    const now = new Date();
-    return await this.getEventsForMonth(now.getFullYear(), now.getMonth());
+    const { year, month } = easternToday();
+    return await this.getEventsForMonth(year, month);
   }
 }
 

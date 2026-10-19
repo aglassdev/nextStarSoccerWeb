@@ -4,6 +4,8 @@ import Footer from "../components/layout/Footer";
 import LoadingScreen from "../components/common/LoadingScreen";
 import {
   googleCalendarService,
+  easternDateKey,
+  easternToday,
   CalendarEvent,
   isEventCancelled,
   resolveEventCoaches,
@@ -35,8 +37,9 @@ const CalendarPage = () => {
   const [filteredEvents, setFilteredEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [monthChanging, setMonthChanging] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  // Everything on this page runs on Eastern time, where the sessions are.
+  const [selectedMonth, setSelectedMonth] = useState(easternToday().month);
+  const [selectedYear, setSelectedYear] = useState(easternToday().year);
   const [filterVisible, setFilterVisible] = useState(false);
   const [currentMonthIndex, setCurrentMonthIndex] = useState(0);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
@@ -91,9 +94,7 @@ const CalendarPage = () => {
 
   const generateMonthsArray = () => {
     const monthsArray = [];
-    const currentDate = new Date();
-    const currentMonth = currentDate.getMonth();
-    const currentYear = currentDate.getFullYear();
+    const { month: currentMonth, year: currentYear } = easternToday();
 
     for (let i = 0; i < 12; i++) {
       const monthIndex = (currentMonth + i) % 12;
@@ -231,16 +232,9 @@ const CalendarPage = () => {
     return parts[0].trim();
   };
 
-  const formatEventDate = (dateTimeString: string): string => {
-    const date = new Date(dateTimeString);
-    const monthNames = [
-      "January", "February", "March", "April", "May", "June",
-      "July", "August", "September", "October", "November", "December"
-    ];
-    const month = monthNames[date.getMonth()];
-    const day = date.getDate();
-    const year = date.getFullYear();
-    return `${month} ${day}, ${year}`;
+  const formatEventDate = (dateTimeString: string, dateOnly = false): string => {
+    const [y, m, d] = easternDateKey(dateTimeString, dateOnly).split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
   };
 
   const handleMonthChange = (monthIndex: number, year: number, arrayIndex: number) => {
@@ -294,26 +288,19 @@ const CalendarPage = () => {
 
   const getEventsForDay = (day: number): CalendarEvent[] => {
     const dateStr = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    return filteredEvents.filter((event) => {
-      const eventDate = event.startDateTime.split('T')[0];
-      return eventDate === dateStr;
-    });
+    return filteredEvents.filter((event) => easternDateKey(event.startDateTime, event.dateOnly) === dateStr);
   };
 
   const isToday = (day: number): boolean => {
-    const today = new Date();
-    return (
-      day === today.getDate() &&
-      selectedMonth === today.getMonth() &&
-      selectedYear === today.getFullYear()
-    );
+    const today = easternToday();
+    return day === today.day && selectedMonth === today.month && selectedYear === today.year;
   };
 
   // Group filtered events by date for the mobile list view
   const getMobileEventGroups = (): { dateStr: string; date: Date; events: CalendarEvent[] }[] => {
     const groups: Record<string, CalendarEvent[]> = {};
     filteredEvents.forEach((event) => {
-      const dateStr = event.startDateTime.split('T')[0];
+      const dateStr = easternDateKey(event.startDateTime, event.dateOnly);
       if (!groups[dateStr]) groups[dateStr] = [];
       groups[dateStr].push(event);
     });
@@ -332,7 +319,9 @@ const CalendarPage = () => {
   }
 
   const calendarDays = generateCalendarDays();
-  const today = new Date();
+  // Today in Eastern time, as a local Date so it formats and compares cleanly.
+  const todayET = easternToday();
+  const today = new Date(todayET.year, todayET.month, todayET.day);
 
   return (
     <div className="min-h-screen bg-black flex flex-col">
@@ -677,7 +666,7 @@ const CalendarPage = () => {
                   <div>
                     <h3 className="text-sm font-semibold text-gray-400 mb-1">Date</h3>
                     <p className="text-white">
-                      {formatEventDate(selectedEvent.startDateTime)}
+                      {formatEventDate(selectedEvent.startDateTime, selectedEvent.dateOnly)}
                     </p>
                   </div>
 
