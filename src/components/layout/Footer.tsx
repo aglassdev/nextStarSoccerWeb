@@ -139,7 +139,7 @@ const Footer = () => {
           <p className="text-gray-600 text-xs">
             © {new Date().getFullYear()} Next Star Soccer. All rights reserved.
           </p>
-          <p className="text-gray-600 text-xs sm:text-center">A Glass Production</p>
+          <p className="text-gray-600 text-xs sm:text-center">a glass production</p>
           <div className="flex items-center justify-center sm:justify-end gap-6">
             <Link to="/privacy" className="text-gray-600 text-xs hover:text-gray-400 transition-colors">
               Privacy Policy
