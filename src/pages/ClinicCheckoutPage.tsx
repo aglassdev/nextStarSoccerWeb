@@ -813,11 +813,11 @@ const ClinicCheckoutPage = () => {
             </div>
             <h2 className="text-2xl font-bold text-gray-900 mb-2">You're registered!</h2>
             <p className="text-gray-700 mb-1">{done.players.join(', ')}</p>
-            <p className="text-gray-500 text-sm mb-6">{done.days.join(' · ')} · {clinic.location.name}</p>
+            <p className="text-gray-500 text-sm mb-6">{done.days.join(' · ')} · {clinic.timeText} · {clinic.location.name}</p>
             <p className="text-gray-600 text-sm mb-8 max-w-md mx-auto">
               {done.pending
                 ? "We received your payment and are finishing your registration. If you don't get a confirmation email shortly, contact us and we'll sort it out."
-                : `${done.bankProcessing ? 'Your bank transfer is processing and typically clears in 3–5 business days. ' : ''}A confirmation email is on its way to ${done.email}. We'll send the session time as soon as it's confirmed.`}
+                : `${done.bankProcessing ? 'Your bank transfer is processing and typically clears in 3–5 business days. ' : ''}A confirmation email is on its way to ${done.email}.`}
             </p>
             <button
               onClick={() => navigate(`/services/clinics/${clinic.slug}`)}

@@ -150,7 +150,7 @@ export interface ClinicCode {
 export const CLINIC_DISCOUNT_CODES: ClinicCode[] = [
   {
     code: "SCURRY50",
-    label: "50% off the DC Power Pro Clinic",
+    label: "50% off the DC Power Clinic",
     clinicIds: ["dc-power-clinic"],
     rate: 0.5,
   },
