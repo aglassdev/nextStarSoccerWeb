@@ -37,7 +37,27 @@ interface DoneResult {
   days: string[];
   email: string;
   pending: boolean;
+  /** Paid by bank transfer that hasn't cleared yet. */
+  bankProcessing: boolean;
 }
+
+// Payment-method tiles, same as the bill checkout: 2 rows of 4. Card-brand
+// tiles all mean "pay by card" (the real brand comes from the card entry); the
+// bank tile is Direct Debit (ACH).
+type MethodTile =
+  | { key: string; kind: 'card' }
+  | { key: 'bank'; kind: 'ach' };
+
+const METHOD_TILES: MethodTile[] = [
+  { key: 'amex', kind: 'card' },
+  { key: 'discover', kind: 'card' },
+  { key: 'visa', kind: 'card' },
+  { key: 'mastercard', kind: 'card' },
+  { key: 'bank', kind: 'ach' },
+  { key: 'jcb', kind: 'card' },
+  { key: 'dinersclub', kind: 'card' },
+  { key: 'unionpay', kind: 'card' },
+];
 
 interface Player extends ClinicPlayerRef {
   name: string;
@@ -108,8 +128,10 @@ const ClinicCheckoutForm = ({
   const [appliedCode, setAppliedCode] = useState('');
   const [couponError, setCouponError] = useState('');
 
-  // Selection: a saved method id, or 'card' for a new card.
-  const [selection, setSelection] = useState<string>(isGuest ? 'card' : '');
+  // Selection: '' (nothing chosen yet), a saved method id, 'card' (new card),
+  // or 'ach' (pay by bank). Card entry only appears once a card tile is picked.
+  const [selection, setSelection] = useState<string>('');
+  const [selectedBrand, setSelectedBrand] = useState<string>('');
   const [cardComplete, setCardComplete] = useState(false);
   const [cardError, setCardError] = useState('');
   const [processing, setProcessing] = useState(false);
@@ -144,9 +166,7 @@ const ClinicCheckoutForm = ({
         if (ctx.stripeId) {
           const methods = await listPaymentMethods(ctx.stripeId);
           setSavedMethods(methods);
-          setSelection(methods[0]?.stripePaymentMethodId || 'card');
-        } else {
-          setSelection('card');
+          if (methods.length > 0) setSelection(methods[0].stripePaymentMethodId);
         }
 
         const signups = await databases.listDocuments(databaseId, collections.signups, [
@@ -229,6 +249,8 @@ const ClinicCheckoutForm = ({
   };
 
   const isCardMode = selection === 'card';
+  const isAchMode = selection === 'ach';
+  const noneSelected = selection === '';
   const canPay =
     !!stripe &&
     !processing &&
@@ -272,8 +294,9 @@ const ClinicCheckoutForm = ({
 
     // ── 1. Charge ────────────────────────────────────────────────────────────
     let paymentIntentId = '';
+    let bankProcessing = false;
     try {
-      const savedBank = !isCardMode
+      const savedBank = !isCardMode && !isAchMode
         ? savedMethods.find((m) => m.stripePaymentMethodId === selection && m.kind === 'bank')
         : undefined;
 
@@ -290,7 +313,46 @@ const ClinicCheckoutForm = ({
         if (res.status !== 'succeeded' && res.status !== 'processing') {
           throw new Error('The bank transfer could not be completed. Please try another method.');
         }
+        bankProcessing = res.status === 'processing';
         paymentIntentId = paymentIntentIdFromSecret(res.clientSecret);
+      } else if (isAchMode) {
+        // Pay by bank: Stripe's bank-connection dialog, then confirm.
+        const res = await createPaymentIntent({
+          amount: price.total,
+          metadata,
+          appliedCoupon: appliedCode || undefined,
+          existingStripeCustomerId: isGuest ? undefined : stripeCustomerId || undefined,
+          userInfo,
+        });
+        if (!res.clientSecret) throw new Error('Could not initialize payment.');
+        const collect = await (stripe as any).collectBankAccountForPayment({
+          clientSecret: res.clientSecret,
+          params: {
+            payment_method_type: 'us_bank_account',
+            payment_method_data: { billing_details: { name: contactName, email: contactEmail } },
+          },
+          expand: ['payment_method'],
+        });
+        if (collect.error) throw new Error(collect.error.message || 'Bank connection failed.');
+
+        let intent = collect.paymentIntent;
+        if (intent?.status === 'requires_confirmation') {
+          const confirmed = await (stripe as any).confirmUsBankAccountPayment(res.clientSecret);
+          if (confirmed.error) throw new Error(confirmed.error.message || 'Payment failed.');
+          intent = confirmed.paymentIntent;
+        }
+        if (intent?.status === 'requires_payment_method') {
+          // The dialog was closed without connecting a bank.
+          throw new Error('Bank account was not connected. Please try again.');
+        }
+        if (intent?.status !== 'succeeded' && intent?.status !== 'processing') {
+          // e.g. a bank that needs micro-deposit verification first.
+          throw new Error(
+            "This bank account needs to be verified before it can be charged, which takes a few days. Please pay by card or connect a different bank.",
+          );
+        }
+        bankProcessing = intent.status === 'processing';
+        paymentIntentId = intent.id;
       } else {
         const res = await createPaymentIntent({
           amount: price.total,
@@ -362,6 +424,7 @@ const ClinicCheckoutForm = ({
       days: days.map((d) => clinic.days.find((x) => x.date === d)?.label || d),
       email: contactEmail,
       pending: !registered,
+      bankProcessing,
     });
   };
 
@@ -580,34 +643,64 @@ const ClinicCheckoutForm = ({
           </button>
         ))}
 
-        {savedMethods.length > 0 && (
-          <button
-            type="button"
-            onClick={() => setSelection('card')}
-            className={`w-full flex items-center justify-between rounded-xl border px-4 py-3 transition-colors ${
-              isCardMode ? 'border-black bg-black/5' : 'border-black/15 hover:border-black/40'
-            }`}
-          >
-            <span className="text-gray-900 text-sm">New card</span>
-          </button>
-        )}
+        {/* Payment-method icons — 2 rows of 4, Bank Transfer first on the
+            second row (same as the bill checkout). */}
+        <div className="space-y-4">
+          {[METHOD_TILES.slice(0, 4), METHOD_TILES.slice(4)].map((row, ri) => (
+            <div key={ri} className="flex items-center justify-center gap-x-6 sm:gap-x-9">
+              {row.map((tile) => {
+                const active =
+                  tile.kind === 'ach' ? isAchMode : isCardMode && selectedBrand === tile.key;
+                return (
+                  <button
+                    key={tile.key}
+                    type="button"
+                    onClick={() =>
+                      tile.kind === 'ach'
+                        ? setSelection('ach')
+                        : (setSelection('card'), setSelectedBrand(tile.key))
+                    }
+                    className={`flex items-center gap-2 transition-opacity ${noneSelected || active ? 'opacity-100' : 'opacity-40 hover:opacity-100'}`}
+                    title={tile.kind === 'ach' ? 'Bank Transfer' : tile.key}
+                  >
+                    {tile.kind === 'ach' ? (
+                      <>
+                        <svg className="h-6 w-auto flex-shrink-0 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                            d="M3 21h18M4 10h16M5 10V7l7-4 7 4v3M6 10v8m4-8v8m4-8v8m4-8v8" />
+                        </svg>
+                        <span className="text-gray-900 text-base font-medium whitespace-nowrap">Bank Transfer</span>
+                      </>
+                    ) : (
+                      <img
+                        src={`/assets/icons/payment/${tile.key}.png`}
+                        alt={tile.key}
+                        className="h-6 w-auto object-contain"
+                      />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </div>
 
         {isCardMode && (
-          <>
-            <div className="flex items-center justify-center gap-x-6 py-1">
-              {['amex', 'discover', 'visa', 'mastercard'].map((b) => (
-                <img key={b} src={`/assets/icons/payment/${b}.png`} alt={b} className="h-6 w-auto object-contain" />
-              ))}
-            </div>
-            <div className="bg-[#F4F2EE] border border-black/15 rounded-xl px-4 py-3.5">
-              <CardElement
-                options={cardElementOptions}
-                onChange={(e) => { setCardComplete(e.complete); setCardError(e.error?.message || ''); }}
-              />
-            </div>
-          </>
+          <div className="bg-[#F4F2EE] border border-black/15 rounded-xl px-4 py-3.5">
+            <CardElement
+              options={cardElementOptions}
+              onChange={(e) => { setCardComplete(e.complete); setCardError(e.error?.message || ''); }}
+            />
+          </div>
         )}
         {cardError && <p className="text-red-600 text-sm">{cardError}</p>}
+
+        {isAchMode && (
+          <p className="text-gray-600 text-sm">
+            You'll securely connect your bank to authorize this payment. Bank transfers typically
+            clear in 3–5 business days; you're registered as soon as the transfer is submitted.
+          </p>
+        )}
       </div>
 
       {error && (
@@ -626,6 +719,8 @@ const ClinicCheckoutForm = ({
           </>
         ) : selectedDays.length === 0 ? (
           'Select a day'
+        ) : isAchMode ? (
+          `Pay ${formatCents(price.total)} by bank`
         ) : (
           `Pay ${formatCents(price.total)}`
         )}
@@ -640,22 +735,14 @@ const ClinicCheckoutForm = ({
   );
 };
 
-// ── Entry choice cards ─────────────────────────────────────────────────────────
-const ChoiceCard = ({ title, body, onClick }: { title: string; body: string; onClick: () => void }) => (
+// ── Entry choice buttons ───────────────────────────────────────────────────────
+const ChoiceButton = ({ label, onClick }: { label: string; onClick: () => void }) => (
   <button
     type="button"
     onClick={onClick}
-    className="w-full text-left bg-white border border-black/10 rounded-2xl p-6 shadow-sm hover:border-black/40 transition-colors group"
+    className="w-full bg-white border border-black/10 rounded-2xl px-6 py-5 shadow-sm hover:border-black/40 transition-colors text-gray-900 font-semibold text-center"
   >
-    <div className="flex items-center justify-between gap-4">
-      <div>
-        <p className="text-gray-900 font-semibold">{title}</p>
-        <p className="text-gray-500 text-sm mt-1 leading-relaxed">{body}</p>
-      </div>
-      <svg className="w-5 h-5 text-gray-400 group-hover:text-gray-900 transition-colors flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-      </svg>
-    </div>
+    {label}
   </button>
 );
 
@@ -730,7 +817,7 @@ const ClinicCheckoutPage = () => {
             <p className="text-gray-600 text-sm mb-8 max-w-md mx-auto">
               {done.pending
                 ? "We received your payment and are finishing your registration. If you don't get a confirmation email shortly, contact us and we'll sort it out."
-                : `A confirmation email is on its way to ${done.email}. We'll send the session time as soon as it's confirmed.`}
+                : `${done.bankProcessing ? 'Your bank transfer is processing and typically clears in 3–5 business days. ' : ''}A confirmation email is on its way to ${done.email}. We'll send the session time as soon as it's confirmed.`}
             </p>
             <button
               onClick={() => navigate(`/services/clinics/${clinic.slug}`)}
@@ -745,20 +832,8 @@ const ClinicCheckoutPage = () => {
           </div>
         ) : step === 'choose' ? (
           <div className="space-y-4">
-            <div className="mb-2">
-              <p className="text-gray-500 text-xs tracking-[0.15em] uppercase">{clinic.heroDateRange}</p>
-              <h2 className="text-gray-900 text-2xl font-bold mt-1">{clinic.name}</h2>
-            </div>
-            <ChoiceCard
-              title="Log in"
-              body="Use your Next Star account to pick your players and pay with a saved card."
-              onClick={() => setStep('login')}
-            />
-            <ChoiceCard
-              title="Checkout as guest"
-              body="No account needed. Just a few details about the player."
-              onClick={() => setStep('guest-role')}
-            />
+            <ChoiceButton label="Log in to your Next Star account" onClick={() => setStep('login')} />
+            <ChoiceButton label="Continue as Guest" onClick={() => setStep('guest-role')} />
           </div>
         ) : step === 'login' ? (
           <div className="bg-white border border-black/10 rounded-2xl p-6 shadow-sm">
@@ -784,16 +859,8 @@ const ClinicCheckoutPage = () => {
         ) : step === 'guest-role' ? (
           <div className="space-y-4">
             <p className="text-gray-900 font-semibold">Who's checking out?</p>
-            <ChoiceCard
-              title="I'm a parent"
-              body="Registering your child. We'll ask for your details and the player's."
-              onClick={() => { setGuestRole('parent'); setStep('pay'); }}
-            />
-            <ChoiceCard
-              title="I'm a player"
-              body="Registering yourself."
-              onClick={() => { setGuestRole('player'); setStep('pay'); }}
-            />
+            <ChoiceButton label="I'm a parent" onClick={() => { setGuestRole('parent'); setStep('pay'); }} />
+            <ChoiceButton label="I'm a player" onClick={() => { setGuestRole('player'); setStep('pay'); }} />
           </div>
         ) : (
           <>
