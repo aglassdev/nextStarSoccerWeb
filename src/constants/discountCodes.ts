@@ -130,3 +130,38 @@ export function findHardcodedCode(input: string): HardcodedCode | null {
     HARDCODED_DISCOUNT_CODES.find((c) => c.code === needle) || null
   );
 }
+
+// ── Clinic codes ─────────────────────────────────────────────────────────────
+// Clinic checkouts (app ClinicCheckoutScreen, web /checkout) take a percentage
+// off the clinic price before the processing fee. Kept apart from the bill
+// codes above so a clinic code can't be applied to a bill. The register-clinic
+// Appwrite function holds the same table and rejects a payment whose amount
+// doesn't match it.
+
+export interface ClinicCode {
+  code: string;
+  label: string;
+  /** Clinic ids the code is valid for (constants/clinics.ts). */
+  clinicIds: string[];
+  /** Fraction taken off the clinic price, e.g. 0.5 for half price. */
+  rate: number;
+}
+
+export const CLINIC_DISCOUNT_CODES: ClinicCode[] = [
+  {
+    code: "SCURRY50",
+    label: "50% off the DC Power Pro Clinic",
+    clinicIds: ["dc-power-clinic"],
+    rate: 0.5,
+  },
+];
+
+/** Case/whitespace-insensitive lookup. Null for unknown codes or the wrong clinic. */
+export function findClinicCode(input: string, clinicId: string): ClinicCode | null {
+  const needle = String(input || "").trim().toUpperCase();
+  return (
+    CLINIC_DISCOUNT_CODES.find(
+      (c) => c.code === needle && c.clinicIds.includes(clinicId),
+    ) || null
+  );
+}

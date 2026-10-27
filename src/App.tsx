@@ -27,6 +27,9 @@ import ScholarshipApplicationPage from './pages/ScholarshipApplicationPage';
 import CoachApplyPage from './pages/CoachApplyPage';
 import CampsPage from './pages/CampsPage';
 import CampDetailPage from './pages/CampDetailPage';
+import ClinicsPage from './pages/ClinicsPage';
+import ClinicDetailPage from './pages/ClinicDetailPage';
+import ClinicCheckoutPage from './pages/ClinicCheckoutPage';
 import Layout from './components/layout/Layout';
 import LoadingScreen from './components/common/LoadingScreen';
 import AdminLoginPage from './pages/admin/AdminLoginPage';
@@ -108,6 +111,9 @@ function AppRoutes() {
       <Route path="/services" element={<ServicesPage />} />
       <Route path="/services/camps" element={<CampsPage />} />
       <Route path="/services/camps/:slug" element={<CampDetailPage />} />
+      <Route path="/services/clinics" element={<ClinicsPage />} />
+      <Route path="/services/clinics/:slug" element={<ClinicDetailPage />} />
+      <Route path="/checkout/:slug" element={<ClinicCheckoutPage />} />
       <Route path="/alumni" element={<AlumniPage />} />
       <Route path="/calendar" element={<CalendarPage />} />
       <Route path="/calendar-embed" element={<CalendarEmbed />} />

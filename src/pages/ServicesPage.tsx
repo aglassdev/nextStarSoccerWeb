@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import Navigation from '../components/layout/Navigation';
 import Footer from '../components/layout/Footer';
 
-type Action = 'request-in-app' | 'calendar' | 'camps';
+type Action = 'request-in-app' | 'calendar' | 'camps' | 'clinics';
 
 interface Service {
     id: string;
@@ -57,7 +57,7 @@ const CATEGORIES: Category[] = [
               description: 'Our specialized soccer camps offer intensive training experiences designed to accelerate player development. Led by professional coaches and former players, camps combine technical training, tactical education, and competitive play in a focused environment. Available throughout the year at various locations, our camps cater to different age groups and skill levels.' },
             { id: 'team-training', name: 'Team Training', image: '/assets/images/teamTraining.png', price: 'Custom', meta: ['Full teams', 'All levels'], pricing: ['Custom pricing based on team size'], action: 'request-in-app',
               description: "Our tailored full-team training programs deliver a dynamic and comprehensive approach to enhancing skills, refining tactics, and boosting overall team performance. Designed for teams of all levels, these sessions are fully customized to meet the unique needs of both the collective group and individual players." },
-            { id: 'professional-clinics', name: 'Professional Clinics', image: '/assets/images/professionalClinics.png', price: 'Event', meta: ['Led by current and former pros'], pricing: ['Special event pricing'], action: 'request-in-app',
+            { id: 'professional-clinics', name: 'Professional Clinics', image: '/assets/images/professionalClinics.png', price: 'Event', meta: ['Led by current and former pros'], pricing: ['Special event pricing'], action: 'clinics',
               description: 'Professional clinics feature current and former professional players who share their expertise and experience. These unique opportunities allow players to learn directly from those who have competed at the highest levels. Clinics cover advanced techniques, professional mentality, and insights into what it takes to succeed in professional soccer.' },
             { id: 'showcases', name: 'Showcases', image: '/assets/images/showcases.png', price: 'Event', meta: ['College coaches and scouts'], pricing: ['Event-based pricing'], action: 'request-in-app',
               description: 'Showcases provide players with opportunities to display their talents in front of college coaches, scouts, and recruiters. These events are carefully organized to maximize exposure and create pathways to the next level of competition. We guide players through the showcase process and help them make the most of these important opportunities.' },
@@ -113,6 +113,11 @@ const ServiceAction = ({ action }: { action: Action }) => {
     if (action === 'camps') return (
         <Link to="/services/camps" onClick={e => e.stopPropagation()} className="inline-flex items-center gap-1.5 bg-white text-black hover:bg-white/85 px-4 py-2 rounded-full text-sm font-semibold">
             View camps <span aria-hidden="true">→</span>
+        </Link>
+    );
+    if (action === 'clinics') return (
+        <Link to="/services/clinics" onClick={e => e.stopPropagation()} className="inline-flex items-center gap-1.5 bg-white text-black hover:bg-white/85 px-4 py-2 rounded-full text-sm font-semibold">
+            View clinics <span aria-hidden="true">→</span>
         </Link>
     );
     return <StoreBadges />;
