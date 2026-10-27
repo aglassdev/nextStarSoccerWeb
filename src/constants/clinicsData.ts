@@ -28,19 +28,17 @@ export interface Clinic {
   location: { name: string; address: string; city: string };
   days: ClinicDay[];
   description: string;
-  specialGuest: string;
   itemsToBring: string;
-  included: string;
 }
 
 export const clinics: Clinic[] = [
   {
     id: 'dc-power-clinic',
     slug: 'dc-power-clinic',
-    name: 'Next Star x DC Power Pro Clinic',
+    name: 'Next Star x DC Power Clinic',
     image: '/assets/images/dcPowerClinic.jpg',
     heroDateRange: 'October 31 – November 1, 2026',
-    timeText: 'Time TBD',
+    timeText: '10:00 AM – 12:00 PM',
     pricePerPlayerPerDay: 55,
     location: {
       name: 'Sofive Rockville',
@@ -64,12 +62,8 @@ export const clinics: Clinic[] = [
       },
     ],
     description:
-      'Train with Next Star Soccer in collaboration with DC Power at Sofive Rockville. DC Power players will be in attendance to talk with players, coach, and take pictures. Come for one day or both.',
-    specialGuest:
-      "U.S. Women's National Team legend Briana Scurry will be joining us as a special guest.",
-    itemsToBring:
-      'Athletic clothing, indoor turf shoes or sneakers, soccer ball, shin guards (optional), and a water bottle.',
-    included: 'Every registration includes a ticket to a DC Power match.',
+      "Train with Next Star Soccer in collaboration with DC Power at Sofive Rockville. DC Power players will be in attendance to talk with players, coach, and take pictures, and U.S. Women's National Team legend Briana Scurry will be joining us as a special guest. Every registration includes a ticket to a DC Power match, and if you come both days you'll receive 2 tickets, so one can be used by family or friends.",
+    itemsToBring: 'Cleats or indoor turf shoes, soccer ball, and a water bottle.',
   },
 ];
 

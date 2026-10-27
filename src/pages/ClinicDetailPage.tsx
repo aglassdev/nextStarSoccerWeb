@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Navigation from '../components/layout/Navigation';
 import Footer from '../components/layout/Footer';
@@ -6,6 +7,7 @@ import { clinics, isClinicOver } from '../constants/clinicsData';
 const ClinicDetailPage = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
+  const [showMap, setShowMap] = useState(false);
   const clinic = clinics.find((c) => c.slug === slug);
 
   if (!clinic) {
@@ -113,43 +115,101 @@ const ClinicDetailPage = () => {
             <p className="text-white/75 text-sm leading-relaxed">{clinic.description}</p>
           </Section>
 
-          {/* Special guest */}
-          <Section label="Special Guest">
-            <p className="text-white/75 text-sm leading-relaxed">{clinic.specialGuest}</p>
-          </Section>
-
-          {/* Included */}
-          <Section label="Included">
-            <p className="text-white/75 text-sm leading-relaxed">{clinic.included}</p>
-          </Section>
-
           {/* Items to Bring */}
           <Section label="Items to Bring">
             <p className="text-white/75 text-sm leading-relaxed">{clinic.itemsToBring}</p>
           </Section>
 
-          {/* Map / Directions */}
+          {/* Location — opens the map */}
           <Section label="Location">
-            <a
-              href={`https://maps.google.com/?q=${encodeURIComponent(`${clinic.location.name}, ${clinic.location.address}`)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-between bg-white/[0.04] border border-white/[0.08] rounded-xl px-5 py-4 hover:border-white/20 hover:bg-white/[0.07] transition-all group"
+            <button
+              type="button"
+              onClick={() => setShowMap(true)}
+              className="w-full text-left flex items-center justify-between bg-white/[0.04] border border-white/[0.08] rounded-xl px-5 py-4 hover:border-white/20 hover:bg-white/[0.07] transition-all group"
             >
               <div>
                 <p className="text-white font-medium text-sm">{clinic.location.name}</p>
                 <p className="text-white/40 text-xs mt-0.5">{clinic.location.address}</p>
               </div>
               <span className="text-white/40 text-xs group-hover:text-white/70 transition-colors flex-shrink-0 ml-4">
-                Directions ↗
+                View map
               </span>
-            </a>
+            </button>
           </Section>
 
         </div>
       </div>
 
       <Footer />
+
+      {showMap && (
+        <MapModal
+          name={clinic.location.name}
+          address={`${clinic.location.name}, ${clinic.location.address}`}
+          onClose={() => setShowMap(false)}
+        />
+      )}
+    </div>
+  );
+};
+
+// ── Map modal ─────────────────────────────────────────────────────────────────
+// Same Maps Embed key and satellite view as the calendar's event map.
+const MAPS_EMBED_KEY = 'AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8';
+
+const MapModal = ({ name, address, onClose }: { name: string; address: string; onClose: () => void }) => {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] bg-black/75 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-3xl bg-[#0e0e0e] border border-white/10 rounded-2xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-label={`Map of ${name}`}
+      >
+        <div className="aspect-[4/3] sm:aspect-[16/9] bg-neutral-900">
+          <iframe
+            title={`Map of ${name}`}
+            width="100%"
+            height="100%"
+            style={{ border: 0 }}
+            src={`https://www.google.com/maps/embed/v1/place?key=${MAPS_EMBED_KEY}&q=${encodeURIComponent(address)}&maptype=satellite`}
+            allowFullScreen
+            loading="lazy"
+          />
+        </div>
+        <div className="flex items-center justify-between gap-4 px-5 py-4">
+          <div className="min-w-0">
+            <p className="text-white font-medium text-sm">{name}</p>
+            <p className="text-white/40 text-xs mt-0.5 truncate">{address.replace(`${name}, `, '')}</p>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <a
+              href={`https://maps.google.com/?q=${encodeURIComponent(address)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-white/10 hover:bg-white/15 text-white text-xs font-medium px-3 py-2 rounded-lg transition-colors"
+            >
+              Directions ↗
+            </a>
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-white/50 hover:text-white text-xs px-3 py-2 transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

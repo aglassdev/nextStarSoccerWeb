@@ -88,7 +88,7 @@ const ClinicsPage = () => {
           {/* Header */}
           <div className="mb-10">
             <p className="text-white/40 text-xs tracking-[0.2em] uppercase mb-3">Next Star Events</p>
-            <h1 className="text-white text-4xl font-bold leading-tight">Pro Clinics</h1>
+            <h1 className="text-white text-4xl font-bold leading-tight">Clinics</h1>
             <p className="text-white/50 mt-3 text-base leading-relaxed">
               Train alongside current and former professionals. Special events with limited spots.
             </p>
