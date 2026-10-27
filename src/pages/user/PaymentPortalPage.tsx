@@ -17,6 +17,7 @@ import {
 import { resolveUserStripeContext } from '../../services/payment/paymentApi';
 import PaymentMethodsSection from './PaymentMethodsSection';
 import PaymentMethodRequiredModal from './PaymentMethodRequiredModal';
+import AutopayToggle from './AutopayToggle';
 
 // ── Bill detail modal ──────────────────────────────────────────────────────────
 const BillModal = ({
@@ -235,11 +236,21 @@ const PaymentPortalPage = () => {
       </header>
 
       <main className="max-w-5xl mx-auto px-4 md:px-6 py-8 space-y-8">
-        {/* Greeting */}
-        <div>
+        {/* Greeting, with the Autopay switch beside it as in the app */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-2xl md:text-3xl font-bold text-white">
             {greeting}{fullName ? `, ${fullName}` : ''}
           </h2>
+          {user?.$id && (
+            <div>
+              <AutopayToggle
+                userId={user.$id}
+                onNeedPaymentMethod={() =>
+                  document.getElementById('payment-methods')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                }
+              />
+            </div>
+          )}
         </div>
 
         {loading ? (
