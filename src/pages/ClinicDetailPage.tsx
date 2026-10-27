@@ -31,7 +31,7 @@ const ClinicDetailPage = () => {
       {/* Hero */}
       <div className="relative h-[55vh] min-h-[340px] max-h-[520px] overflow-hidden">
         <img
-          src={clinic.image}
+          src={clinic.heroImage}
           alt={clinic.name}
           className="absolute inset-0 w-full h-full object-cover"
         />

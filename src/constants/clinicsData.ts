@@ -21,7 +21,10 @@ export interface Clinic {
   id: string;
   slug: string;
   name: string;
+  /** Preview on the Clinics list */
   image: string;
+  /** Header on the clinic page */
+  heroImage: string;
   heroDateRange: string;
   timeText: string;
   pricePerPlayerPerDay: number; // dollars
@@ -36,7 +39,8 @@ export const clinics: Clinic[] = [
     id: 'dc-power-clinic',
     slug: 'dc-power-clinic',
     name: 'Next Star x DC Power Clinic',
-    image: '/assets/images/dcPowerClinic.jpg',
+    image: '/assets/images/dcPowerClinicPreview.jpg',
+    heroImage: '/assets/images/dcPowerClinicHero.jpg',
     heroDateRange: 'October 31 – November 1, 2026',
     timeText: '10:00 AM – 12:00 PM',
     pricePerPlayerPerDay: 55,
