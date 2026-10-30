@@ -249,14 +249,16 @@ const COACH_VIDEO_COUNT: Record<string, number> = {
   'marco-etcheverry': 2,
   'patrick-mullins': 2,
 };
+// Coaches whose reels show last-numbered first.
+const COACH_VIDEOS_REVERSED = new Set(['paul-torres']);
 const COACH_VIDEOS: Record<string, { src: string; poster: string }[]> = Object.fromEntries(
-  Object.entries(COACH_VIDEO_COUNT).map(([slug, n]) => [
-    slug,
-    Array.from({ length: n }, (_, i) => ({
+  Object.entries(COACH_VIDEO_COUNT).map(([slug, n]) => {
+    const reels = Array.from({ length: n }, (_, i) => ({
       src: `/assets/coaches/${slug}-${i + 1}.mp4`,
       poster: `/assets/coaches/${slug}-${i + 1}-poster.jpg`,
-    })),
-  ]),
+    }));
+    return [slug, COACH_VIDEOS_REVERSED.has(slug) ? reels.reverse() : reels];
+  }),
 );
 
 const CoachDetailPage = () => {
