@@ -32,12 +32,15 @@ export interface Clinic {
   days: ClinicDay[];
   description: string;
   itemsToBring: string;
+  /** Hidden from the list, clinic page and checkout. */
+  hidden?: boolean;
 }
 
 export const clinics: Clinic[] = [
   {
     id: 'dc-power-clinic',
     slug: 'dc-power-clinic',
+    hidden: true,
     name: 'Next Star x DC Power Clinic',
     image: '/assets/images/dcPowerClinicPreview.jpg',
     heroImage: '/assets/images/dcPowerClinicHero.jpg',
@@ -70,6 +73,9 @@ export const clinics: Clinic[] = [
     itemsToBring: 'Cleats or indoor turf shoes, soccer ball, and a water bottle.',
   },
 ];
+
+/** The clinics shown on the site. */
+export const visibleClinics = clinics.filter((c) => !c.hidden);
 
 /** A clinic day can be bought until the session starts. */
 export const isClinicDayOpen = (day: ClinicDay, now: Date = new Date()) =>

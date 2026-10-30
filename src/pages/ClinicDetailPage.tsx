@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Navigation from '../components/layout/Navigation';
 import Footer from '../components/layout/Footer';
-import { clinics, isClinicOver } from '../constants/clinicsData';
+import { visibleClinics as clinics, isClinicOver } from '../constants/clinicsData';
 
 const ClinicDetailPage = () => {
   const { slug } = useParams<{ slug: string }>();

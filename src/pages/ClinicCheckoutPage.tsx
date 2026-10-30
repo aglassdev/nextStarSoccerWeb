@@ -19,7 +19,7 @@ import {
 } from '../services/clinicRegistration';
 import { databases, databaseId, collections } from '../services/appwrite';
 import {
-  clinics,
+  visibleClinics as clinics,
   Clinic,
   ClinicDay,
   formatCents,
