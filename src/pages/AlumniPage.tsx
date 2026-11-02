@@ -14,6 +14,22 @@ const FILTERS = {
   Professional: ["North America", "Europe", "Oceania"],
 };
 
+// Shown first, in this order, until a sort is picked (names as in the sheet).
+const FEATURED = [
+  "Emily Fox",
+  "Matai Akinmboni",
+  "Kevin Paredes",
+  "Lily Yohannes",
+  "Luka Bentt",
+  "Aaron Heard",
+  "Bryang Kayo",
+  "Donovan Pines",
+  "Gabriel Segal",
+  "Jean-Claude 'J.C.' Ngando",
+  "Hosei Kijima",
+  "Ian Harkes",
+];
+
 const SORT_OPTIONS = [
   "Last Name A-Z",
   "Last Name Z-A",
@@ -260,7 +276,8 @@ const AlumniPage = () => {
   const [searchText, setSearchText] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
-  const [sortOption, setSortOption] = useState(SORT_OPTIONS[0]);
+  // null until a sort is picked: featured players first, then last name A-Z.
+  const [sortOption, setSortOption] = useState<string | null>(null);
   const [selectedFilters, setSelectedFilters] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
     Object.entries(FILTERS).forEach(([cat, subs]) => {
@@ -355,7 +372,16 @@ const AlumniPage = () => {
     return (isUni && selectedFilters[division]) || (!isUni && selectedFilters[region]);
   });
 
+  const featuredRank = (p: Player) => {
+    const i = FEATURED.indexOf((p.name || "").trim());
+    return i === -1 ? Infinity : i;
+  };
+
   const sorted = [...filtered].sort((a, b) => {
+    if (sortOption === null) {
+      const ra = featuredRank(a), rb = featuredRank(b);
+      if (ra !== rb) return ra - rb;
+    }
     const aParts = (a.name || "").split(" ");
     const bParts = (b.name || "").split(" ");
     const aFirst = aParts[0] || "", aLast = aParts[aParts.length - 1] || "";
@@ -365,7 +391,7 @@ const AlumniPage = () => {
       case "Last Name Z-A": return bLast.localeCompare(aLast);
       case "First Name A-Z": return aFirst.localeCompare(bFirst);
       case "First Name Z-A": return bFirst.localeCompare(aFirst);
-      default: return 0;
+      default: return aLast.localeCompare(bLast);
     }
   });
 
