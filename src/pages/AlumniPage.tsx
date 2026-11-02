@@ -3,6 +3,7 @@ import Navigation from '../components/layout/Navigation';
 import Footer from '../components/layout/Footer';
 import LoadingScreen from '../components/common/LoadingScreen';
 import WorldMap from '../components/WorldMap';
+import { ALUMNI_LOCAL_IMAGES } from '../constants/alumniLocalImages';
 
 const SHEET_ID = "1SnLA2-p6zBPOP4DvgYV4hlaloX6w6FA0kWMMWtcyEk8";
 const API_KEY = "AIzaSyAZPGNU3kwQG9xqrUrm3idVmHhgZz0PfY0";
@@ -71,37 +72,45 @@ const getRegion = (subtitle: string) => {
   return "North America";
 };
 
+// A Drive file is served from the site when it has been copied there, and from
+// Drive's thumbnail service otherwise.
+const driveAsset = (id: string) =>
+  ALUMNI_LOCAL_IMAGES.has(id)
+    ? `/assets/alumni/${id}.png`
+    : `https://drive.google.com/thumbnail?id=${id}&sz=w400`;
+
+const fromDriveUrl = (url: string): string | null => {
+  if (!url.includes("drive.google.com")) return null;
+  const id = url.match(/\/file\/d\/([a-zA-Z0-9-_]+)/)?.[1] || url.match(/[?&]id=([a-zA-Z0-9-_]+)/)?.[1];
+  return id ? driveAsset(id) : null;
+};
+
 const processSheetAsset = (cellValue: string): string | null => {
   if (!cellValue || cellValue.trim() === "") return null;
   const trimmedValue = cellValue.trim();
   if (trimmedValue.startsWith("=IMAGE(")) {
     const match = trimmedValue.match(/=IMAGE\("([^"]+)"(?:,[^)]+)?\)/);
-    if (match && match[1]) {
-      let url = match[1];
-      if (url.includes("drive.google.com")) {
-        const fileIdMatch = url.match(/\/file\/d\/([a-zA-Z0-9-_]+)/);
-        if (fileIdMatch && fileIdMatch[1]) return `https://drive.google.com/thumbnail?id=${fileIdMatch[1]}&sz=w400`;
-        const ucIdMatch = url.match(/[?&]id=([a-zA-Z0-9-_]+)/);
-        if (ucIdMatch && ucIdMatch[1]) return `https://drive.google.com/thumbnail?id=${ucIdMatch[1]}&sz=w400`;
-      }
-      return url;
-    }
+    if (match && match[1]) return fromDriveUrl(match[1]) || match[1];
   }
   if (trimmedValue.startsWith("http://") || trimmedValue.startsWith("https://")) {
-    if (trimmedValue.includes("drive.google.com")) {
-      const fileIdMatch = trimmedValue.match(/\/file\/d\/([a-zA-Z0-9-_]+)/);
-      if (fileIdMatch && fileIdMatch[1]) return `https://drive.google.com/thumbnail?id=${fileIdMatch[1]}&sz=w400`;
-      const ucIdMatch = trimmedValue.match(/[?&]id=([a-zA-Z0-9-_]+)/);
-      if (ucIdMatch && ucIdMatch[1]) return `https://drive.google.com/thumbnail?id=${ucIdMatch[1]}&sz=w400`;
-    }
-    return trimmedValue;
+    return fromDriveUrl(trimmedValue) || trimmedValue;
   }
   if (trimmedValue.startsWith("data:")) return trimmedValue;
   return null;
 };
 
+// One retry for a photo that fails (Drive often refuses the first request when
+// many arrive together), then hide it.
+const retryOnce = (e: React.SyntheticEvent<HTMLImageElement>) => {
+  const img = e.currentTarget;
+  if (img.dataset.retried) { img.style.display = 'none'; return; }
+  img.dataset.retried = '1';
+  const src = img.src;
+  setTimeout(() => { img.src = src + (src.includes('?') ? '&' : '?') + 'r=1'; }, 1500);
+};
+
 /* ─── Flip Card ─────────────────────────────────────────────────────────── */
-const FlipCard: React.FC<{ player: Player }> = ({ player }) => {
+const FlipCard: React.FC<{ player: Player; eager?: boolean }> = ({ player, eager }) => {
   const [flipped, setFlipped] = useState(false);
 
   const infoItems = [
@@ -149,9 +158,9 @@ const FlipCard: React.FC<{ player: Player }> = ({ player }) => {
                 src={player.image}
                 alt={player.name}
                 className="absolute inset-0 w-full h-full object-cover object-top"
-                loading="lazy"
+                loading={eager ? 'eager' : 'lazy'}
                 decoding="async"
-                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                onError={retryOnce}
               />
             ) : (
               <div className="absolute inset-0 bg-neutral-800 flex items-center justify-center">
@@ -471,7 +480,7 @@ const AlumniPage = () => {
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
                 {sorted.map((alum, i) => (
                   <div key={`alum-${i}`}>
-                    <FlipCard player={alum} />
+                    <FlipCard player={alum} eager={i < 12} />
                   </div>
                 ))}
               </div>
