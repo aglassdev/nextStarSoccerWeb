@@ -118,12 +118,30 @@ export async function createStripeCustomer(params: {
 }
 
 // ── List saved payment methods for a Stripe customer ───────────────────────────
+export interface BlockedBankAccount {
+  id: string;
+  bank_name?: string;
+  last4?: string;
+  reason?: string; // Stripe status_details.blocked.reason, e.g. "bank_account_closed"
+}
+
 export async function listPaymentMethods(customerId: string): Promise<SavedPaymentMethod[]> {
-  if (!customerId) return [];
+  return (await listPaymentMethodsDetailed(customerId)).methods;
+}
+
+/**
+ * Saved methods plus the bank accounts Stripe has blocked (closed, frozen…).
+ * Blocked banks are never in `methods` — they can't be charged — and are
+ * listed so the page can tell the family why one disappeared.
+ */
+export async function listPaymentMethodsDetailed(
+  customerId: string,
+): Promise<{ methods: SavedPaymentMethod[]; blocked: BlockedBankAccount[] }> {
+  if (!customerId) return { methods: [], blocked: [] };
   try {
     const response = await callFunction(paymentFunctions.listPaymentMethods, { customerId });
-    const methods = (response.paymentMethods || []) as any[];
-    return methods.map((pm) => {
+    const blocked = (response.blockedBankAccounts || []) as BlockedBankAccount[];
+    const methods = ((response.paymentMethods || []) as any[]).map((pm): SavedPaymentMethod => {
       const bank = pm.us_bank_account;
       if (pm.type === 'us_bank_account' && bank) {
         return {
@@ -148,9 +166,10 @@ export async function listPaymentMethods(customerId: string): Promise<SavedPayme
         stripePaymentMethodId: pm.id,
       };
     });
+    return { methods, blocked };
   } catch (e) {
     console.error('Error listing payment methods:', e);
-    return [];
+    return { methods: [], blocked: [] };
   }
 }
 

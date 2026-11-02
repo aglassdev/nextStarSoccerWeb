@@ -20,11 +20,12 @@ import {
 import { findHardcodedCode, DiscountableItem } from '../../constants/discountCodes';
 import {
   createPaymentIntent,
-  listPaymentMethods,
+  listPaymentMethodsDetailed,
   sendPaymentReceipt,
   resolveUserStripeContext,
   SavedPaymentMethod,
 } from '../../services/payment/paymentApi';
+import { friendlyPaymentError, blockedBankNotice } from '../../services/payment/paymentErrors';
 
 const PROCESSING_FEE_RATE = 0.03; // 3% processing fee (matches mobile app)
 
@@ -81,6 +82,8 @@ const CheckoutForm = ({
   const { user } = useAuth();
 
   const [savedMethods, setSavedMethods] = useState<SavedPaymentMethod[]>([]);
+  // Why a saved bank no longer appears (Stripe blocked it), or ''.
+  const [blockedText, setBlockedText] = useState('');
   const [stripeCustomerId, setStripeCustomerId] = useState<string | null>(null);
   const [userType, setUserType] = useState<string | null>(null);
 
@@ -165,8 +168,9 @@ const CheckoutForm = ({
       setStripeCustomerId(ctx.stripeId);
       setUserType(ctx.userType);
       if (ctx.stripeId) {
-        const methods = await listPaymentMethods(ctx.stripeId);
+        const { methods, blocked } = await listPaymentMethodsDetailed(ctx.stripeId);
         setSavedMethods(methods);
+        setBlockedText(blockedBankNotice(blocked));
         if (methods.length > 0) setSelection(methods[0].stripePaymentMethodId);
       }
     })();
@@ -328,7 +332,7 @@ const CheckoutForm = ({
       await settlePaid(methodLabel);
       onPaid();
     } catch (e: any) {
-      setError(e.message || 'Something went wrong processing your payment.');
+      setError(friendlyPaymentError(e.message, 'Something went wrong processing your payment.'));
     } finally {
       setProcessing(false);
     }
@@ -448,6 +452,8 @@ const CheckoutForm = ({
       {/* Payment method */}
       <div className="bg-white border border-black/10 rounded-2xl p-6 space-y-4 shadow-sm">
         <h3 className="text-gray-900 font-semibold">Payment Method</h3>
+
+        {blockedText && <p className="text-red-600 text-sm">{blockedText}</p>}
 
         {/* Saved methods */}
         {savedMethods.map((m) => (

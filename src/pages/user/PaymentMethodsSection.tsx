@@ -3,11 +3,12 @@ import { Elements, CardElement } from '@stripe/react-stripe-js';
 import { getStripe } from '../../services/payment/stripeClient';
 import {
   SavedPaymentMethod,
-  listPaymentMethods,
+  listPaymentMethodsDetailed,
   detachPaymentMethod,
   resolveUserStripeContext,
 } from '../../services/payment/paymentApi';
 import { CARD_ELEMENT_STYLE, usePaymentMethodActions } from './usePaymentMethodActions';
+import { blockedBankNotice } from '../../services/payment/paymentErrors';
 
 // Saved payment methods management for the /user portal: list, add a card, add
 // a bank account (ACH Direct Debit), remove. Deliberately uses CardElement
@@ -36,6 +37,8 @@ const Inner = ({ userId, userName, userEmail, onMethodsChange }: Props) => {
   const { customerId, setCustomerId, saveCard, saveBank } = usePaymentMethodActions({ userId, userName, userEmail });
   const [methods, setMethods] = useState<SavedPaymentMethod[]>([]);
   const [loading, setLoading] = useState(true);
+  // Why a saved bank no longer appears (Stripe blocked it), or ''.
+  const [blockedText, setBlockedText] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [showCardForm, setShowCardForm] = useState(false);
   const [cardComplete, setCardComplete] = useState(false);
@@ -50,8 +53,9 @@ const Inner = ({ userId, userName, userEmail, onMethodsChange }: Props) => {
   onMethodsChangeRef.current = onMethodsChange;
 
   const refresh = useCallback(async (cid: string) => {
-    const list = await listPaymentMethods(cid);
+    const { methods: list, blocked } = await listPaymentMethodsDetailed(cid);
     setMethods(list);
+    setBlockedText(blockedBankNotice(blocked));
     onMethodsChangeRef.current?.(list.length);
   }, []);
 
@@ -128,6 +132,12 @@ const Inner = ({ userId, userName, userEmail, onMethodsChange }: Props) => {
   return (
     <div>
       <h3 className="text-white font-semibold text-lg mb-4">Payment Methods</h3>
+
+      {blockedText && (
+        <div className="mb-4 px-4 py-3 rounded-lg text-sm border bg-red-500/10 border-red-500/30 text-red-400">
+          {blockedText}
+        </div>
+      )}
 
       {message && (
         <div

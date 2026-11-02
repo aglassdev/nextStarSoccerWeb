@@ -28,6 +28,7 @@ import {
   quoteClinic,
 } from '../constants/clinicsData';
 import { findClinicCode } from '../constants/discountCodes';
+import { friendlyPaymentError } from '../services/payment/paymentErrors';
 
 type Step = 'choose' | 'login' | 'guest-role' | 'pay';
 type GuestRole = 'parent' | 'player';
@@ -380,7 +381,7 @@ const ClinicCheckoutForm = ({
         paymentIntentId = pi.id;
       }
     } catch (e: any) {
-      setError(e.message || 'Something went wrong processing your payment.');
+      setError(friendlyPaymentError(e.message, 'Something went wrong processing your payment.'));
       setProcessing(false);
       return;
     }
