@@ -127,7 +127,23 @@ const retryOnce = (e: React.SyntheticEvent<HTMLImageElement>) => {
 
 /* ─── Flip Card ─────────────────────────────────────────────────────────── */
 const FlipCard: React.FC<{ player: Player; eager?: boolean }> = ({ player, eager }) => {
-  const [flipped, setFlipped] = useState(false);
+  // Hovering with a mouse flips the card while the cursor is on it; a click
+  // pins it flipped until clicked again. Hover is mouse-only so touch screens
+  // (which fire emulated hover on tap) keep plain tap-to-flip.
+  const [hovered, setHovered] = useState(false);
+  const [pinned, setPinned] = useState(false);
+  const flipped = pinned || hovered;
+  const canHover = typeof window !== 'undefined' && !!window.matchMedia?.('(hover: hover)').matches;
+
+  const handleClick = () => {
+    if (pinned) {
+      // Flip straight back, even with the cursor still on the card.
+      setPinned(false);
+      setHovered(false);
+    } else {
+      setPinned(true);
+    }
+  };
 
   const infoItems = [
     { label: 'Hometown', value: player.hometown },
@@ -143,7 +159,9 @@ const FlipCard: React.FC<{ player: Player; eager?: boolean }> = ({ player, eager
     <div
       className="flip-card cursor-pointer relative w-full"
       style={{ perspective: '1000px', aspectRatio: '3/4' }}
-      onClick={() => setFlipped((f) => !f)}
+      onClick={handleClick}
+      onPointerEnter={(e) => { if (e.pointerType === 'mouse') setHovered(true); }}
+      onPointerLeave={(e) => { if (e.pointerType === 'mouse') setHovered(false); }}
     >
       <div
         className="absolute inset-0 transition-transform duration-500"
@@ -261,7 +279,9 @@ const FlipCard: React.FC<{ player: Player; eager?: boolean }> = ({ player, eager
           </div>
 
           {/* Close hint */}
-          <p className="text-neutral-600 text-[10px] text-center mt-3 uppercase tracking-widest">tap to flip back</p>
+          <p className="text-neutral-600 text-[10px] text-center mt-3 uppercase tracking-widest">
+            {!canHover ? 'tap to flip back' : pinned ? 'click to flip back' : 'click to keep open'}
+          </p>
         </div>
       </div>
     </div>
