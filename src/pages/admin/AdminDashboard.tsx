@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { databases, databaseId, collections } from '../../services/appwrite';
@@ -76,10 +76,13 @@ const BarChart = ({ data }: { data: { label: string; value: number; highlight?: 
   const max = Math.max(...data.map(d => d.value), 1);
   const chartH = 72;
   const topPad = 14;   // headroom so the value label above the tallest bar isn't clipped
-  const barW = 28;
-  const gap = 14;
-  const svgW = data.length * (barW + gap) - gap;
+  // Bars share a fixed width, so a single month and a long range both fill it.
+  const svgW = 300;
+  const slot = svgW / Math.max(data.length, 1);
+  const barW = Math.min(28, slot * 0.66);
   const baseline = topPad + chartH; // y of the bar baseline (bottom of the plot area)
+  // With many bars, label every other one so the months don't overlap.
+  const labelEvery = data.length > 12 ? 2 : 1;
   // Drawn in currentColor (white text), so the bars follow the text colour in light mode.
 
   return (
@@ -90,15 +93,17 @@ const BarChart = ({ data }: { data: { label: string; value: number; highlight?: 
       ))}
       {data.map((d, i) => {
         const barH = Math.max((d.value / max) * chartH, 2);
-        const x = i * (barW + gap);
+        const x = i * slot + (slot - barW) / 2;
         const y = baseline - barH;
         return (
           <g key={i}>
             <rect x={x} y={y} width={barW} height={barH} rx={2}
               fill="currentColor" fillOpacity={d.highlight ? 0.75 : 0.18} />
-            <text x={x + barW / 2} y={baseline + 15} textAnchor="middle"
-              fill="currentColor" fillOpacity={0.35} fontSize={9} fontFamily="system-ui">{d.label}</text>
-            {d.value > 0 && (
+            {i % labelEvery === 0 && (
+              <text x={x + barW / 2} y={baseline + 15} textAnchor="middle"
+                fill="currentColor" fillOpacity={0.35} fontSize={9} fontFamily="system-ui">{d.label}</text>
+            )}
+            {d.value > 0 && data.length <= 12 && (
               <text x={x + barW / 2} y={y - 4} textAnchor="middle"
                 fill="currentColor" fillOpacity={d.highlight ? 0.9 : 0.35}
                 fontSize={8} fontFamily="system-ui">
@@ -113,21 +118,39 @@ const BarChart = ({ data }: { data: { label: string; value: number; highlight?: 
 };
 
 // ─── SVG Donut Chart ────────────────────────────────────────────────────────
-const DonutChart = ({ segments, centerLabel, centerSub }: {
+// Whenever `animateKey` changes the ring empties and refills in one sweep,
+// drawing each segment in order (paid, then pending, then overdue).
+const DONUT_FILL_MS = 900;
+const DonutChart = ({ segments, centerLabel, centerSub, animateKey }: {
   segments: { label: string; value: number; color: string }[];
-  centerLabel: string; centerSub: string;
+  centerLabel: string; centerSub: string; animateKey?: string;
 }) => {
   const total = segments.reduce((s, seg) => s + seg.value, 0) || 1;
   const r = 36; const cx = 52; const cy = 52; const circ = 2 * Math.PI * r;
+  const [progress, setProgress] = useState(0);
+  useEffect(() => {
+    setProgress(0);
+    let raf = 0;
+    const start = performance.now();
+    const tick = (t: number) => {
+      const p = Math.min((t - start) / DONUT_FILL_MS, 1);
+      setProgress(1 - Math.pow(1 - p, 3)); // ease-out
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [animateKey]);
+  const drawn = progress * total;
   let cumulative = 0;
   return (
     <svg width="104" height="104" viewBox="0 0 104 104" className="text-white">
       <circle cx={cx} cy={cy} r={r} fill="none" stroke="currentColor" strokeOpacity={0.05} strokeWidth={11} />
       {segments.filter(s => s.value > 0).map((seg, i) => {
-        const pct = seg.value / total;
-        const dash = pct * circ; const gap = circ - dash;
+        const shown = Math.max(0, Math.min(drawn - cumulative, seg.value));
+        const dash = (shown / total) * circ; const gap = circ - dash;
         const rot = (cumulative / total) * 360 - 90;
         cumulative += seg.value;
+        if (shown <= 0) return null;
         return (
           <circle key={i} cx={cx} cy={cy} r={r} fill="none" stroke={seg.color} strokeWidth={11}
             strokeDasharray={`${dash} ${gap}`} transform={`rotate(${rot} ${cx} ${cy})`} strokeLinecap="butt" />
@@ -137,6 +160,84 @@ const DonutChart = ({ segments, centerLabel, centerSub }: {
       <text x={cx} y={cy + 12} textAnchor="middle" fill="currentColor" fillOpacity={0.45} fontSize={8} fontFamily="system-ui">{centerSub}</text>
     </svg>
   );
+};
+
+// ─── Edit tag: a small pill that opens a list of choices ────────────────────
+const EditTag = ({ value, options, onChange }: {
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (v: string) => void;
+}) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [open]);
+  const current = options.find(o => o.value === value)?.label ?? value;
+  return (
+    <div ref={ref} className="relative inline-block">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="inline-flex items-center gap-1 rounded-full border border-white/[0.12] bg-white/[0.04] px-2 py-0.5 text-[11px] text-white/70 hover:text-white hover:border-white/25 transition-colors"
+      >
+        <svg className="w-2.5 h-2.5 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M4 20h4l10.5-10.5a2.5 2.5 0 00-3.536-3.536L4 16.5V20z" />
+        </svg>
+        {current}
+        <svg className="w-2.5 h-2.5 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full mt-1 z-30 min-w-[150px] max-h-64 overflow-y-auto rounded-lg border border-white/[0.1] bg-[#26252b] py-1 shadow-xl">
+          {options.map(o => (
+            <button
+              key={o.value}
+              type="button"
+              onClick={() => { onChange(o.value); setOpen(false); }}
+              className={`block w-full text-left px-3 py-1.5 text-xs transition-colors hover:bg-white/[0.06] ${o.value === value ? 'text-white font-medium' : 'text-white/60'}`}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── Revenue ranges ───────────────────────────────────────────────────────────
+type RevenueRange = 'month' | 'quarter' | '3m' | '6m' | 'ytd' | 'lastYear' | 'all';
+const REVENUE_RANGES: { value: RevenueRange; label: string }[] = [
+  { value: 'month', label: 'Current month' },
+  { value: 'quarter', label: 'Current quarter' },
+  { value: '3m', label: 'Last 3 months' },
+  { value: '6m', label: 'Last 6 months' },
+  { value: 'ytd', label: 'Year to date' },
+  { value: 'lastYear', label: 'Last year' },
+  { value: 'all', label: 'All time' },
+];
+const monthKey = (y: number, m: number) => {
+  const d = new Date(y, m, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+};
+/** First and last month ("YYYY-MM") a range covers; `earliest` is the oldest month with data. */
+const rangeMonths = (range: RevenueRange, now: Date, earliest: string) => {
+  const y = now.getFullYear(), m = now.getMonth();
+  const cur = monthKey(y, m);
+  switch (range) {
+    case 'month': return [cur, cur];
+    case 'quarter': return [monthKey(y, m - (m % 3)), cur];
+    case '3m': return [monthKey(y, m - 2), cur];
+    case '6m': return [monthKey(y, m - 5), cur];
+    case 'ytd': return [monthKey(y, 0), cur];
+    case 'lastYear': return [monthKey(y - 1, 0), monthKey(y - 1, 11)];
+    case 'all': return [earliest < cur ? earliest : cur, cur];
+  }
 };
 
 // ─── Chevron ─────────────────────────────────────────────────────────────────
@@ -255,8 +356,11 @@ const AdminDashboard = () => {
   };
 
   const [stats, setStats] = useState({ unreadMessages: 0, outstandingBills: 0, loading: true });
-  const [revenueData, setRevenueData] = useState<{ label: string; value: number; highlight: boolean }[]>([]);
-  const [billsStatus, setBillsStatus] = useState({ paid: 0, pending: 0, overdue: 0 });
+  // Loaded once; the Revenue range and Bills month are worked out from these.
+  const [allPaymentDocs, setAllPaymentDocs] = useState<any[]>([]);
+  const [allBillDocs, setAllBillDocs] = useState<any[]>([]);
+  const [revenueRange, setRevenueRange] = useState<RevenueRange>('6m');
+  const [billMonth, setBillMonth] = useState('all');
   const [todayPublicEvents, setTodayPublicEvents] = useState<(CalEvent & { signups: number; coaches: number })[]>([]);
   const [todayPrivateEvents, setTodayPrivateEvents] = useState<(CalEvent & { signups: number; coaches: number })[]>([]);
   const [todayAnalysisEvents, setTodayAnalysisEvents] = useState<(CalEvent & { signups: number; coaches: number })[]>([]);
@@ -316,59 +420,21 @@ const AdminDashboard = () => {
         ]);
         setStats({ unreadMessages: (unread as any).total, outstandingBills: (outstanding as any).total, loading: false });
 
-        const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1).toISOString();
         // Revenue = one-time/prepaid payments (payments collection) + paid
         // monthly bills (bills collection). In-app bill payments also leave a
         // type "bill" record in payments; those are skipped below so a bill
         // isn't counted twice.
         const [allPayments, allBillsRes] = await Promise.all([
           collections.payments
-            ? databases.listDocuments(databaseId, collections.payments, [Query.greaterThanEqual('$createdAt', sixMonthsAgo), Query.limit(5000)]).catch(() => ({ documents: [] }))
+            ? databases.listDocuments(databaseId, collections.payments, [Query.limit(5000)]).catch(() => ({ documents: [] }))
             : { documents: [] },
           collections.bills
             ? databases.listDocuments(databaseId, collections.bills, [Query.limit(5000)]).catch(() => ({ documents: [] }))
             : { documents: [] },
         ]);
 
-        const monthly: Record<string, number> = {};
-        for (let i = 5; i >= 0; i--) {
-          const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-          monthly[`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`] = 0;
-        }
-        const bucketKey = (raw: string) => {
-          const d = new Date(raw);
-          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-        };
-        (allPayments as any).documents.forEach((p: any) => {
-          // Already counted from the bills collection under the bill's month;
-          // counting the record too would add it again in the month it was paid.
-          if (p.type === 'bill') return;
-          const key = bucketKey(p.$createdAt);
-          if (key in monthly) monthly[key] += (p.price || 0);
-        });
-        (allBillsRes as any).documents.forEach((b: any) => {
-          if (b.status !== 'paid') return;
-          // Attribute bill revenue to the month the bill is FOR (its billing
-          // period, e.g. "2026-05"), not when the payment was collected.
-          const key = (typeof b.month === 'string' && /^\d{4}-\d{2}$/.test(b.month))
-            ? b.month
-            : bucketKey(b.paidAt || b.$updatedAt || b.$createdAt);
-          if (key in monthly) monthly[key] += (b.totalAmount || 0);
-        });
-        const currentKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-        setRevenueData(Object.entries(monthly).map(([k, v]) => ({
-          label: MONTHS[parseInt(k.split('-')[1]) - 1], value: v, highlight: k === currentKey,
-        })));
-
-        {
-          const today = Date.now(); let paid = 0, pending = 0, overdue = 0;
-          (allBillsRes as any).documents.forEach((b: any) => {
-            if (b.status === 'paid' || b.status === 'cancelled') { if (b.status === 'paid') paid++; return; }
-            const dueMs = b.dueDate ? Date.parse(b.dueDate) : NaN;
-            if (!isNaN(dueMs) && dueMs < today) overdue++; else pending++;
-          });
-          setBillsStatus({ paid, pending, overdue });
-        }
+        setAllPaymentDocs((allPayments as any).documents);
+        setAllBillDocs((allBillsRes as any).documents);
 
         const [pubAll, privAll, analysisAll] = await Promise.all([
           googleCalendarService.getEventsForMonth(now.getFullYear(), now.getMonth(), 'public').catch(() => []),
@@ -417,6 +483,70 @@ const AdminDashboard = () => {
       finally { setDataLoading(false); }
     })();
   }, []);
+
+  // Revenue = one-time/prepaid payments (payments collection) + paid monthly
+  // bills (bills collection). In-app bill payments also leave a type "bill"
+  // record in payments; those are skipped so a bill isn't counted twice.
+  const revenueData = useMemo(() => {
+    const now = new Date();
+    const bucketKey = (raw: string) => {
+      const d = new Date(raw);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    };
+    // Bill revenue goes to the month the bill is FOR (e.g. "2026-05"), not
+    // the month it was paid.
+    const billKey = (b: any) => (typeof b.month === 'string' && /^\d{4}-\d{2}$/.test(b.month))
+      ? b.month : bucketKey(b.paidAt || b.$updatedAt || b.$createdAt);
+    const keys = [
+      ...allPaymentDocs.filter(p => p.type !== 'bill').map(p => bucketKey(p.$createdAt)),
+      ...allBillDocs.filter(b => b.status === 'paid').map(billKey),
+    ].sort();
+    const [from, to] = rangeMonths(revenueRange, now, keys[0] || monthKey(now.getFullYear(), now.getMonth()));
+    const monthly: Record<string, number> = {};
+    for (let d = new Date(+from.slice(0, 4), +from.slice(5) - 1, 1); ; d.setMonth(d.getMonth() + 1)) {
+      const k = monthKey(d.getFullYear(), d.getMonth());
+      if (k > to) break;
+      monthly[k] = 0;
+    }
+    allPaymentDocs.forEach(p => {
+      if (p.type === 'bill') return;
+      const k = bucketKey(p.$createdAt);
+      if (k in monthly) monthly[k] += (p.price || 0);
+    });
+    allBillDocs.forEach(b => {
+      if (b.status !== 'paid') return;
+      const k = billKey(b);
+      if (k in monthly) monthly[k] += (b.totalAmount || 0);
+    });
+    const currentKey = monthKey(now.getFullYear(), now.getMonth());
+    const entries = Object.entries(monthly);
+    const spansYears = entries.length > 0 && entries[0][0].slice(0, 4) !== entries[entries.length - 1][0].slice(0, 4);
+    return entries.map(([k, v], i) => {
+      const mon = MONTHS[parseInt(k.split('-')[1]) - 1];
+      // Mark the year where it changes, so a long range reads clearly.
+      const withYear = spansYears && (i === 0 || k.endsWith('-01'));
+      return { label: withYear ? `${mon} '${k.slice(2, 4)}` : mon, value: v, highlight: k === currentKey };
+    });
+  }, [allPaymentDocs, allBillDocs, revenueRange]);
+
+  const billMonthOptions = useMemo(() => {
+    const months = Array.from(new Set(allBillDocs.map(b => b.month).filter((m: any) => typeof m === 'string' && /^\d{4}-\d{2}$/.test(m)))).sort().reverse() as string[];
+    return [
+      { value: 'all', label: 'All months' },
+      ...months.map(m => ({ value: m, label: `${MONTHS[parseInt(m.slice(5)) - 1]} ${m.slice(0, 4)}` })),
+    ];
+  }, [allBillDocs]);
+
+  const billsStatus = useMemo(() => {
+    const today = Date.now(); let paid = 0, pending = 0, overdue = 0;
+    allBillDocs.forEach(b => {
+      if (billMonth !== 'all' && b.month !== billMonth) return;
+      if (b.status === 'paid' || b.status === 'cancelled') { if (b.status === 'paid') paid++; return; }
+      const dueMs = b.dueDate ? Date.parse(b.dueDate) : NaN;
+      if (!isNaN(dueMs) && dueMs < today) overdue++; else pending++;
+    });
+    return { paid, pending, overdue };
+  }, [allBillDocs, billMonth]);
 
   const handleLogout = async () => { await logout(); navigate('/admin'); };
 
@@ -647,7 +777,9 @@ const AdminDashboard = () => {
                 <div className="flex items-start justify-between mb-6">
                   <div>
                     <p className="text-white text-[13px] font-medium">Revenue</p>
-                    <p className="text-white text-[11px] mt-0.5 opacity-50">Past 6 months</p>
+                    <div className="mt-1.5">
+                      <EditTag value={revenueRange} options={REVENUE_RANGES} onChange={v => setRevenueRange(v as RevenueRange)} />
+                    </div>
                   </div>
                   {!dataLoading && (
                     <div className="text-right">
@@ -669,7 +801,10 @@ const AdminDashboard = () => {
 
               {/* Bills */}
               <div className="bg-[#1d1c21] rounded-lg p-5 border border-white/[0.08]">
-                <p className="text-white text-[13px] font-medium mb-5">Bills</p>
+                <div className="flex items-center justify-between gap-2 mb-5">
+                  <p className="text-white text-[13px] font-medium">Bills</p>
+                  <EditTag value={billMonth} options={billMonthOptions} onChange={setBillMonth} />
+                </div>
                 {dataLoading ? (
                   <div className="h-24 flex items-center justify-center">
                     <div className="w-4 h-4 border border-white/10 border-t-white/40 rounded-full animate-spin" />
@@ -684,6 +819,7 @@ const AdminDashboard = () => {
                       ]}
                       centerLabel={String(billsStatus.paid + billsStatus.pending + billsStatus.overdue)}
                       centerSub="total"
+                      animateKey={billMonth}
                     />
                     <div className="w-full space-y-2.5">
                       {[
