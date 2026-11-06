@@ -22,6 +22,7 @@ import CoachManagementSection from './sections/CoachManagementSection';
 import CoachPaymentsSection from './sections/CoachPaymentsSection';
 import SessionReviewsSection from './sections/SessionReviewsSection';
 import ScholarshipsSection from './sections/ScholarshipsSection';
+import VideoAnalysisSection from './sections/VideoAnalysisSection';
 
 const ALLOWED_EMAILS = [
   'amartyaglasses@gmail.com',
@@ -40,13 +41,13 @@ const REQUEST_TYPES = [
   'Player Report',
 ];
 
-type Section = 'players' | 'coaches' | 'parents' | 'bills' | /* 'payments' | */ 'messages' | 'requests' | 'calendar' | 'eventAssistant' | 'attendance' | 'coachManagement' | 'coachPayments' | 'devOverview' | 'appFeedback' | 'serviceStatus' | 'sessionReviews' | 'scholarships';
+type Section = 'players' | 'coaches' | 'parents' | 'bills' | /* 'payments' | */ 'messages' | 'requests' | 'calendar' | 'eventAssistant' | 'attendance' | 'coachManagement' | 'coachPayments' | 'devOverview' | 'appFeedback' | 'serviceStatus' | 'sessionReviews' | 'scholarships' | 'videoAnalysis';
 
 type NavGroup = 'Directory' | 'Coaches' | 'Messages' | 'Payments' | 'Events' | 'Development';
 
 const SECTION_TO_GROUP: Partial<Record<Section, NavGroup>> = {
   players: 'Directory', coaches: 'Directory', parents: 'Directory',
-  coachManagement: 'Coaches', coachPayments: 'Coaches',
+  coachManagement: 'Coaches', coachPayments: 'Coaches', videoAnalysis: 'Coaches',
   messages: 'Messages', requests: 'Messages',
   bills: 'Payments', /* payments: 'Payments', */ scholarships: 'Payments',
   calendar: 'Events', eventAssistant: 'Events', attendance: 'Events', sessionReviews: 'Events',
@@ -64,6 +65,7 @@ const SECTION_LABELS: Partial<Record<Section, string>> = {
   serviceStatus: 'Service Status',
   sessionReviews: 'Session Reviews',
   scholarships: 'Scholarships',
+  videoAnalysis: 'Video Analysis',
 };
 
 interface CalEvent {
@@ -313,6 +315,7 @@ const SECTION_FROM_PATH: Record<string, Section> = {
   '/admin/dev/status': 'serviceStatus',
   '/admin/session-reviews': 'sessionReviews',
   '/admin/scholarships': 'scholarships',
+  '/admin/video-analysis': 'videoAnalysis',
 };
 
 const AdminDashboard = () => {
@@ -340,6 +343,7 @@ const AdminDashboard = () => {
     serviceStatus: '/admin/dev/status',
     sessionReviews: '/admin/session-reviews',
     scholarships: '/admin/scholarships',
+    videoAnalysis: '/admin/video-analysis',
   };
   const setActiveSection = (s: Section | null) => navigate(s ? SECTION_TO_PATH[s] : '/admin/dashboard');
 
@@ -582,6 +586,7 @@ const AdminDashboard = () => {
     coachPayments: <CoachPaymentsSection />,
     sessionReviews: <SessionReviewsSection />,
     scholarships: <ScholarshipsSection />,
+    videoAnalysis: <VideoAnalysisSection />,
   };
 
   return (
@@ -650,6 +655,8 @@ const AdminDashboard = () => {
               icon={<svg className="w-[13px] h-[13px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>} />
             <NavChild section="coachPayments" label="Coach Payments" active={activeSection === 'coachPayments'} onSelect={setActiveSection}
               icon={<svg className="w-[13px] h-[13px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} />
+            <NavChild section="videoAnalysis" label="Video Analysis" active={activeSection === 'videoAnalysis'} onSelect={setActiveSection}
+              icon={<svg className="w-[13px] h-[13px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.55-2.28A1 1 0 0121 8.62v6.76a1 1 0 01-1.45.9L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>} />
           </NavGroupItem>
 
           {/* Messages */}

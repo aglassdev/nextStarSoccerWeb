@@ -12,6 +12,7 @@ import {
   calculateLateFee,
 } from '../../services/payment/billingService';
 import { useAccount } from './AccountContext';
+import { VideoAnalysis, listMyAnalyses } from '../../services/videoAnalysis';
 import { AccountSpinner } from './AccountLayout';
 
 const PROFILE_PHOTOS_BUCKET = 'profile-photos';
@@ -60,10 +61,12 @@ const AccountOverviewPage = () => {
   const { loading, profile, userType, children } = useAccount();
   const [bills, setBills] = useState<Bill[] | null>(null);
   const [sessions, setSessions] = useState<Signup[] | null>(null);
+  const [analyses, setAnalyses] = useState<VideoAnalysis[]>([]);
 
   useEffect(() => {
     if (!user) return;
     getUserBills(user.$id).then(setBills).catch(() => setBills([]));
+    listMyAnalyses(user.$id).then(setAnalyses).catch(() => {});
     const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
     databases
       .listDocuments(databaseId, collections.signups, [
@@ -137,6 +140,22 @@ const AccountOverviewPage = () => {
         <div className="bg-[#111] border border-white/10 rounded-xl p-4 text-sm text-gray-400">
           No players on your account yet. <Link to="/account/family" className="text-white underline underline-offset-2">Add a player</Link>.
         </div>
+      )}
+
+      {analyses.some((a) => a.status === 'awaiting_upload' || a.status === 'completed') && (
+        <Card title="Video Analysis" to="/account/video-analysis" action="Open">
+          {(() => {
+            const todo = analyses.filter((a) => a.status === 'awaiting_upload').length;
+            const ready = analyses.filter((a) => a.status === 'completed').length;
+            return (
+              <p className="text-white text-sm">
+                {todo > 0 && <span className="text-yellow-300 font-medium">{todo} film{todo === 1 ? '' : 's'} to upload</span>}
+                {todo > 0 && ready > 0 && <span className="text-gray-600"> · </span>}
+                {ready > 0 && <span className="text-green-400 font-medium">{ready} analysis{ready === 1 ? '' : 'es'} ready to watch</span>}
+              </p>
+            );
+          })()}
+        </Card>
       )}
 
       <div className="grid md:grid-cols-2 gap-4">

@@ -30,6 +30,8 @@ import CampDetailPage from './pages/CampDetailPage';
 import ClinicsPage from './pages/ClinicsPage';
 import ClinicDetailPage from './pages/ClinicDetailPage';
 import ClinicCheckoutPage from './pages/ClinicCheckoutPage';
+import VideoAnalysisPage from './pages/VideoAnalysisPage';
+import VideoAnalysisCheckoutPage from './pages/VideoAnalysisCheckoutPage';
 import Layout from './components/layout/Layout';
 import LoadingScreen from './components/common/LoadingScreen';
 import AdminLoginPage from './pages/admin/AdminLoginPage';
@@ -41,6 +43,13 @@ import AccountLayout from './pages/account/AccountLayout';
 import AccountOverviewPage from './pages/account/AccountOverviewPage';
 import AccountFamilyPage from './pages/account/AccountFamilyPage';
 import AccountSettingsPage from './pages/account/AccountSettingsPage';
+import AccountVideoAnalysisPage from './pages/account/AccountVideoAnalysisPage';
+import AccountVideoAnalysisDetailPage from './pages/account/AccountVideoAnalysisDetailPage';
+import CoachLayout from './pages/coach/CoachLayout';
+import CoachHomePage from './pages/coach/CoachHomePage';
+import CoachAnalysisWorkspacePage from './pages/coach/CoachAnalysisWorkspacePage';
+import CoachSessionsPage from './pages/coach/CoachSessionsPage';
+import CoachRequestsPage from './pages/coach/CoachRequestsPage';
 import PaymentPortalPage from './pages/user/PaymentPortalPage';
 import CheckoutPage from './pages/user/CheckoutPage';
 import StatusPage from './pages/StatusPage';
@@ -119,6 +128,8 @@ function AppRoutes() {
       <Route path="/services/camps/:slug" element={<CampDetailPage />} />
       <Route path="/services/clinics" element={<ClinicsPage />} />
       <Route path="/services/clinics/:slug" element={<ClinicDetailPage />} />
+      <Route path="/services/video-analysis" element={<VideoAnalysisPage />} />
+      <Route path="/checkout/video-analysis" element={<VideoAnalysisCheckoutPage />} />
       <Route path="/checkout/:slug" element={<ClinicCheckoutPage />} />
       <Route path="/alumni" element={<AlumniPage />} />
       <Route path="/calendar" element={<CalendarPage />} />
@@ -168,6 +179,22 @@ function AppRoutes() {
         <Route path="payments" element={<PaymentPortalPage />} />
         <Route path="family" element={<AccountFamilyPage />} />
         <Route path="settings" element={<AccountSettingsPage />} />
+        <Route path="video-analysis" element={<AccountVideoAnalysisPage />} />
+        <Route path="video-analysis/:id" element={<AccountVideoAnalysisDetailPage />} />
+      </Route>
+      {/* Coach dashboard (coaches and admins) */}
+      <Route
+        path="/coach"
+        element={
+          <UserProtectedRoute>
+            <CoachLayout />
+          </UserProtectedRoute>
+        }
+      >
+        <Route index element={<CoachHomePage />} />
+        <Route path="analysis/:id" element={<CoachAnalysisWorkspacePage />} />
+        <Route path="sessions" element={<CoachSessionsPage />} />
+        <Route path="requests" element={<CoachRequestsPage />} />
       </Route>
       {/* Bill checkout keeps its own full-page layout */}
       {['/account/payments/checkout', '/user/payments/checkout'].map((path) => (
@@ -205,6 +232,7 @@ function AppRoutes() {
       <Route path="/admin/dev/status" element={<AdminDashboard />} />
       <Route path="/admin/session-reviews" element={<AdminDashboard />} />
       <Route path="/admin/scholarships" element={<AdminDashboard />} />
+      <Route path="/admin/video-analysis" element={<AdminDashboard />} />
 
       {/* Catch all - redirect to home */}
       <Route path="*" element={<Navigate to="/" replace />} />

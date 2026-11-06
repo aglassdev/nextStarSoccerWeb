@@ -9,6 +9,7 @@ import { COACH_DASHBOARD_LIVE } from '../../services/accountProfile';
 
 export const ACCOUNT_TABS: { to: string; label: string; end?: boolean; parentsOnly?: boolean }[] = [
   { to: '/account', label: 'Overview', end: true },
+  { to: '/account/video-analysis', label: 'Video Analysis' },
   { to: '/account/payments', label: 'Payment Center' },
   { to: '/account/family', label: 'My Family', parentsOnly: true },
   { to: '/account/settings', label: 'Settings' },

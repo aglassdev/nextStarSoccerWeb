@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import Navigation from '../components/layout/Navigation';
 import Footer from '../components/layout/Footer';
 
-type Action = 'request-in-app' | 'calendar' | 'camps' | 'clinics';
+type Action = 'request-in-app' | 'calendar' | 'camps' | 'clinics' | 'video-analysis';
 
 interface Service {
     id: string;
@@ -43,8 +43,8 @@ const CATEGORIES: Category[] = [
         services: [
             { id: 'parent-consultation', name: 'Parent Consultation', image: '/assets/images/parentConsultation.png', price: 'From $150', meta: ['60 min', 'In person or phone'], pricing: ['In person — $200', 'By phone — $150'], action: 'request-in-app',
               description: "For parents seeking additional guidance regarding a player's current skill, fitness levels, progress, academy opportunities, college recruitment process, international exposure, or anything soccer-related, a consultation offers a private setting to address all your questions. This one-on-one consultation provides an in-depth analysis of your child's current state, ensuring that all your concerns are thoroughly answered, while also providing recommendations for the next steps in their development." },
-            { id: 'game-analysis', name: 'Game Analysis', image: '/assets/images/gameAnalysis.png', price: 'From $150', meta: ['In person, online or video'], pricing: ['In person — $200', 'Online meeting — $150', 'Video recording — $150'], action: 'request-in-app',
-              description: "A coach breaks down a player's game — in person, over an online meeting, or as a recorded video review — and walks through what went well, what to work on, and how to carry it into training." },
+            { id: 'game-analysis', name: 'Game Analysis', image: '/assets/images/gameAnalysis.png', price: 'From $150', meta: ['In person, online or video'], pricing: ['Video recording — $150 (buy online)', 'Online meeting — $150', 'In person — $200'], action: 'video-analysis',
+              description: "A coach breaks down a player's game — as a recorded video review you can buy right here, or over an online meeting or in person (requested in the app) — and walks through what went well, what to work on, and how to carry it into training." },
             { id: 'player-report', name: 'Player Report', image: '/assets/images/playerReport.png', containImage: true, price: '$75', meta: ['After 5+ sessions'], pricing: ['$75 per player'], action: 'request-in-app',
               description: "A comprehensive written report on a player's current progress, skill, fitness, and mental state. This detailed evaluation gives you an understanding of your development, highlighting your personal strengths and areas needing improvement. The report shows both physical and technical ability, but also intangibles such as mental focus and work ethic, allowing for a holistic evaluation and helps inform future training plans." },
             { id: 'college-consulting', name: 'College Consulting', price: 'TBC', meta: ['Coming soon'], pricing: ['Pricing to be confirmed'], action: 'request-in-app', isNew: true, description: COMING_SOON },
@@ -118,6 +118,11 @@ const ServiceAction = ({ action }: { action: Action }) => {
     if (action === 'clinics') return (
         <Link to="/services/clinics" onClick={e => e.stopPropagation()} className="inline-flex items-center gap-1.5 bg-white text-black hover:bg-white/85 px-4 py-2 rounded-full text-sm font-semibold">
             View clinics <span aria-hidden="true">→</span>
+        </Link>
+    );
+    if (action === 'video-analysis') return (
+        <Link to="/services/video-analysis" onClick={e => e.stopPropagation()} className="inline-flex items-center gap-1.5 bg-white text-black hover:bg-white/85 px-4 py-2 rounded-full text-sm font-semibold">
+            Buy video analysis <span aria-hidden="true">→</span>
         </Link>
     );
     return <StoreBadges />;

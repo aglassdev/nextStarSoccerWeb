@@ -38,7 +38,7 @@ export async function resolveAccount(userId: string): Promise<AccountInfo> {
 }
 
 /** Flip on once the web coach dashboard (/coach) ships. */
-export const COACH_DASHBOARD_LIVE = false;
+export const COACH_DASHBOARD_LIVE = true;
 
 /** A coach with no parent or player profile goes to the coach dashboard. */
 export const isPureCoach = (a: AccountInfo) => a.isCoach && (a.userType === 'coach' || a.userType === null);
