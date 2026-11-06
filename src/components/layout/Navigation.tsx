@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { images } from '../../constants/images';
+import { useAuth } from '../../contexts/AuthContext';
+import CreateAccountModal from '../common/CreateAccountModal';
 
 // The wordmark is NEXT ⦿ STAR with the ball dead centre, and the ball is as
 // wide as the image is tall (634 × 634 in a 2974 × 634 file). So collapsing it
@@ -25,6 +27,7 @@ const CollapsingLogo = ({ collapsed }: { collapsed: boolean }) => (
 
 const Navigation = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showGetStarted, setShowGetStarted]     = useState(false);
   const [showChoiceMenu, setShowChoiceMenu]     = useState(false);
@@ -93,6 +96,15 @@ const Navigation = () => {
 
               {/* Right — CTA + hamburger */}
               <div className="flex items-center gap-2">
+                {user ? (
+                  // Signed in: /signin forwards to the Account Center or the coach dashboard.
+                  <Link
+                    to="/signin"
+                    className="hidden sm:inline-flex items-center text-black bg-white hover:bg-white/85 px-4 py-2 text-sm font-semibold rounded-full transition-colors"
+                  >
+                    My Account
+                  </Link>
+                ) : (
                 <div className="relative">
                   <button
                     ref={getStartedRef}
@@ -106,29 +118,30 @@ const Navigation = () => {
                   </button>
 
                   {showChoiceMenu && (
-                    <div className="absolute right-0 top-full mt-2 w-44 bg-[#111] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-[300]">
+                    <div className="absolute right-0 top-full mt-2 w-48 bg-[#111] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-[300]">
                       <button
                         onClick={() => { setShowChoiceMenu(false); setShowGetStarted(true); }}
                         className="w-full flex items-center gap-3 px-4 py-3.5 text-white text-sm font-medium hover:bg-white/[0.07] transition-colors text-left"
                       >
                         <svg className="w-4 h-4 text-white/40 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
                         </svg>
-                        Player
+                        Create account
                       </button>
                       <div className="h-px bg-white/[0.06] mx-4" />
                       <button
-                        onClick={() => { setShowChoiceMenu(false); navigate('/coachapply'); }}
+                        onClick={() => { setShowChoiceMenu(false); navigate('/signin'); }}
                         className="w-full flex items-center gap-3 px-4 py-3.5 text-white text-sm font-medium hover:bg-white/[0.07] transition-colors text-left"
                       >
                         <svg className="w-4 h-4 text-white/40 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
                         </svg>
-                        Coach
+                        Sign in
                       </button>
                     </div>
                   )}
                 </div>
+                )}
 
                 <button
                   onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -159,63 +172,35 @@ const Navigation = () => {
                 </Link>
               ))}
               <div className="mt-1 px-2 pb-1 space-y-2">
-                <button
-                  className="w-full text-black bg-white hover:bg-white/85 px-4 py-2.5 text-sm font-semibold rounded-full transition-colors"
-                  onClick={() => { setIsMobileMenuOpen(false); setShowGetStarted(true); }}
-                >
-                  Get Started — Player
-                </button>
-                <button
-                  className="w-full text-white bg-white/10 hover:bg-white/15 px-4 py-2.5 text-sm font-semibold rounded-full transition-colors"
-                  onClick={() => { setIsMobileMenuOpen(false); navigate('/coachapply'); }}
-                >
-                  Get Started — Coach
-                </button>
+                {user ? (
+                  <button
+                    className="w-full text-black bg-white hover:bg-white/85 px-4 py-2.5 text-sm font-semibold rounded-full transition-colors"
+                    onClick={() => { setIsMobileMenuOpen(false); navigate('/signin'); }}
+                  >
+                    My Account
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      className="w-full text-black bg-white hover:bg-white/85 px-4 py-2.5 text-sm font-semibold rounded-full transition-colors"
+                      onClick={() => { setIsMobileMenuOpen(false); setShowGetStarted(true); }}
+                    >
+                      Create account
+                    </button>
+                    <button
+                      className="w-full text-white bg-white/10 hover:bg-white/15 px-4 py-2.5 text-sm font-semibold rounded-full transition-colors"
+                      onClick={() => { setIsMobileMenuOpen(false); navigate('/signin'); }}
+                    >
+                      Sign in
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           )}
       </header>
 
-      {/* Get Started modal — unchanged */}
-      {showGetStarted && (
-        <div
-          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm px-4"
-          onClick={() => setShowGetStarted(false)}
-        >
-          <div
-            className="bg-[#111] border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <img
-              src="/assets/images/nss-icon.png"
-              alt="Next Star Soccer"
-              className="w-16 h-16 mx-auto mb-5 rounded-2xl"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-            />
-            <h2 className="text-white text-xl font-bold mb-2 leading-snug font-lt-wave">
-              Get Started with Next Star
-            </h2>
-            <p className="text-gray-400 text-sm mb-2 font-lt-wave">
-              Download the app and create a free account to book sessions, track your progress, and get the full Next Star Soccer experience.
-            </p>
-            <p className="text-gray-600 text-xs mb-7 font-lt-wave">Available on iOS and Android</p>
-            <div className="flex justify-center items-center gap-4">
-              <a href="https://apps.apple.com/us/app/next-star-soccer/id6754170423" target="_blank" rel="noopener noreferrer">
-                <img src="/assets/images/badge-app-store.svg" alt="Download on the App Store" className="h-9 w-auto" />
-              </a>
-              <a href="https://play.google.com/store/apps/details?id=com.nextstarsoccer.nextstar&hl=en_US" target="_blank" rel="noopener noreferrer">
-                <img src="/assets/images/badge-google-play.png" alt="Get it on Google Play" className="h-9 w-auto" />
-              </a>
-            </div>
-            <button
-              className="mt-6 text-gray-500 text-xs hover:text-gray-300 transition-colors font-lt-wave"
-              onClick={() => setShowGetStarted(false)}
-            >
-              Maybe later
-            </button>
-          </div>
-        </div>
-      )}
+      {showGetStarted && <CreateAccountModal onClose={() => setShowGetStarted(false)} />}
     </>
   );
 };

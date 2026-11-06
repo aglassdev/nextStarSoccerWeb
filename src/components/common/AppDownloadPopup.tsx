@@ -8,7 +8,8 @@ const AppDownloadPopup = () => {
     const { pathname } = useLocation();
 
     useEffect(() => {
-        if (pathname.startsWith('/admin')) return;
+        // Not on pages for people who already have an account.
+        if (/^\/(admin|account|coach|signin|user|checkout)(\/|$)/.test(pathname)) return;
         if (sessionStorage.getItem(STORAGE_KEY)) return;
         const timer = setTimeout(() => {
             setVisible(true);

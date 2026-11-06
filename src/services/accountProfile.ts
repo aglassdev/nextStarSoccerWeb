@@ -1,0 +1,47 @@
+import { databases, databaseId, collections } from './appwrite';
+import { resolveUserStripeContext, UserType } from './payment/paymentApi';
+
+// Admin accounts, as in the app's constants/adminConfig.ts.
+export const ADMIN_USER_IDS = ['mi363q40_q03mtr0sknh', 'mi36bdeg_o704o948kfd', 'mj7d9825_hhgqztus4tb'];
+
+export interface AccountInfo {
+  /** The profile that pays and owns bills: parent first, then player, then coach. */
+  userType: UserType | null;
+  profile: any | null;
+  collectionId: string | null;
+  /** Has a Coaches doc (player+coach hybrids included), keyed by userId as in the app. */
+  isCoach: boolean;
+  isAdmin: boolean;
+}
+
+async function coachDoc(userId: string): Promise<any | null> {
+  try {
+    return await databases.getDocument(databaseId, collections.coaches, userId);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Who a signed-in account is, the same way the app works it out: the first
+ * profile collection with a doc for them, plus whether they also coach.
+ */
+export async function resolveAccount(userId: string): Promise<AccountInfo> {
+  const [ctx, coach] = await Promise.all([resolveUserStripeContext(userId), coachDoc(userId)]);
+  return {
+    userType: ctx.userType,
+    profile: ctx.profile,
+    collectionId: ctx.collectionId,
+    isCoach: !!coach,
+    isAdmin: ADMIN_USER_IDS.includes(userId),
+  };
+}
+
+/** Flip on once the web coach dashboard (/coach) ships. */
+export const COACH_DASHBOARD_LIVE = false;
+
+/** A coach with no parent or player profile goes to the coach dashboard. */
+export const isPureCoach = (a: AccountInfo) => a.isCoach && (a.userType === 'coach' || a.userType === null);
+
+/** Where someone lands after signing in. */
+export const homePathFor = (a: AccountInfo) => (COACH_DASHBOARD_LIVE && isPureCoach(a) ? '/coach' : '/account');

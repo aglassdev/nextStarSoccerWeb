@@ -36,7 +36,11 @@ import AdminLoginPage from './pages/admin/AdminLoginPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import PlayerProfile from './pages/admin/PlayerProfile';
 import ParentProfile from './pages/admin/ParentProfile';
-import UserLoginPage from './pages/user/UserLoginPage';
+import SignInPage from './pages/SignInPage';
+import AccountLayout from './pages/account/AccountLayout';
+import AccountOverviewPage from './pages/account/AccountOverviewPage';
+import AccountFamilyPage from './pages/account/AccountFamilyPage';
+import AccountSettingsPage from './pages/account/AccountSettingsPage';
 import PaymentPortalPage from './pages/user/PaymentPortalPage';
 import CheckoutPage from './pages/user/CheckoutPage';
 import StatusPage from './pages/StatusPage';
@@ -72,16 +76,18 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 }
 
-// Protected route for the user Payment Portal — redirects to /user login
+// Signed-in pages (Account Center, bill checkout) — anyone else goes to
+// /signin and comes back here afterwards.
 const UserProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, initialized } = useAuth();
+  const { pathname } = useLocation();
 
   if (!initialized) {
     return <LoadingScreen message="Loading..." />;
   }
 
   if (!user) {
-    return <Navigate to="/user" replace />;
+    return <Navigate to="/signin" replace state={{ from: pathname }} />;
   }
 
   return <>{children}</>;
@@ -146,24 +152,35 @@ function AppRoutes() {
         <Route path="profile" element={<ProfilePage />} />
       </Route>
 
-      {/* User Payment Portal routes */}
-      <Route path="/user" element={<UserLoginPage />} />
+      {/* Sign in + Account Center (the old /user portal now lives in it) */}
+      <Route path="/signin" element={<SignInPage />} />
+      <Route path="/user" element={<Navigate to="/signin" replace />} />
+      <Route path="/user/payments" element={<Navigate to="/account/payments" replace />} />
       <Route
-        path="/user/payments"
+        path="/account"
         element={
           <UserProtectedRoute>
-            <PaymentPortalPage />
+            <AccountLayout />
           </UserProtectedRoute>
         }
-      />
-      <Route
-        path="/user/payments/checkout"
-        element={
-          <UserProtectedRoute>
-            <CheckoutPage />
-          </UserProtectedRoute>
-        }
-      />
+      >
+        <Route index element={<AccountOverviewPage />} />
+        <Route path="payments" element={<PaymentPortalPage />} />
+        <Route path="family" element={<AccountFamilyPage />} />
+        <Route path="settings" element={<AccountSettingsPage />} />
+      </Route>
+      {/* Bill checkout keeps its own full-page layout */}
+      {['/account/payments/checkout', '/user/payments/checkout'].map((path) => (
+        <Route
+          key={path}
+          path={path}
+          element={
+            <UserProtectedRoute>
+              <CheckoutPage />
+            </UserProtectedRoute>
+          }
+        />
+      ))}
 
       {/* Admin routes */}
       <Route path="/admin" element={<AdminLoginPage />} />

@@ -147,9 +147,9 @@ const BillModal = ({
   );
 };
 
-// ── Payment Portal ──────────────────────────────────────────────────────────────
+// ── Payment Center (the Account Center's payments tab, as in the app) ──────────
 const PaymentPortalPage = () => {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [bills, setBills] = useState<Bill[]>([]);
   const [childNames, setChildNames] = useState<Record<string, string>>({});
@@ -201,46 +201,20 @@ const PaymentPortalPage = () => {
 
   const titleFor = (bill: Bill) => billTitle(bill.monthName, childNames[bill.$id]);
 
-  // Greeting matches the admin dashboard: time-of-day + full name.
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   const fullName = displayName;
 
   const payBills = (billIds: string[]) => {
-    navigate('/user/payments/checkout', { state: { billIds } });
+    navigate('/account/payments/checkout', { state: { billIds } });
   };
 
   const pendingUnpaid = unpaidBills.filter((b) => b.status === 'pending');
 
   return (
-    <div className="min-h-screen bg-black">
-      {/* Top bar */}
-      <header className="border-b border-white/10">
-        <div className="max-w-5xl mx-auto px-4 md:px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img
-              src="/assets/images/NextStarBall.png"
-              alt="Next Star"
-              className="w-7 h-7 opacity-90"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-            />
-            <h1 className="text-white font-bold text-lg">Payment Portal</h1>
-          </div>
-          <button
-            onClick={async () => { await logout(); navigate('/user'); }}
-            className="text-sm text-gray-400 hover:text-white border border-white/10 hover:border-white/30 rounded-lg px-4 py-1.5 transition-colors"
-          >
-            Sign out
-          </button>
-        </div>
-      </header>
-
-      <main className="max-w-5xl mx-auto px-4 md:px-6 py-8 space-y-8">
-        {/* Greeting, with the Autopay switch beside it as in the app */}
+    <div>
+      <div className="space-y-8">
+        {/* Title, with the Autopay switch beside it as in the app */}
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-2xl md:text-3xl font-bold text-white">
-            {greeting}{fullName ? `, ${fullName}` : ''}
-          </h2>
+          <h2 className="text-2xl md:text-3xl font-bold text-white">Payment Center</h2>
           {user?.$id && (
             <div>
               <AutopayToggle
@@ -376,7 +350,7 @@ const PaymentPortalPage = () => {
             </section>
           </>
         )}
-      </main>
+      </div>
 
       {selectedBill && (
         <BillModal
