@@ -170,12 +170,14 @@ const UploadPanel = ({ analysis, onClose, onDone }: { analysis: VideoAnalysis; o
   );
 };
 
-const AnalysisCard = ({ a, thumb, onUpload }: { a: VideoAnalysis; thumb?: string; onUpload: () => void }) => {
+const AnalysisCard = ({ a, thumb, film, onUpload }: { a: VideoAnalysis; thumb?: string; film?: string; onUpload: () => void }) => {
   const body = (
     <>
       <div className="relative aspect-video bg-white/[0.04] flex items-center justify-center overflow-hidden">
         {thumb ? (
           <img src={thumb} alt="" className="absolute inset-0 w-full h-full object-cover" />
+        ) : film ? (
+          <video src={`${film}#t=1`} preload="metadata" muted playsInline className="absolute inset-0 w-full h-full object-cover" />
         ) : (
           <svg className="w-8 h-8 text-white/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.55-2.28A1 1 0 0121 8.62v6.76a1 1 0 01-1.45.9L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -222,8 +224,12 @@ const AccountVideoAnalysisPage = () => {
       }
       const list = await listMyAnalyses(user.$id);
       setAnalyses(list);
+      // Films uploaded from the app have no preview image; their first frame is shown instead.
       const withThumbs = list.filter((a) => a.thumbFileId).map((a) => a.$id);
-      getAnalysisUrls(withThumbs, false).then(setUrls).catch(() => {});
+      const filmOnly = list.filter((a) => !a.thumbFileId && a.filmFileId).map((a) => a.$id);
+      Promise.all([getAnalysisUrls(withThumbs, false), getAnalysisUrls(filmOnly, true)])
+        .then(([x, y]) => setUrls({ ...x, ...y }))
+        .catch(() => {});
     } catch (e: any) {
       setError(e?.message || 'Could not load your analyses.');
       setAnalyses([]);
@@ -271,7 +277,7 @@ const AccountVideoAnalysisPage = () => {
             </h3>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {g.items.map((a) => (
-                <AnalysisCard key={a.$id} a={a} thumb={urls[a.$id]?.thumb} onUpload={() => setUploadFor(a)} />
+                <AnalysisCard key={a.$id} a={a} thumb={urls[a.$id]?.thumb} film={urls[a.$id]?.film} onUpload={() => setUploadFor(a)} />
               ))}
             </div>
           </section>

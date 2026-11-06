@@ -45,8 +45,12 @@ const AnalysisQueue = ({ coachUserId, admin }: { coachUserId?: string; admin?: b
     try {
       const docs = await listAnalysesForStaff(admin ? undefined : coachUserId);
       setList(docs);
-      const ids = docs.filter((a) => a.thumbFileId).map((a) => a.$id);
-      getAnalysisUrls(ids, false).then(setUrls).catch(() => {});
+      // Films uploaded from the app have no preview image; their first frame is shown instead.
+      const withThumb = docs.filter((a) => a.thumbFileId).map((a) => a.$id);
+      const filmOnly = docs.filter((a) => !a.thumbFileId && a.filmFileId).map((a) => a.$id);
+      Promise.all([getAnalysisUrls(withThumb, false), getAnalysisUrls(filmOnly, true)])
+        .then(([a, b]) => setUrls({ ...a, ...b }))
+        .catch(() => {});
     } catch (e: any) {
       setError(e?.message || 'Could not load analyses.');
       setList([]);
@@ -123,11 +127,14 @@ const AnalysisQueue = ({ coachUserId, admin }: { coachUserId?: string; admin?: b
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {shown.map((a) => {
             const thumb = urls[a.$id]?.thumb;
+            const film = urls[a.$id]?.film;
             const card = (
               <>
                 <div className="relative aspect-video bg-white/[0.04] overflow-hidden">
                   {thumb ? (
                     <img src={thumb} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                  ) : film ? (
+                    <video src={`${film}#t=1`} preload="metadata" muted playsInline className="absolute inset-0 w-full h-full object-cover" />
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center text-white/20 text-xs">
                       {a.filmFileId ? 'No preview' : 'No film yet'}
