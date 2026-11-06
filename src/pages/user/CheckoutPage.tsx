@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { PAYMENTS_PATH, SIGN_IN_PATH } from '../../constants/features';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { useAuth } from '../../contexts/AuthContext';
@@ -574,12 +575,12 @@ const CheckoutPage = () => {
   const [result, setResult] = useState<'none' | 'paid' | 'processing'>('none');
 
   useEffect(() => {
-    if (initialized && !user) navigate('/signin', { replace: true });
+    if (initialized && !user) navigate(SIGN_IN_PATH, { replace: true });
   }, [initialized, user, navigate]);
 
   useEffect(() => {
     if (!billIds.length) {
-      navigate('/account/payments', { replace: true });
+      navigate(PAYMENTS_PATH, { replace: true });
       return;
     }
     (async () => {
@@ -615,7 +616,7 @@ const CheckoutPage = () => {
     <div className="min-h-screen bg-[#F4F2EE]">
       <header className="border-b border-black/10">
         <div className="max-w-2xl mx-auto px-4 md:px-6 py-4 flex items-center gap-3">
-          <button onClick={() => navigate('/account/payments')} className="text-gray-500 hover:text-gray-900 transition-colors">
+          <button onClick={() => navigate(PAYMENTS_PATH)} className="text-gray-500 hover:text-gray-900 transition-colors">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" />
             </svg>
@@ -641,7 +642,7 @@ const CheckoutPage = () => {
                 : 'Your bank transfer is processing and typically clears in 3–5 business days. Your bill will be marked paid once the transfer settles.'}
             </p>
             <button
-              onClick={() => navigate('/account/payments')}
+              onClick={() => navigate(PAYMENTS_PATH)}
               className="px-8 py-3 bg-black hover:bg-gray-900 text-white font-semibold rounded-lg transition-colors"
             >
               Return to Portal
@@ -655,7 +656,7 @@ const CheckoutPage = () => {
           <div className="space-y-4">
             <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-700 text-sm">{error}</div>
             <button
-              onClick={() => navigate('/account/payments')}
+              onClick={() => navigate(PAYMENTS_PATH)}
               className="px-6 py-2 border border-black/15 hover:border-black/40 text-gray-700 rounded-lg transition-colors"
             >
               Back to Portal

@@ -1,5 +1,6 @@
 import { databases, databaseId, collections } from './appwrite';
 import { resolveUserStripeContext, UserType } from './payment/paymentApi';
+import { ACCOUNTS_LIVE } from '../constants/features';
 
 // Admin accounts, as in the app's constants/adminConfig.ts.
 export const ADMIN_USER_IDS = ['mi363q40_q03mtr0sknh', 'mi36bdeg_o704o948kfd', 'mj7d9825_hhgqztus4tb'];
@@ -37,8 +38,8 @@ export async function resolveAccount(userId: string): Promise<AccountInfo> {
   };
 }
 
-/** Flip on once the web coach dashboard (/coach) ships. */
-export const COACH_DASHBOARD_LIVE = true;
+/** The web coach dashboard (/coach) is part of website accounts. */
+export const COACH_DASHBOARD_LIVE = ACCOUNTS_LIVE;
 
 /** A coach with no parent or player profile goes to the coach dashboard. */
 export const isPureCoach = (a: AccountInfo) => a.isCoach && (a.userType === 'coach' || a.userType === null);

@@ -39,6 +39,8 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import PlayerProfile from './pages/admin/PlayerProfile';
 import ParentProfile from './pages/admin/ParentProfile';
 import SignInPage from './pages/SignInPage';
+import UserLoginPage from './pages/user/UserLoginPage';
+import { ACCOUNTS_LIVE, SIGN_IN_PATH } from './constants/features';
 import AccountLayout from './pages/account/AccountLayout';
 import AccountOverviewPage from './pages/account/AccountOverviewPage';
 import AccountFamilyPage from './pages/account/AccountFamilyPage';
@@ -96,7 +98,7 @@ const UserProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   if (!user) {
-    return <Navigate to="/signin" replace state={{ from: pathname }} />;
+    return <Navigate to={SIGN_IN_PATH} replace state={{ from: pathname }} />;
   }
 
   return <>{children}</>;
@@ -128,8 +130,9 @@ function AppRoutes() {
       <Route path="/services/camps/:slug" element={<CampDetailPage />} />
       <Route path="/services/clinics" element={<ClinicsPage />} />
       <Route path="/services/clinics/:slug" element={<ClinicDetailPage />} />
-      <Route path="/services/video-analysis" element={<VideoAnalysisPage />} />
-      <Route path="/checkout/video-analysis" element={<VideoAnalysisCheckoutPage />} />
+      {/* Buying video analysis needs website accounts (film is uploaded from the Account Center) */}
+      <Route path="/services/video-analysis" element={ACCOUNTS_LIVE ? <VideoAnalysisPage /> : <Navigate to="/services" replace />} />
+      <Route path="/checkout/video-analysis" element={ACCOUNTS_LIVE ? <VideoAnalysisCheckoutPage /> : <Navigate to="/services" replace />} />
       <Route path="/checkout/:slug" element={<ClinicCheckoutPage />} />
       <Route path="/alumni" element={<AlumniPage />} />
       <Route path="/calendar" element={<CalendarPage />} />
@@ -163,16 +166,32 @@ function AppRoutes() {
         <Route path="profile" element={<ProfilePage />} />
       </Route>
 
-      {/* Sign in + Account Center (the old /user portal now lives in it) */}
-      <Route path="/signin" element={<SignInPage />} />
-      <Route path="/user" element={<Navigate to="/signin" replace />} />
-      <Route path="/user/payments" element={<Navigate to="/account/payments" replace />} />
+      {/* Sign in + Account Center (the /user portal lives in it). Local only for
+          now (constants/features.ts): the live site keeps the /user portal. */}
+      <Route path="/signin" element={ACCOUNTS_LIVE ? <SignInPage /> : <Navigate to="/user" replace />} />
+      <Route path="/user" element={ACCOUNTS_LIVE ? <Navigate to="/signin" replace /> : <UserLoginPage />} />
+      <Route
+        path="/user/payments"
+        element={
+          ACCOUNTS_LIVE ? (
+            <Navigate to="/account/payments" replace />
+          ) : (
+            <UserProtectedRoute>
+              <PaymentPortalPage standalone />
+            </UserProtectedRoute>
+          )
+        }
+      />
       <Route
         path="/account"
         element={
-          <UserProtectedRoute>
-            <AccountLayout />
-          </UserProtectedRoute>
+          ACCOUNTS_LIVE ? (
+            <UserProtectedRoute>
+              <AccountLayout />
+            </UserProtectedRoute>
+          ) : (
+            <Navigate to="/user/payments" replace />
+          )
         }
       >
         <Route index element={<AccountOverviewPage />} />

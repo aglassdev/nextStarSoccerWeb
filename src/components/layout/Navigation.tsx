@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { images } from '../../constants/images';
 import { useAuth } from '../../contexts/AuthContext';
 import CreateAccountModal from '../common/CreateAccountModal';
+import { ACCOUNTS_LIVE } from '../../constants/features';
 
 // The wordmark is NEXT ⦿ STAR with the ball dead centre, and the ball is as
 // wide as the image is tall (634 × 634 in a 2974 × 634 file). So collapsing it
@@ -96,7 +97,7 @@ const Navigation = () => {
 
               {/* Right — CTA + hamburger */}
               <div className="flex items-center gap-2">
-                {user ? (
+                {ACCOUNTS_LIVE && user ? (
                   // Signed in: /signin forwards to the Account Center or the coach dashboard.
                   <Link
                     to="/signin"
@@ -124,19 +125,19 @@ const Navigation = () => {
                         className="w-full flex items-center gap-3 px-4 py-3.5 text-white text-sm font-medium hover:bg-white/[0.07] transition-colors text-left"
                       >
                         <svg className="w-4 h-4 text-white/40 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d={ACCOUNTS_LIVE ? 'M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z' : 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z'} />
                         </svg>
-                        Create account
+                        {ACCOUNTS_LIVE ? 'Create account' : 'Player'}
                       </button>
                       <div className="h-px bg-white/[0.06] mx-4" />
                       <button
-                        onClick={() => { setShowChoiceMenu(false); navigate('/signin'); }}
+                        onClick={() => { setShowChoiceMenu(false); navigate(ACCOUNTS_LIVE ? '/signin' : '/coachapply'); }}
                         className="w-full flex items-center gap-3 px-4 py-3.5 text-white text-sm font-medium hover:bg-white/[0.07] transition-colors text-left"
                       >
                         <svg className="w-4 h-4 text-white/40 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d={ACCOUNTS_LIVE ? 'M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1' : 'M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z'} />
                         </svg>
-                        Sign in
+                        {ACCOUNTS_LIVE ? 'Sign in' : 'Coach'}
                       </button>
                     </div>
                   )}
@@ -172,7 +173,7 @@ const Navigation = () => {
                 </Link>
               ))}
               <div className="mt-1 px-2 pb-1 space-y-2">
-                {user ? (
+                {ACCOUNTS_LIVE && user ? (
                   <button
                     className="w-full text-black bg-white hover:bg-white/85 px-4 py-2.5 text-sm font-semibold rounded-full transition-colors"
                     onClick={() => { setIsMobileMenuOpen(false); navigate('/signin'); }}
@@ -185,13 +186,13 @@ const Navigation = () => {
                       className="w-full text-black bg-white hover:bg-white/85 px-4 py-2.5 text-sm font-semibold rounded-full transition-colors"
                       onClick={() => { setIsMobileMenuOpen(false); setShowGetStarted(true); }}
                     >
-                      Create account
+                      {ACCOUNTS_LIVE ? 'Create account' : 'Get Started — Player'}
                     </button>
                     <button
                       className="w-full text-white bg-white/10 hover:bg-white/15 px-4 py-2.5 text-sm font-semibold rounded-full transition-colors"
-                      onClick={() => { setIsMobileMenuOpen(false); navigate('/signin'); }}
+                      onClick={() => { setIsMobileMenuOpen(false); navigate(ACCOUNTS_LIVE ? '/signin' : '/coachapply'); }}
                     >
-                      Sign in
+                      {ACCOUNTS_LIVE ? 'Sign in' : 'Get Started — Coach'}
                     </button>
                   </>
                 )}
@@ -200,7 +201,7 @@ const Navigation = () => {
           )}
       </header>
 
-      {showGetStarted && <CreateAccountModal onClose={() => setShowGetStarted(false)} />}
+      {showGetStarted && <CreateAccountModal legacy={!ACCOUNTS_LIVE} onClose={() => setShowGetStarted(false)} />}
     </>
   );
 };

@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-do
 import { useAuth } from '../../contexts/AuthContext';
 import { AccountProvider, useAccount } from '../account/AccountContext';
 import { ensureCoachRole } from '../../services/videoAnalysis';
+import { ACCOUNTS_LIVE } from '../../constants/features';
 
 // The web coach dashboard: the same account a coach uses in the app. Admins
 // can open it too (the admin dashboard's Video Analysis section links here).
@@ -38,13 +39,15 @@ const Frame = () => {
     );
   }
 
-  if (!isCoach && !isAdmin) {
+  if (ACCOUNTS_LIVE ? !isCoach && !isAdmin : !isAdmin) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center p-6">
         <div className="text-center max-w-sm">
           <p className="text-white font-semibold">The coach dashboard is for Next Star coaches</p>
           <p className="text-gray-500 text-sm mt-2">This account doesn't have a coach profile.</p>
-          <Link to="/account" className="inline-block mt-5 px-6 py-2.5 bg-white text-black text-sm font-semibold rounded-lg">Go to your account</Link>
+          <Link to={ACCOUNTS_LIVE ? '/account' : '/'} className="inline-block mt-5 px-6 py-2.5 bg-white text-black text-sm font-semibold rounded-lg">
+            {ACCOUNTS_LIVE ? 'Go to your account' : 'Back to the site'}
+          </Link>
         </div>
       </div>
     );
@@ -63,7 +66,7 @@ const Frame = () => {
           </Link>
           <div className="flex items-center gap-2 flex-shrink-0">
             {isAdmin && <Link to="/admin/dashboard" className="hidden sm:inline-block text-sm text-gray-400 hover:text-white px-3 py-1.5">Admin</Link>}
-            {hasAccountCenter && <Link to="/account" className="hidden sm:inline-block text-sm text-gray-400 hover:text-white px-3 py-1.5">Account Center</Link>}
+            {ACCOUNTS_LIVE && hasAccountCenter && <Link to="/account" className="hidden sm:inline-block text-sm text-gray-400 hover:text-white px-3 py-1.5">Account Center</Link>}
             <button
               onClick={async () => { await logout(); navigate('/signin'); }}
               className="text-sm text-gray-400 hover:text-white border border-white/10 hover:border-white/30 rounded-lg px-4 py-1.5 transition-colors"
