@@ -216,10 +216,14 @@ const LayoutBento = ({ open }: { open: (s: Service) => void }) => (
         {bentoRows().map((row, ri) => (
             <div key={ri} className={`grid gap-3 md:gap-4 ${ROW_COLS[row.length] ?? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-5'}`}>
                 {row.map(s => (
-                    <button
+                    // A div rather than a button, so a card can hold its own Buy link.
+                    <div
                         key={s.id}
+                        role="button"
+                        tabIndex={0}
                         onClick={() => open(s)}
-                        className="group relative h-[220px] md:h-[300px] overflow-hidden rounded-2xl text-left"
+                        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(s); } }}
+                        className="group relative h-[220px] md:h-[300px] overflow-hidden rounded-2xl text-left cursor-pointer"
                     >
                         <CardImage s={s} className="absolute inset-0 w-full h-full transition-transform duration-500 group-hover:scale-[1.03]" />
                         {/* A bright document needs a heavier shade than a photo for the text to read. */}
@@ -236,9 +240,20 @@ const LayoutBento = ({ open }: { open: (s: Service) => void }) => (
                                 <h3 className={`text-white font-medium tracking-[-0.01em] ${ROW_TITLE[row.length] ?? 'text-[16px]'}`}>{s.name}</h3>
                                 <p className="text-white/60 text-[12px] md:text-[13px] mt-0.5">{s.meta.join(' · ')}</p>
                             </div>
-                            <span className="text-white text-[14px] md:text-[15px] tabular-nums whitespace-nowrap">{s.price}</span>
+                            <div className="flex items-center gap-3">
+                                <span className="text-white text-[14px] md:text-[15px] tabular-nums whitespace-nowrap">{s.price}</span>
+                                {s.action === 'video-analysis' && (
+                                    <Link
+                                        to="/checkout/video-analysis"
+                                        onClick={e => e.stopPropagation()}
+                                        className="rounded-full bg-white text-black hover:bg-white/85 px-4 py-1.5 text-[13px] font-semibold whitespace-nowrap transition-colors"
+                                    >
+                                        Buy
+                                    </Link>
+                                )}
+                            </div>
                         </div>
-                    </button>
+                    </div>
                 ))}
             </div>
         ))}
