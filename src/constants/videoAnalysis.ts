@@ -4,7 +4,7 @@
 
 export const VIDEO_ANALYSIS = {
   name: 'Online Video Analysis',
-  pricePerAnalysis: 150, // dollars
+  pricePerAnalysis: 100, // dollars
   maxCount: 10,
   turnaroundDays: 7,
   /** What players can upload: phone and camera exports. */

@@ -11,15 +11,20 @@ import {
   formatDueDate,
   getAnalysis,
   getAnalysisUrls,
+  getCoachNotes,
   parseAnnotations,
+  saveCoachNotes,
   updateAnalysis,
 } from '../../services/videoAnalysis';
 
 // A coach's workspace for one analysis: the film with the annotation column,
 // the recorded breakdown, a written summary, and "mark complete" (which shares
-// it with the family and emails them).
+// it with the family and emails them). Comments are saved on the analysis
+// (the family sees them); notes go to a separate coach-only collection.
 
 const newId = () => Math.random().toString(36).slice(2, 10);
+const shared = (list: Annotation[]) => list.filter((x) => x.kind !== 'note');
+const privateNotes = (list: Annotation[]) => list.filter((x) => x.kind === 'note');
 
 const CoachAnalysisWorkspacePage = () => {
   const { id = '' } = useParams<{ id: string }>();
@@ -43,9 +48,9 @@ const CoachAnalysisWorkspacePage = () => {
   useEffect(() => {
     (async () => {
       try {
-        const doc = await getAnalysis(id);
+        const [doc, notes] = await Promise.all([getAnalysis(id), getCoachNotes(id)]);
         setA(doc);
-        setAnnotations(parseAnnotations(doc.annotations));
+        setAnnotations([...parseAnnotations(doc.annotations), ...notes]);
         setSummary(doc.summary || '');
         await loadUrls(doc.$id);
       } catch (e: any) {
@@ -55,24 +60,37 @@ const CoachAnalysisWorkspacePage = () => {
   }, [id, loadUrls]);
 
   // Saves run one after another so a quick edit never lands before an earlier one.
-  const persist = useCallback((data: Partial<Omit<VideoAnalysis, '$id'>>) => {
-    if (!a) return;
+  const queue = useCallback((write: () => Promise<void>) => {
     setSaveState('saving');
     saving.current = saving.current.then(async () => {
       try {
-        const startReview = a.status === 'submitted' ? { status: 'in_review' as const } : {};
-        const updated = await updateAnalysis(a.$id, { ...data, ...startReview });
-        setA(updated);
+        await write();
         setSaveState('saved');
       } catch {
         setSaveState('error');
       }
     });
-  }, [a]);
+  }, []);
 
+  const persist = useCallback((data: Partial<Omit<VideoAnalysis, '$id'>>) => {
+    if (!a) return;
+    queue(async () => {
+      const startReview = a.status === 'submitted' ? { status: 'in_review' as const } : {};
+      setA(await updateAnalysis(a.$id, { ...data, ...startReview }));
+    });
+  }, [a, queue]);
+
+  // Only the side that changed is written: comments to the analysis, notes to the private doc.
   const commit = (next: Annotation[]) => {
+    if (!a) return;
+    const prev = annotations;
     setAnnotations(next);
-    persist({ annotations: JSON.stringify(next) });
+    if (JSON.stringify(shared(next)) !== JSON.stringify(shared(prev))) {
+      persist({ annotations: JSON.stringify(shared(next)) });
+    }
+    if (JSON.stringify(privateNotes(next)) !== JSON.stringify(privateNotes(prev))) {
+      queue(() => saveCoachNotes(a.$id, privateNotes(next)));
+    }
   };
 
   // Summary saves a moment after typing stops.
@@ -82,12 +100,13 @@ const CoachAnalysisWorkspacePage = () => {
     return () => clearTimeout(t);
   }, [summary]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Comments alone are enough; the recording and summary are extras. Notes
+  // don't count: the family never sees them.
+  const hasShared = !!a?.recordingFileId || shared(annotations).length > 0 || !!summary.trim();
+
   const complete = async () => {
     if (!a) return;
-    // Annotations alone are enough; the recording and summary are extras.
-    if (!a.recordingFileId && annotations.length === 0 && !summary.trim()) {
-      return setError('Add at least one annotation to the film first.');
-    }
+    if (!hasShared) return setError('Add at least one comment to the film first.');
     if (!confirm(`Send this analysis to ${a.purchaserName || 'the family'}? They'll get an email that it's ready.`)) return;
     setCompleting(true);
     setError('');
@@ -138,7 +157,7 @@ const CoachAnalysisWorkspacePage = () => {
           </p>
         </div>
         {!done && (
-          <button onClick={complete} disabled={completing || (!a.recordingFileId && annotations.length === 0 && !summary.trim())}
+          <button onClick={complete} disabled={completing || !hasShared}
             className="px-5 py-2.5 bg-white hover:bg-gray-200 text-black text-sm font-semibold rounded-lg disabled:opacity-40">
             {completing ? 'Sending…' : 'Mark complete & notify family'}
           </button>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ACCOUNTS_LIVE } from '../constants/features';
+import { VIDEO_ANALYSIS } from '../constants/videoAnalysis';
 import { Link } from 'react-router-dom';
 import Navigation from '../components/layout/Navigation';
 import Footer from '../components/layout/Footer';
@@ -44,10 +45,10 @@ const CATEGORIES: Category[] = [
         services: [
             { id: 'parent-consultation', name: 'Parent Consultation', image: '/assets/images/parentConsultation.png', price: 'From $150', meta: ['60 min', 'In person or phone'], pricing: ['In person — $200', 'By phone — $150'], action: 'request-in-app',
               description: "For parents seeking additional guidance regarding a player's current skill, fitness levels, progress, academy opportunities, college recruitment process, international exposure, or anything soccer-related, a consultation offers a private setting to address all your questions. This one-on-one consultation provides an in-depth analysis of your child's current state, ensuring that all your concerns are thoroughly answered, while also providing recommendations for the next steps in their development." },
-            { id: 'game-analysis', name: 'Game Analysis', image: '/assets/images/gameAnalysis.png', price: 'From $150', meta: ['In person, online or video'], ...(ACCOUNTS_LIVE
-                ? { pricing: ['Video recording — $150 (buy online)', 'Online meeting — $150', 'In person — $200'], action: 'video-analysis' as Action,
+            { id: 'game-analysis', name: 'Game Analysis', image: '/assets/images/gameAnalysis.png', price: `From $${VIDEO_ANALYSIS.pricePerAnalysis}`, meta: ['In person, online or video'], ...(ACCOUNTS_LIVE
+                ? { pricing: [`Video recording — $${VIDEO_ANALYSIS.pricePerAnalysis} (buy online)`, 'Online meeting — $150', 'In person — $200'], action: 'video-analysis' as Action,
                     description: "A coach breaks down a player's game — as a recorded video review you can buy right here, or over an online meeting or in person (requested in the app) — and walks through what went well, what to work on, and how to carry it into training." }
-                : { pricing: ['In person — $200', 'Online meeting — $150', 'Video recording — $150'], action: 'request-in-app' as Action,
+                : { pricing: ['In person — $200', 'Online meeting — $150', `Video recording — $${VIDEO_ANALYSIS.pricePerAnalysis}`], action: 'request-in-app' as Action,
                     description: "A coach breaks down a player's game — in person, over an online meeting, or as a recorded video review — and walks through what went well, what to work on, and how to carry it into training." }) },
             { id: 'player-report', name: 'Player Report', image: '/assets/images/playerReport.png', containImage: true, price: '$75', meta: ['After 5+ sessions'], pricing: ['$75 per player'], action: 'request-in-app',
               description: "A comprehensive written report on a player's current progress, skill, fitness, and mental state. This detailed evaluation gives you an understanding of your development, highlighting your personal strengths and areas needing improvement. The report shows both physical and technical ability, but also intangibles such as mental focus and work ethic, allowing for a holistic evaluation and helps inform future training plans." },
@@ -130,7 +131,7 @@ const ServiceAction = ({ action }: { action: Action }) => {
             <div className="grid grid-cols-3 gap-2">
                 <Link to="/checkout/video-analysis" className="flex flex-col items-center justify-center rounded-xl bg-white text-black hover:bg-white/85 px-3 py-3 text-center transition-colors">
                     <span className="text-sm font-semibold">Recording</span>
-                    <span className="text-xs text-black/55 mt-0.5">$150</span>
+                    <span className="text-xs text-black/55 mt-0.5">${VIDEO_ANALYSIS.pricePerAnalysis}</span>
                 </Link>
                 {[['Video Meeting', '$150'], ['In-Person Meeting', '$200']].map(([label, price]) => (
                     <button key={label} type="button" disabled aria-disabled="true"

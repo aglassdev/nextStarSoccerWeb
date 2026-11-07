@@ -6,6 +6,8 @@ import type { ClinicPlayerRef, GuestRegistration } from './clinicRegistration';
 // uploading film, and everything the coach workspace reads and writes.
 
 export const ANALYSES_COLLECTION = 'video_analyses';
+/** A coach's private notes, one doc per analysis (same id). Only label:coach and label:admin can read it. */
+export const NOTES_COLLECTION = 'video_analysis_notes';
 export const FILM_BUCKET = 'game-film';
 const VIDEO_ANALYSIS_FUNCTION = 'video-analysis';
 const REGISTER_FUNCTION = 'register-clinic';
@@ -43,6 +45,7 @@ export interface Annotation {
   id: string;
   /** Seconds into the film. */
   t: number;
+  /** Comments are shared with the family; notes stay private to coaches (stored in NOTES_COLLECTION). */
   kind: 'comment' | 'note';
   text: string;
   createdAt: string;
@@ -193,6 +196,30 @@ export function parseAnnotations(raw?: string): Annotation[] {
     return Array.isArray(list) ? list.filter((a) => typeof a?.t === 'number').sort((a, b) => a.t - b.t) : [];
   } catch {
     return [];
+  }
+}
+
+/** The annotations the family sees: comments only, never a coach's notes. */
+export const sharedAnnotations = (raw?: string) => parseAnnotations(raw).filter((a) => a.kind !== 'note');
+
+/** A coach's private notes on an analysis (none yet → []). */
+export async function getCoachNotes(analysisId: string): Promise<Annotation[]> {
+  try {
+    const doc = await databases.getDocument(databaseId, NOTES_COLLECTION, analysisId);
+    return parseAnnotations((doc as any).notes);
+  } catch (e: any) {
+    if (e?.code === 404) return [];
+    throw e;
+  }
+}
+
+export async function saveCoachNotes(analysisId: string, notes: Annotation[]): Promise<void> {
+  const data = { notes: JSON.stringify(notes) };
+  try {
+    await databases.updateDocument(databaseId, NOTES_COLLECTION, analysisId, data);
+  } catch (e: any) {
+    if (e?.code !== 404) throw e;
+    await databases.createDocument(databaseId, NOTES_COLLECTION, analysisId, data);
   }
 }
 

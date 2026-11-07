@@ -5,8 +5,8 @@ import { Annotation, formatTimestamp } from '../../services/videoAnalysis';
 // annotations in a column on the right, and a white dash on the timeline for
 // each one. Clicking a dash (or an annotation) jumps the film there, scrolls
 // the column to it and enlarges it. Coaches (editable) pause and add
-// comments or notes at the current moment; players see the same thing
-// read-only.
+// comments (shared with the family) or notes (private to coaches) at the
+// current moment; families see the comments read-only.
 
 interface Props {
   src: string;
@@ -29,7 +29,8 @@ const KindIcon = ({ kind, className = 'w-3.5 h-3.5' }: { kind: Annotation['kind'
     </svg>
   ) : (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15.232 5.232l3.536 3.536M4 20h4l10.5-10.5a2.5 2.5 0 00-3.536-3.536L4 16.5V20z" />
+      <rect x="5" y="11" width="14" height="9" rx="2" strokeWidth={1.8} />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 11V8a4 4 0 118 0v3" />
     </svg>
   );
 
@@ -169,6 +170,7 @@ const AnnotatedPlayer = ({ src, poster, annotations, editable, onAdd, onEdit, on
                 <KindIcon kind={composer.kind} />
                 <span className="font-medium capitalize">{composer.kind}</span>
                 <span className="text-gray-500">at {formatTimestamp(composer.t)}</span>
+                {composer.kind === 'note' && <span className="ml-auto text-amber-300/80">Only coaches see notes</span>}
               </div>
               <textarea
                 autoFocus
@@ -179,7 +181,7 @@ const AnnotatedPlayer = ({ src, poster, annotations, editable, onAdd, onEdit, on
                   if (e.key === 'Escape') setComposer(null);
                 }}
                 rows={3}
-                placeholder={composer.kind === 'comment' ? 'What should the player see here?' : 'Add a note for this moment…'}
+                placeholder={composer.kind === 'comment' ? 'What should the player see here?' : 'A note for yourself…'}
                 className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30 resize-none"
               />
               <div className="flex justify-end gap-2 mt-2">
@@ -244,7 +246,7 @@ const AnnotatedPlayer = ({ src, poster, annotations, editable, onAdd, onEdit, on
                   <KindIcon kind="comment" /> Comment
                 </button>
                 <button onClick={() => openComposer('note')}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/20 text-white text-xs font-semibold hover:border-white/40" title="Pause and add a note (N)">
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/20 text-white text-xs font-semibold hover:border-white/40" title="Pause and add a private note, only coaches see it (N)">
                   <KindIcon kind="note" /> Note
                 </button>
               </>
@@ -294,10 +296,12 @@ const AnnotatedPlayer = ({ src, poster, annotations, editable, onAdd, onEdit, on
               >
                 <div className="flex items-center gap-2 text-xs">
                   <span className="px-1.5 py-0.5 rounded bg-white/10 text-white tabular-nums font-medium">{formatTimestamp(a.t)}</span>
-                  <span className={`inline-flex items-center gap-1 ${a.kind === 'comment' ? 'text-sky-300' : 'text-amber-300'}`}>
-                    <KindIcon kind={a.kind} className="w-3 h-3" />
-                    <span className="capitalize">{a.kind}</span>
-                  </span>
+                  {a.kind === 'note' && (
+                    <span className="inline-flex items-center gap-1 text-amber-300" title="Private: only coaches see notes">
+                      <KindIcon kind="note" className="w-3 h-3" />
+                      Note
+                    </span>
+                  )}
                   {a.author && <span className="text-gray-600 truncate">· {a.author}</span>}
                 </div>
                 {editing?.id === a.id ? (

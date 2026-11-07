@@ -7,7 +7,7 @@ import {
   formatDueDate,
   getAnalysis,
   getAnalysisUrls,
-  parseAnnotations,
+  sharedAnnotations,
 } from '../../services/videoAnalysis';
 
 // One analysis, as the family sees it: the coach's video breakdown and the
@@ -36,7 +36,7 @@ const AccountVideoAnalysisDetailPage = () => {
   if (!a) return <>{back}<AccountSpinner /></>;
 
   const done = a.status === 'completed';
-  const annotations = parseAnnotations(a.annotations);
+  const annotations = sharedAnnotations(a.annotations);
 
   return (
     <div className="space-y-6">
