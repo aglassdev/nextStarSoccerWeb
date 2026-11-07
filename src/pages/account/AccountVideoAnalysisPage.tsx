@@ -178,10 +178,16 @@ const AnalysisCard = ({ a, n, thumb, film, onUpload }: { a: VideoAnalysis; n: nu
       </div>
       <div className="px-6 py-5">
         <p className="text-white text-xl font-medium truncate">{analysisTitle(a, n)}</p>
-        <div className="mt-2 space-y-0.5 text-sm text-[#888]">
-          <p>Status: <span className="text-white">{CLIENT_STATUS[a.status]}</span></p>
-          <p className="truncate">Coach: <span className="text-white">{a.coachName || a.preferredCoach}</span></p>
-          {a.filmUploadedAt && <p>{formatLongDate(a.filmUploadedAt)}</p>}
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-[#888]">
+          <span>Status: <span className="text-white">{CLIENT_STATUS[a.status]}</span></span>
+          <span className="text-[#444]">|</span>
+          <span>Coach: <span className="text-white">{a.coachName || a.preferredCoach}</span></span>
+          {a.filmUploadedAt && (
+            <>
+              <span className="text-[#444]">|</span>
+              <span>{formatLongDate(a.filmUploadedAt)}</span>
+            </>
+          )}
         </div>
         {a.status === 'awaiting_upload' && (
           <button onClick={onUpload} className="mt-4 w-full py-3 bg-[#F4F2EE] hover:bg-white text-black text-sm font-semibold rounded-xl">

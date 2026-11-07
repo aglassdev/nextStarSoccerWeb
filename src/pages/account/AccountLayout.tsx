@@ -1,15 +1,18 @@
-import { Link, Outlet } from 'react-router-dom';
+import { Link, Outlet, useLocation } from 'react-router-dom';
 import { AccountProvider } from './AccountContext';
 
 // The website's Account Center, laid out like the app's Account screen: the
 // Dashboard is the hub, and each section (Payment Center, My Family, Video
 // Analysis, Settings) opens as its own page with a back arrow — the same
-// design, wider, with bigger cards.
+// design, wider, with bigger cards. An opened video analysis uses the full
+// width, like the coach's workspace, so the film fills the screen.
 
-const AccountLayout = () => (
+const AccountLayout = () => {
+  const wide = /^\/account\/video-analysis\/[^/]+/.test(useLocation().pathname);
+  return (
   <AccountProvider>
     <div className="min-h-screen bg-black">
-      <div className="max-w-6xl mx-auto px-5 md:px-8 pt-6 pb-16">
+      <div className={`${wide ? 'max-w-[1600px] px-4 md:px-6' : 'max-w-6xl px-5 md:px-8'} mx-auto pt-6 pb-16`}>
         <Link to="/" aria-label="Next Star Soccer — home" className="inline-block opacity-80 hover:opacity-100 transition-opacity">
           <img
             src="/assets/images/NextStarBall.png"
@@ -24,7 +27,8 @@ const AccountLayout = () => (
       </div>
     </div>
   </AccountProvider>
-);
+  );
+};
 
 export default AccountLayout;
 

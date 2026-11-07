@@ -131,8 +131,9 @@ const AccountOverviewPage = () => {
         {/* Profile cards */}
         {profiles.length > 0 && (
           <div className="grid md:grid-cols-2 gap-4">
-            {profiles.map((p) => (
-              <Link key={p.key} to={p.to} className={`${card} px-6 py-5 flex items-center gap-5`}>
+            {profiles.map((p, i) => (
+              <Link key={p.key} to={p.to}
+                className={`${card} px-6 py-5 flex items-center gap-5 ${profiles.length % 2 === 1 && i === profiles.length - 1 ? 'md:col-span-2' : ''}`}>
                 <Avatar photoId={p.photoId} />
                 <div className="min-w-0">
                   <p className="text-white text-xl font-medium truncate">{p.name}</p>
