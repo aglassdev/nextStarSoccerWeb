@@ -10,8 +10,8 @@ import { ANALYSES_COLLECTION } from '../../services/videoAnalysis';
 // account pages (there's no separate account hub page), like the app's
 // Account screen.
 
-/** `locked` shows a lock; `dim` greys it out; `disabled` makes it plain text. */
-type MenuItem = { label: string; to: string; locked?: boolean; dim?: boolean; disabled?: boolean };
+/** `locked` shows a lock and can't be clicked; `dim` greys it out. */
+type MenuItem = { label: string; to: string; locked?: boolean; dim?: boolean };
 
 // One lookup per signed-in user, shared by every page's navigation bar.
 const accountCache = new Map<string, Promise<AccountInfo>>();
@@ -53,8 +53,8 @@ const menuFor = (info: AccountInfo | null, boughtAnalysis: boolean): { items: Me
       { label: 'Profile', to: '/account/profile' },
       { label: 'My Schedule', to: '/account/schedule' },
       { label: 'Payment Center', to: '/account/payments' },
-      // Not open yet: shown locked; admins can preview it (as in the app).
-      { label: 'At-Home Training', to: '/account/home-training', locked: true, dim: true, disabled: !info?.isAdmin },
+      // Not open yet: shown greyed out and locked.
+      { label: 'At-Home Training', to: '/account/home-training', locked: true, dim: true },
       { label: 'Video Analysis', to: '/account/video-analysis', locked: !boughtAnalysis },
       { label: 'Inbox', to: '/account/inbox' },
       ...(info?.userType === 'parent' ? [{ label: 'My Family', to: '/account/family' }] : []),
@@ -112,15 +112,15 @@ const AccountMenu = () => {
   const { items, staff } = menuFor(info, boughtAnalysis);
   const itemClass = (m: MenuItem) => {
     const active = pathname === m.to || pathname.startsWith(`${m.to}/`);
-    const tone = m.dim
-      ? `text-white/35 ${m.disabled ? 'cursor-default' : 'hover:text-white/60 hover:bg-white/[0.04]'}`
+    const tone = m.locked
+      ? `cursor-default ${m.dim ? 'text-white/35' : 'text-white/80'}`
       : active ? 'text-white bg-white/[0.08]' : 'text-white/80 hover:text-white hover:bg-white/[0.06]';
     return `flex items-center justify-between gap-3 px-4 py-2.5 text-sm transition-colors ${tone}`;
   };
   const renderItem = (m: MenuItem) => {
     const content = <><span>{m.label}</span>{m.locked && <LockIcon />}</>;
-    return m.disabled ? (
-      <div key={m.to} role="menuitem" aria-disabled="true" title="Coming soon" className={itemClass(m)}>{content}</div>
+    return m.locked ? (
+      <div key={m.to} role="menuitem" aria-disabled="true" className={itemClass(m)}>{content}</div>
     ) : (
       <Link key={m.to} to={m.to} role="menuitem" className={itemClass(m)}>{content}</Link>
     );
