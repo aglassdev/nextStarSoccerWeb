@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { images } from '../../constants/images';
 import { useAuth } from '../../contexts/AuthContext';
 import CreateAccountModal from '../common/CreateAccountModal';
+import AccountMenu from './AccountMenu';
 import { ACCOUNTS_LIVE } from '../../constants/features';
 
 // The wordmark is NEXT ⦿ STAR with the ball dead centre, and the ball is as
@@ -98,13 +99,8 @@ const Navigation = () => {
               {/* Right — CTA + hamburger */}
               <div className="flex items-center gap-2">
                 {ACCOUNTS_LIVE && user ? (
-                  // Signed in: /signin forwards to the Account Center or the coach dashboard.
-                  <Link
-                    to="/signin"
-                    className="hidden sm:inline-flex items-center text-black bg-white hover:bg-white/85 px-4 py-2 text-sm font-semibold rounded-full transition-colors"
-                  >
-                    Dashboard
-                  </Link>
+                  // Signed in: the person icon opens the account pages.
+                  <AccountMenu />
                 ) : (
                 <div className="relative">
                   <button
@@ -173,14 +169,7 @@ const Navigation = () => {
                 </Link>
               ))}
               <div className="mt-1 px-2 pb-1 space-y-2">
-                {ACCOUNTS_LIVE && user ? (
-                  <button
-                    className="w-full text-black bg-white hover:bg-white/85 px-4 py-2.5 text-sm font-semibold rounded-full transition-colors"
-                    onClick={() => { setIsMobileMenuOpen(false); navigate('/signin'); }}
-                  >
-                    Dashboard
-                  </button>
-                ) : (
+                {ACCOUNTS_LIVE && user ? null : (
                   <>
                     <button
                       className="w-full text-black bg-white hover:bg-white/85 px-4 py-2.5 text-sm font-semibold rounded-full transition-colors"

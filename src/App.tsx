@@ -42,7 +42,6 @@ import SignInPage from './pages/SignInPage';
 import UserLoginPage from './pages/user/UserLoginPage';
 import { ACCOUNTS_LIVE, SIGN_IN_PATH } from './constants/features';
 import AccountLayout from './pages/account/AccountLayout';
-import AccountOverviewPage from './pages/account/AccountOverviewPage';
 import AccountFamilyPage from './pages/account/AccountFamilyPage';
 import AccountSettingsPage from './pages/account/AccountSettingsPage';
 import AccountSchedulePage from './pages/account/AccountSchedulePage';
@@ -207,7 +206,8 @@ function AppRoutes() {
           )
         }
       >
-        <Route index element={<AccountOverviewPage />} />
+        {/* No hub page: the account pages open from the person icon in the navigation. */}
+        <Route index element={<Navigate to="schedule" replace />} />
         <Route path="payments" element={<PaymentPortalPage />} />
         <Route path="family" element={<AccountFamilyPage />} />
         <Route path="settings" element={<AccountSettingsPage />} />
