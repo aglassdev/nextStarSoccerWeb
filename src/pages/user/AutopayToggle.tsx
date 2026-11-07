@@ -74,34 +74,35 @@ const AutopayToggle = ({
 
   return (
     <>
+      {/* The app's pill: grey when off, green with a bright dot when on. */}
       <button
         type="button"
         onClick={onPress}
         disabled={busy || !profile}
         aria-pressed={enabled}
-        className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors disabled:opacity-50 ${
+        title={enabled ? 'Autopay is on' : 'Autopay is off'}
+        className={`inline-flex items-center rounded-full border px-3 md:px-3.5 py-2 text-xs md:text-[13px] leading-[18px] font-medium transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
           enabled
-            ? 'border-emerald-400/40 bg-emerald-500/15 text-emerald-300'
-            : 'border-white/15 text-gray-300 hover:border-white/30 hover:text-white'
+            ? 'border-[#1F7A3C] bg-[#0E3B1E] text-white'
+            : 'border-[#2A2A2A] bg-[#1A1A1A] text-[#aaa] hover:border-[#3a3a3a] hover:text-white'
         }`}
       >
-        <span className={`h-2 w-2 rounded-full ${enabled ? 'bg-emerald-400' : 'bg-white/30'}`} />
+        <span className={`mr-1.5 h-2 w-2 rounded-full ${enabled ? 'bg-[#3DDC84]' : 'bg-[#555]'}`} />
         Autopay
-        <span className="text-xs opacity-70">{busy ? '…' : enabled ? 'On' : 'Off'}</span>
       </button>
       {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
 
       {noMethodOpen && (
         <Dialog onClose={() => setNoMethodOpen(false)}>
-          <h3 className="text-white text-lg font-semibold">No payment method</h3>
-          <p className="mt-2 text-sm text-gray-400 leading-relaxed">
+          <h3 className="text-white text-xl font-medium mb-3">No payment method</h3>
+          <p className="text-[#ccc] text-[15px] leading-[22px] mb-[18px]">
             You need a saved payment method before turning on autopay. Add a card or bank
             account under Payment Methods, then come back here to enable it.
           </p>
           <button
             type="button"
             onClick={() => { setNoMethodOpen(false); onNeedPaymentMethod(); }}
-            className="mt-6 w-full rounded-lg bg-white py-2.5 text-sm font-semibold text-black hover:bg-gray-200"
+            className="w-full min-h-[48px] rounded-[10px] bg-[#F4F2EE] py-3.5 text-sm font-medium text-black hover:bg-white transition-colors"
           >
             Continue
           </button>
@@ -110,26 +111,36 @@ const AutopayToggle = ({
 
       {consentOpen && (
         <Dialog onClose={() => setConsentOpen(false)}>
-          <h3 className="text-white text-lg font-semibold">Turn on autopay</h3>
-          <p className="mt-2 text-sm text-gray-400 leading-relaxed">
+          <h3 className="text-white text-xl font-medium mb-3">Turn on autopay</h3>
+          <p className="text-[#ccc] text-[15px] leading-[22px] mb-[18px]">
             I agree to let Next Star automatically charge my saved payment method for each
             monthly bill. Autopay only runs on the last day of the billing period, so I can
             still pay manually any time before then.
           </p>
-          <label className="mt-5 flex cursor-pointer items-center gap-3">
+          <label className="mb-5 flex cursor-pointer items-center gap-3 py-1">
             <input
               type="checkbox"
               checked={agreed}
               onChange={(e) => setAgreed(e.target.checked)}
-              className="h-4 w-4 accent-white"
+              className="peer sr-only"
             />
+            <span
+              aria-hidden="true"
+              className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-[3px] border border-white peer-checked:bg-[#F4F2EE] peer-focus-visible:ring-2 peer-focus-visible:ring-white/50"
+            >
+              {agreed && (
+                <svg className="h-3 w-3 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+            </span>
             <span className="text-sm text-white">I agree to the autopay terms above</span>
           </label>
-          <div className="mt-6 flex gap-3">
+          <div className="flex gap-3">
             <button
               type="button"
               onClick={() => setConsentOpen(false)}
-              className="flex-1 rounded-lg border border-white/15 py-2.5 text-sm text-gray-300 hover:border-white/30 hover:text-white"
+              className="flex-1 rounded-[10px] py-3 text-sm font-medium text-white hover:bg-white/5 transition-colors"
             >
               Cancel
             </button>
@@ -137,7 +148,7 @@ const AutopayToggle = ({
               type="button"
               onClick={activate}
               disabled={!agreed || busy}
-              className="flex-1 rounded-lg bg-white py-2.5 text-sm font-semibold text-black hover:bg-gray-200 disabled:opacity-40"
+              className="flex-1 min-h-[48px] rounded-[10px] bg-[#F4F2EE] py-3.5 text-sm font-medium text-black hover:bg-white transition-colors disabled:opacity-40"
             >
               {busy ? 'Activating…' : 'Activate'}
             </button>
@@ -149,11 +160,11 @@ const AutopayToggle = ({
 };
 
 const Dialog = ({ children, onClose }: { children: React.ReactNode; onClose: () => void }) => (
-  <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" onClick={onClose}>
+  <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/75 p-6" onClick={onClose}>
     <div
       role="dialog"
       aria-modal="true"
-      className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#111] p-6"
+      className="w-full max-w-[420px] rounded-2xl border border-[#222] bg-[#111] p-6"
       onClick={(e) => e.stopPropagation()}
     >
       {children}

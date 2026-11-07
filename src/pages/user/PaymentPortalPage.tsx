@@ -19,7 +19,7 @@ import PaymentMethodsSection from './PaymentMethodsSection';
 import PaymentMethodRequiredModal from './PaymentMethodRequiredModal';
 import AutopayToggle from './AutopayToggle';
 import { PAYMENTS_PATH } from '../../constants/features';
-import { AccountPageHeader } from '../account/AccountLayout';
+import PaymentCenter from '../account/payments/PaymentCenter';
 
 // ── Bill detail modal ──────────────────────────────────────────────────────────
 const BillModal = ({
@@ -149,8 +149,8 @@ const BillModal = ({
   );
 };
 
-// ── Payment Center (the Account Center's payments tab, as in the app) ──────────
-const PaymentPortalPage = ({ standalone = false }: { standalone?: boolean }) => {
+// ── Standalone payment portal (the legacy /user/payments page) ────────────────
+const StandalonePaymentPortal = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [bills, setBills] = useState<Bill[]>([]);
@@ -216,25 +216,18 @@ const PaymentPortalPage = ({ standalone = false }: { standalone?: boolean }) => 
   const body = (
     <>
       <div className="space-y-8">
-        {/* Title, with the Autopay switch beside it as in the app */}
-        {(() => {
-          const autopay = user?.$id && (
+        {/* Greeting, with the Autopay switch beside it as in the app */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-2xl md:text-3xl font-bold text-white">{`${greeting}${fullName ? `, ${fullName}` : ''}`}</h2>
+          {user?.$id && (
             <AutopayToggle
               userId={user.$id}
               onNeedPaymentMethod={() =>
                 document.getElementById('payment-methods')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
               }
             />
-          );
-          return standalone ? (
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-2xl md:text-3xl font-bold text-white">{`${greeting}${fullName ? `, ${fullName}` : ''}`}</h2>
-              {autopay}
-            </div>
-          ) : (
-            <AccountPageHeader title="Payment Center" right={autopay} />
-          );
-        })()}
+          )}
+        </div>
 
         {loading ? (
           <div className="flex items-center justify-center h-48">
@@ -386,7 +379,6 @@ const PaymentPortalPage = ({ standalone = false }: { standalone?: boolean }) => 
     </>
   );
 
-  if (!standalone) return body;
   return (
     <div className="min-h-screen bg-black">
       <header className="border-b border-white/10">
@@ -412,5 +404,10 @@ const PaymentPortalPage = ({ standalone = false }: { standalone?: boolean }) => 
     </div>
   );
 };
+
+// Account mode (/account/payments) is the Account Center's Payment Center, a
+// replica of the app's screen; standalone mode is the legacy /user portal.
+const PaymentPortalPage = ({ standalone = false }: { standalone?: boolean }) =>
+  standalone ? <StandalonePaymentPortal /> : <PaymentCenter />;
 
 export default PaymentPortalPage;
