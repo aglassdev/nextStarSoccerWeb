@@ -16,13 +16,13 @@ type Tab = 'review' | 'waiting' | 'done';
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'review', label: 'To review' },
-  { key: 'waiting', label: 'Waiting for film' },
+  { key: 'waiting', label: 'Waiting on family' },
   { key: 'done', label: 'Completed' },
 ];
 
 const inTab = (a: VideoAnalysis, tab: Tab) =>
   tab === 'review' ? a.status === 'submitted' || a.status === 'in_review'
-    : tab === 'waiting' ? a.status === 'awaiting_upload'
+    : tab === 'waiting' ? a.status === 'awaiting_upload' || a.status === 'uploaded'
       : a.status === 'completed';
 
 const dueTone = (iso?: string) => {
@@ -93,7 +93,7 @@ const AnalysisQueue = ({ coachUserId, admin }: { coachUserId?: string; admin?: b
 
       {shown.length === 0 ? (
         <p className="text-gray-500 text-sm py-10 text-center">
-          {tab === 'review' ? 'Nothing to review right now.' : tab === 'waiting' ? 'No analyses waiting for film.' : 'No completed analyses yet.'}
+          {tab === 'review' ? 'Nothing to review right now.' : tab === 'waiting' ? 'No analyses waiting on a family.' : 'No completed analyses yet.'}
         </p>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -131,7 +131,9 @@ const AnalysisQueue = ({ coachUserId, admin }: { coachUserId?: string; admin?: b
                   <p className={`text-xs mt-2 ${a.status === 'completed' ? 'text-green-400' : dueTone(a.dueAt)}`}>
                     {a.status === 'completed'
                       ? `Completed ${formatDueDate(a.completedAt)}`
-                      : a.dueAt
+                      : a.status === 'uploaded'
+                        ? 'Film uploaded, family is marking moments'
+                        : a.dueAt
                         ? `Due ${formatDueDate(a.dueAt)}`
                         : `Bought ${formatDueDate(a.purchasedAt || (a as any).$createdAt)}`}
                   </p>
@@ -140,7 +142,7 @@ const AnalysisQueue = ({ coachUserId, admin }: { coachUserId?: string; admin?: b
             );
             return (
               <div key={a.$id} className="group bg-[#111] border border-white/10 rounded-xl overflow-hidden hover:border-white/25 transition-colors">
-                {a.filmFileId ? <Link to={`/coach/analysis/${a.$id}`} className="block">{card}</Link> : card}
+                {a.filmFileId && a.status !== 'uploaded' ? <Link to={`/coach/analysis/${a.$id}`} className="block">{card}</Link> : card}
                 {admin && (
                   <p className="px-4 pb-4 -mt-2 text-xs text-gray-400 truncate">
                     Coach: {a.coachName || a.preferredCoach}

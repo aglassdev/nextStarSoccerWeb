@@ -11,7 +11,7 @@ import { ANALYSES_COLLECTION } from '../../services/videoAnalysis';
 // Account screen.
 
 /** `locked` shows a lock and can't be clicked; `dim` greys it out. */
-type MenuItem = { label: string; to: string; locked?: boolean; dim?: boolean };
+export type MenuItem = { label: string; to: string; locked?: boolean; dim?: boolean };
 
 // One lookup per signed-in user, shared by every page's navigation bar.
 const accountCache = new Map<string, Promise<AccountInfo>>();
@@ -64,7 +64,22 @@ const menuFor = (info: AccountInfo | null, boughtAnalysis: boolean): { items: Me
   };
 };
 
-const LockIcon = () => (
+/** The account pages for the signed-in user, shared by this menu and the account pages' side menu. */
+export const useAccountMenuItems = () => {
+  const { user } = useAuth();
+  const [info, setInfo] = useState<AccountInfo | null>(null);
+  const [boughtAnalysis, setBoughtAnalysis] = useState(false);
+  useEffect(() => {
+    if (!user) return;
+    let live = true;
+    accountInfoFor(user.$id).then((i) => live && setInfo(i)).catch(() => {});
+    hasVideoAnalysis(user.$id).then((b) => live && setBoughtAnalysis(b));
+    return () => { live = false; };
+  }, [user]);
+  return menuFor(info, boughtAnalysis);
+};
+
+export const LockIcon = () => (
   <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-label="Locked">
     <rect x="5" y="11" width="14" height="9" rx="2" strokeWidth={1.9} />
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.9} d="M8 11V8a4 4 0 118 0v3" />
@@ -82,17 +97,8 @@ const AccountMenu = () => {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
-  const [info, setInfo] = useState<AccountInfo | null>(null);
-  const [boughtAnalysis, setBoughtAnalysis] = useState(false);
+  const { items, staff } = useAccountMenuItems();
   const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!user) return;
-    let live = true;
-    accountInfoFor(user.$id).then((i) => live && setInfo(i)).catch(() => {});
-    hasVideoAnalysis(user.$id).then((b) => live && setBoughtAnalysis(b));
-    return () => { live = false; };
-  }, [user]);
 
   // Close on navigation, outside click and Escape.
   useEffect(() => setOpen(false), [pathname]);
@@ -109,7 +115,6 @@ const AccountMenu = () => {
   }, [open]);
 
   if (!user) return null;
-  const { items, staff } = menuFor(info, boughtAnalysis);
   const itemClass = (m: MenuItem) => {
     const active = pathname === m.to || pathname.startsWith(`${m.to}/`);
     const tone = m.locked

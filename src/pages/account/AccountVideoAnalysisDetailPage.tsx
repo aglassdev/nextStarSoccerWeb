@@ -3,6 +3,7 @@ import { Link, useLocation, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import AnnotatedPlayer from '../../components/analysis/AnnotatedPlayer';
 import { AccountPageHeader, AccountSpinner } from './AccountLayout';
+import MarkMomentsView from './MarkMomentsView';
 import {
   VideoAnalysis,
   formatDueDate,
@@ -14,8 +15,9 @@ import {
   sharedAnnotations,
 } from '../../services/videoAnalysis';
 
-// One analysis, as the family sees it: the coach's video breakdown and the
-// annotated game film (read-only) once it's ready; its progress before then.
+// One analysis, as the family sees it: right after the upload, the space to
+// mark moments and submit (MarkMomentsView); then its progress; and once it's
+// ready, the coach's video breakdown and the annotated game film (read-only).
 const AccountVideoAnalysisDetailPage = () => {
   const { id = '' } = useParams<{ id: string }>();
   const { user } = useAuth();
@@ -48,6 +50,14 @@ const AccountVideoAnalysisDetailPage = () => {
 
   if (error) return <div className="space-y-4">{back}<p className="text-gray-400 text-sm">{error}</p></div>;
   if (!a) return <>{back}<AccountSpinner /></>;
+
+  if (a.status === 'uploaded') {
+    return urls.film ? (
+      <MarkMomentsView analysis={a} title={title} film={urls.film} poster={urls.thumb} onSubmitted={setA} />
+    ) : (
+      <>{back}<AccountSpinner /></>
+    );
+  }
 
   const done = a.status === 'completed';
   const annotations = sharedAnnotations(a.annotations);

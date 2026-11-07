@@ -13,6 +13,7 @@ import {
   getAnalysisUrls,
   getCoachNotes,
   parseAnnotations,
+  parseMoments,
   saveCoachNotes,
   updateAnalysis,
 } from '../../services/videoAnalysis';
@@ -178,6 +179,7 @@ const CoachAnalysisWorkspacePage = () => {
           src={urls.film}
           poster={urls.thumb}
           annotations={annotations}
+          moments={parseMoments(a.moments)}
           editable={!done}
           sidebarNote={!done ? savedNote : undefined}
           onAdd={(x) => commit([...annotations, { ...x, id: newId(), createdAt: new Date().toISOString(), author }])}

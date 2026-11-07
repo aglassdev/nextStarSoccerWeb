@@ -1,17 +1,22 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Annotation, formatTimestamp } from '../../services/videoAnalysis';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { Annotation, Moment, formatTimestamp } from '../../services/videoAnalysis';
+import FilmPlayer, { FilmMarker, FilmPlayerHandle } from './FilmPlayer';
 
 // The game film with its annotations: a large player on the left, the
 // annotations in a column on the right, and a white dash on the timeline for
 // each one. Clicking a dash (or an annotation) jumps the film there, scrolls
 // the column to it and enlarges it. Coaches (editable) pause and add
 // comments (shared with the family) or notes (private to coaches) at the
-// current moment; families see the comments read-only.
+// current moment; families see the comments read-only. The moments the
+// family marked before submitting show for the coach as blue dashes and
+// read-only rows.
 
 interface Props {
   src: string;
   poster?: string;
   annotations: Annotation[];
+  /** The family's marked moments (coach view). */
+  moments?: Moment[];
   editable?: boolean;
   onAdd?: (a: Pick<Annotation, 't' | 'kind' | 'text'>) => void;
   onEdit?: (id: string, text: string) => void;
@@ -20,7 +25,9 @@ interface Props {
   sidebarNote?: React.ReactNode;
 }
 
-const SPEEDS = [0.5, 1, 1.5, 2];
+type Row =
+  | { key: string; t: number; type: 'annotation'; a: Annotation }
+  | { key: string; t: number; type: 'moment'; m: Moment };
 
 const KindIcon = ({ kind, className = 'w-3.5 h-3.5' }: { kind: Annotation['kind']; className?: string }) =>
   kind === 'comment' ? (
@@ -34,48 +41,43 @@ const KindIcon = ({ kind, className = 'w-3.5 h-3.5' }: { kind: Annotation['kind'
     </svg>
   );
 
-const AnnotatedPlayer = ({ src, poster, annotations, editable, onAdd, onEdit, onDelete, sidebarNote }: Props) => {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
+export const FlagIcon = ({ className = 'w-3.5 h-3.5' }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M5 21V4m0 0h11l-2 4 2 4H5" />
+  </svg>
+);
+
+const AnnotatedPlayer = ({ src, poster, annotations, moments = [], editable, onAdd, onEdit, onDelete, sidebarNote }: Props) => {
+  const player = useRef<FilmPlayerHandle>(null);
   const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [buffering, setBuffering] = useState(false);
-  const [failed, setFailed] = useState(false);
-  const [speed, setSpeed] = useState(1);
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeKey, setActiveKey] = useState<string | null>(null);
   const [composer, setComposer] = useState<{ kind: Annotation['kind']; t: number; text: string } | null>(null);
   const [editing, setEditing] = useState<{ id: string; text: string } | null>(null);
-  const [hoverT, setHoverT] = useState<number | null>(null);
 
-  const sorted = useMemo(() => [...annotations].sort((a, b) => a.t - b.t), [annotations]);
+  const rows = useMemo<Row[]>(() => [
+    ...annotations.map((a) => ({ key: `a:${a.id}`, t: a.t, type: 'annotation' as const, a })),
+    ...moments.map((m) => ({ key: `m:${m.id}`, t: m.t, type: 'moment' as const, m })),
+  ].sort((x, y) => x.t - y.t), [annotations, moments]);
 
-  const seek = useCallback((t: number) => {
-    const v = videoRef.current;
-    if (!v) return;
-    v.currentTime = Math.max(0, Math.min(t, v.duration || t));
-    setTime(v.currentTime);
-  }, []);
+  const markers = useMemo<FilmMarker[]>(() => rows.map((r) => ({
+    id: r.key,
+    t: r.t,
+    title: r.type === 'annotation' ? r.a.text : `Moment: ${r.m.label}`,
+    tone: r.type === 'moment' ? 'sky' : 'white',
+  })), [rows]);
 
-  const focusAnnotation = useCallback((a: Annotation, jump = true) => {
-    setActiveId(a.id);
-    if (jump) seek(a.t);
-    itemRefs.current[a.id]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }, [seek]);
-
-  const togglePlay = useCallback(() => {
-    const v = videoRef.current;
-    if (!v) return;
-    if (v.paused) v.play().catch(() => {});
-    else v.pause();
-  }, []);
+  const focusRow = useCallback((key: string, jump = true) => {
+    setActiveKey(key);
+    const row = rows.find((r) => r.key === key);
+    if (jump && row) player.current?.seek(row.t);
+    itemRefs.current[key]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [rows]);
 
   const openComposer = useCallback((kind: Annotation['kind']) => {
-    const v = videoRef.current;
-    if (!v) return;
-    v.pause();
-    setComposer({ kind, t: v.currentTime, text: '' });
+    if (!player.current) return;
+    player.current.pause();
+    setComposer({ kind, t: player.current.currentTime(), text: '' });
   }, []);
 
   const saveComposer = () => {
@@ -84,216 +86,118 @@ const AnnotatedPlayer = ({ src, poster, annotations, editable, onAdd, onEdit, on
     setComposer(null);
   };
 
-  // Keyboard: space play/pause, ←/→ 5 s, C comment, N note — not while typing.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target as HTMLElement)?.isContentEditable) return;
-      if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
-      else if (e.key === 'ArrowLeft') seek((videoRef.current?.currentTime || 0) - 5);
-      else if (e.key === 'ArrowRight') seek((videoRef.current?.currentTime || 0) + 5);
-      else if (editable && (e.key === 'c' || e.key === 'C')) { e.preventDefault(); openComposer('comment'); }
-      else if (editable && (e.key === 'n' || e.key === 'N')) { e.preventDefault(); openComposer('note'); }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [togglePlay, seek, openComposer, editable]);
+  const shortcuts = useMemo(
+    () => (editable ? { c: () => openComposer('comment'), n: () => openComposer('note') } : undefined),
+    [editable, openComposer],
+  );
 
-  useEffect(() => {
-    if (videoRef.current) videoRef.current.playbackRate = speed;
-  }, [speed]);
-
-  // While the film plays, the most recent annotation it has passed is marked.
+  // While the film plays, the most recent row it has passed is marked.
   const current = useMemo(() => {
-    let last: Annotation | null = null;
-    for (const a of sorted) if (a.t <= time + 0.25) last = a;
-    return last && time - last.t < 6 ? last.id : null;
-  }, [sorted, time]);
+    let last: Row | null = null;
+    for (const r of rows) if (r.t <= time + 0.25) last = r;
+    return last && time - last.t < 6 ? last.key : null;
+  }, [rows, time]);
 
-  const pct = (t: number) => (duration > 0 ? Math.min(100, (t / duration) * 100) : 0);
-
-  const scrubFromEvent = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    return Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)) * duration;
-  };
+  const annotationCount = annotations.length;
 
   return (
     <div className="flex flex-col lg:flex-row gap-4 lg:h-[calc(100vh-11rem)] min-h-0">
-      {/* ── Film ── */}
-      <div className="flex-1 min-w-0 flex flex-col bg-[#0b0b0b] border border-white/10 rounded-2xl overflow-hidden">
-        <div className="relative flex-1 min-h-[240px] bg-black flex items-center justify-center" onClick={togglePlay}>
-          {failed ? (
-            <div className="text-center px-6">
-              <p className="text-white text-sm">This film can't play in this browser.</p>
-              <p className="text-gray-500 text-xs mt-1">
-                It may be in a format like HEVC. Try Safari, or{' '}
-                <a href={src} target="_blank" rel="noopener noreferrer" className="underline" onClick={(e) => e.stopPropagation()}>download it</a>.
-              </p>
+      <FilmPlayer
+        ref={player}
+        src={src}
+        poster={poster}
+        markers={markers}
+        activeId={activeKey}
+        onMarkerClick={(key) => focusRow(key, false)}
+        onTime={setTime}
+        shortcuts={shortcuts}
+        overlay={composer && (
+          <div className="absolute inset-x-3 bottom-3 sm:inset-x-auto sm:right-3 sm:w-96 bg-[#141414]/95 backdrop-blur border border-white/15 rounded-xl p-3 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 text-white text-xs mb-2">
+              <KindIcon kind={composer.kind} />
+              <span className="font-medium capitalize">{composer.kind}</span>
+              <span className="text-gray-500">at {formatTimestamp(composer.t)}</span>
+              {composer.kind === 'note' && <span className="ml-auto text-amber-300/80">Only coaches see notes</span>}
             </div>
-          ) : (
-            <video
-              ref={videoRef}
-              src={src}
-              poster={poster}
-              playsInline
-              preload="metadata"
-              className="absolute inset-0 w-full h-full object-contain"
-              onPlay={() => setPlaying(true)}
-              onPause={() => setPlaying(false)}
-              onTimeUpdate={(e) => setTime(e.currentTarget.currentTime)}
-              onLoadedMetadata={(e) => setDuration(e.currentTarget.duration || 0)}
-              onDurationChange={(e) => setDuration(e.currentTarget.duration || 0)}
-              onWaiting={() => setBuffering(true)}
-              onPlaying={() => setBuffering(false)}
-              onCanPlay={() => setBuffering(false)}
-              onError={() => setFailed(true)}
+            <textarea
+              autoFocus
+              value={composer.text}
+              onChange={(e) => setComposer({ ...composer, text: e.target.value })}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) saveComposer();
+                if (e.key === 'Escape') setComposer(null);
+              }}
+              rows={3}
+              placeholder={composer.kind === 'comment' ? 'What should the player see here?' : 'A note for yourself…'}
+              className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30 resize-none"
             />
-          )}
-          {buffering && !failed && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="w-10 h-10 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            </div>
-          )}
-          {!playing && !buffering && !failed && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="w-16 h-16 rounded-full bg-black/50 backdrop-blur flex items-center justify-center">
-                <svg className="w-7 h-7 text-white ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
-              </div>
-            </div>
-          )}
-
-          {/* Composer, over the paused frame */}
-          {composer && (
-            <div className="absolute inset-x-3 bottom-3 sm:inset-x-auto sm:right-3 sm:w-96 bg-[#141414]/95 backdrop-blur border border-white/15 rounded-xl p-3 shadow-2xl"
-              onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center gap-2 text-white text-xs mb-2">
-                <KindIcon kind={composer.kind} />
-                <span className="font-medium capitalize">{composer.kind}</span>
-                <span className="text-gray-500">at {formatTimestamp(composer.t)}</span>
-                {composer.kind === 'note' && <span className="ml-auto text-amber-300/80">Only coaches see notes</span>}
-              </div>
-              <textarea
-                autoFocus
-                value={composer.text}
-                onChange={(e) => setComposer({ ...composer, text: e.target.value })}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) saveComposer();
-                  if (e.key === 'Escape') setComposer(null);
-                }}
-                rows={3}
-                placeholder={composer.kind === 'comment' ? 'What should the player see here?' : 'A note for yourself…'}
-                className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30 resize-none"
-              />
-              <div className="flex justify-end gap-2 mt-2">
-                <button onClick={() => setComposer(null)} className="px-3 py-1.5 text-xs text-gray-400 hover:text-white">Cancel</button>
-                <button onClick={saveComposer} disabled={!composer.text.trim()}
-                  className="px-4 py-1.5 text-xs bg-white text-black font-semibold rounded-lg disabled:opacity-40">
-                  Add {composer.kind}
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* ── Controls ── */}
-        <div className="px-4 pt-3 pb-3 border-t border-white/10 space-y-2.5">
-          {/* Timeline with a white dash per annotation */}
-          <div
-            className="relative h-6 cursor-pointer group"
-            onClick={(e) => duration && seek(scrubFromEvent(e))}
-            onMouseMove={(e) => duration && setHoverT(scrubFromEvent(e))}
-            onMouseLeave={() => setHoverT(null)}
-          >
-            <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-1.5 rounded-full bg-white/15 overflow-hidden">
-              <div className="h-full bg-white/50" style={{ width: `${pct(time)}%` }} />
-            </div>
-            {duration > 0 && sorted.map((a) => (
-              <button
-                key={a.id}
-                type="button"
-                title={`${formatTimestamp(a.t)} · ${a.text.slice(0, 60)}`}
-                onClick={(e) => { e.stopPropagation(); focusAnnotation(a); }}
-                className={`absolute top-0 h-6 w-2.5 -ml-[5px] flex justify-center`}
-                style={{ left: `${pct(a.t)}%` }}
-              >
-                <span className={`block h-full rounded-sm transition-all ${activeId === a.id ? 'w-1 bg-white' : 'w-0.5 bg-white/90 hover:w-1'}`} />
+            <div className="flex justify-end gap-2 mt-2">
+              <button onClick={() => setComposer(null)} className="px-3 py-1.5 text-xs text-gray-400 hover:text-white">Cancel</button>
+              <button onClick={saveComposer} disabled={!composer.text.trim()}
+                className="px-4 py-1.5 text-xs bg-white text-black font-semibold rounded-lg disabled:opacity-40">
+                Add {composer.kind}
               </button>
-            ))}
-            <div className="absolute top-1/2 -translate-y-1/2 w-3 h-3 -ml-1.5 rounded-full bg-white shadow pointer-events-none" style={{ left: `${pct(time)}%` }} />
-            {hoverT !== null && (
-              <div className="absolute -top-6 -translate-x-1/2 px-1.5 py-0.5 rounded bg-black/80 text-white text-[10px] tabular-nums pointer-events-none" style={{ left: `${pct(hoverT)}%` }}>
-                {formatTimestamp(hoverT)}
-              </div>
-            )}
+            </div>
           </div>
-
-          <div className="flex items-center gap-3">
-            <button onClick={togglePlay} className="text-white hover:text-gray-300" aria-label={playing ? 'Pause' : 'Play'}>
-              {playing ? (
-                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z" /></svg>
-              ) : (
-                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
-              )}
+        )}
+        actions={editable && (
+          <>
+            <button onClick={() => openComposer('comment')}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white text-black text-xs font-semibold hover:bg-gray-200" title="Pause and add a comment (C)">
+              <KindIcon kind="comment" /> Comment
             </button>
-            <button onClick={() => seek(time - 5)} className="text-gray-400 hover:text-white text-xs tabular-nums" title="Back 5 seconds (←)">−5s</button>
-            <button onClick={() => seek(time + 5)} className="text-gray-400 hover:text-white text-xs tabular-nums" title="Forward 5 seconds (→)">+5s</button>
-            <span className="text-gray-400 text-xs tabular-nums">{formatTimestamp(time)} / {formatTimestamp(duration)}</span>
-            <div className="flex-1" />
-            {editable && (
-              <>
-                <button onClick={() => openComposer('comment')}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white text-black text-xs font-semibold hover:bg-gray-200" title="Pause and add a comment (C)">
-                  <KindIcon kind="comment" /> Comment
-                </button>
-                <button onClick={() => openComposer('note')}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/20 text-white text-xs font-semibold hover:border-white/40" title="Pause and add a private note, only coaches see it (N)">
-                  <KindIcon kind="note" /> Note
-                </button>
-              </>
-            )}
-            <select value={speed} onChange={(e) => setSpeed(Number(e.target.value))}
-              className="bg-transparent text-gray-400 text-xs border border-white/10 rounded-md px-1.5 py-1 focus:outline-none" aria-label="Playback speed">
-              {SPEEDS.map((s) => <option key={s} value={s} className="bg-black">{s}×</option>)}
-            </select>
-            <button onClick={() => videoRef.current?.requestFullscreen?.()} className="text-gray-400 hover:text-white" aria-label="Full screen">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4" />
-              </svg>
+            <button onClick={() => openComposer('note')}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/20 text-white text-xs font-semibold hover:border-white/40" title="Pause and add a private note, only coaches see it (N)">
+              <KindIcon kind="note" /> Note
             </button>
-          </div>
-        </div>
-      </div>
+          </>
+        )}
+      />
 
       {/* ── Annotations column ── */}
       <aside className="lg:w-[340px] xl:w-[380px] flex-shrink-0 flex flex-col bg-[#0b0b0b] border border-white/10 rounded-2xl overflow-hidden max-h-[60vh] lg:max-h-none">
         <div className="px-4 py-3 border-b border-white/10">
           <div className="flex items-center justify-between">
             <p className="text-white text-sm font-semibold">Annotations</p>
-            <span className="text-gray-500 text-xs">{sorted.length}</span>
+            <span className="text-gray-500 text-xs">
+              {annotationCount}
+              {moments.length > 0 && <span className="text-[#7dd3fc]/80"> · {moments.length} marked by the family</span>}
+            </span>
           </div>
           {sidebarNote && <div className="mt-1">{sidebarNote}</div>}
         </div>
-        <div ref={listRef} className="flex-1 overflow-y-auto p-3 space-y-2">
-          {sorted.length === 0 ? (
+        <div className="flex-1 overflow-y-auto p-3 space-y-2">
+          {rows.length === 0 ? (
             <p className="text-gray-500 text-sm text-center py-10 px-4">
               {editable ? 'Pause the film and press Comment or Note to add the first annotation.' : 'No annotations yet.'}
             </p>
-          ) : sorted.map((a) => {
-            const isActive = activeId === a.id;
-            const isCurrent = current === a.id;
+          ) : rows.map((r) => {
+            const isActive = activeKey === r.key;
+            const isCurrent = current === r.key;
+            const box = `rounded-xl border px-3 py-2.5 cursor-pointer transition-all duration-200 origin-center ${
+              isActive
+                ? 'scale-[1.04] border-white/60 bg-white/[0.09] shadow-lg'
+                : isCurrent
+                  ? 'border-white/25 bg-white/[0.05]'
+                  : 'border-white/[0.08] hover:border-white/20'
+            }`;
+            if (r.type === 'moment') {
+              return (
+                <div key={r.key} ref={(el) => { itemRefs.current[r.key] = el; }} onClick={() => focusRow(r.key)} className={box}>
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="px-1.5 py-0.5 rounded bg-white/10 text-white tabular-nums font-medium">{formatTimestamp(r.t)}</span>
+                    <span className="inline-flex items-center gap-1 text-[#7dd3fc]">
+                      <FlagIcon className="w-3 h-3" /> Marked by the family
+                    </span>
+                  </div>
+                  <p className={`text-white/90 leading-relaxed mt-1.5 ${isActive ? 'text-[15px]' : 'text-sm'}`}>{r.m.label}</p>
+                </div>
+              );
+            }
+            const a = r.a;
             return (
-              <div
-                key={a.id}
-                ref={(el) => { itemRefs.current[a.id] = el; }}
-                onClick={() => focusAnnotation(a)}
-                className={`rounded-xl border px-3 py-2.5 cursor-pointer transition-all duration-200 origin-center ${
-                  isActive
-                    ? 'scale-[1.04] border-white/60 bg-white/[0.09] shadow-lg'
-                    : isCurrent
-                      ? 'border-white/25 bg-white/[0.05]'
-                      : 'border-white/[0.08] hover:border-white/20'
-                }`}
-              >
+              <div key={r.key} ref={(el) => { itemRefs.current[r.key] = el; }} onClick={() => focusRow(r.key)} className={box}>
                 <div className="flex items-center gap-2 text-xs">
                   <span className="px-1.5 py-0.5 rounded bg-white/10 text-white tabular-nums font-medium">{formatTimestamp(a.t)}</span>
                   {a.kind === 'note' && (

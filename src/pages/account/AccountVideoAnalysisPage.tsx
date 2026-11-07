@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAccount } from './AccountContext';
 import { AccountPageHeader, AccountSpinner } from './AccountLayout';
@@ -31,7 +31,6 @@ const UploadPanel = ({ analysis, onClose, onDone }: { analysis: VideoAnalysis; o
   const { userType, children } = useAccount();
   const isParent = userType === 'parent';
   const [file, setFile] = useState<File | null>(null);
-  const [notes, setNotes] = useState(analysis.playerNotes || '');
   const [playerId, setPlayerId] = useState(analysis.playerKind !== 'guest' ? analysis.playerId : children[0]?.id || '');
   const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState('');
@@ -71,7 +70,7 @@ const UploadPanel = ({ analysis, onClose, onDone }: { analysis: VideoAnalysis; o
         const c = children.find((x) => x.id === playerId);
         if (c) player = { kind: c.kind, id: c.id };
       }
-      await attachFilm({ analysisId: analysis.$id, fileId: film.$id, thumbFileId: thumbFile?.$id, notes: notes.trim(), player });
+      await attachFilm({ analysisId: analysis.$id, fileId: film.$id, thumbFileId: thumbFile?.$id, player });
       setProgress(1);
       onDone();
     } catch (e: any) {
@@ -126,12 +125,9 @@ const UploadPanel = ({ analysis, onClose, onDone }: { analysis: VideoAnalysis; o
               )}
             </label>
 
-            <label className="block">
-              <span className="block text-gray-500 text-xs mb-1">Notes for your coach (optional)</span>
-              <textarea value={notes} onChange={(e) => setNotes(e.target.value)} disabled={uploading} rows={3}
-                placeholder="Jersey number and color, position, and anything you want your coach to focus on."
-                className="w-full px-4 py-2.5 bg-[#1a1a1a] border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-white/20 resize-none" />
-            </label>
+            <p className="text-gray-500 text-xs leading-relaxed">
+              Next you'll add notes for your coach and mark the moments you want analyzed.
+            </p>
 
             {uploading && (
               <div>
@@ -194,10 +190,15 @@ const AnalysisCard = ({ a, n, thumb, film, onUpload }: { a: VideoAnalysis; n: nu
             Upload your film
           </button>
         )}
+        {a.status === 'uploaded' && (
+          <span className="mt-4 block w-full py-3 bg-[#F4F2EE] group-hover:bg-white text-black text-sm font-semibold rounded-xl text-center">
+            Mark moments &amp; submit
+          </span>
+        )}
       </div>
     </>
   );
-  const cls = 'block bg-[#111] border border-[#222] rounded-2xl overflow-hidden hover:border-[#3a3a3a] transition-colors text-left';
+  const cls = 'group block bg-[#111] border border-[#222] rounded-2xl overflow-hidden hover:border-[#3a3a3a] transition-colors text-left';
   return a.status === 'awaiting_upload'
     ? <div className={cls}>{body}</div>
     : <Link to={`/account/video-analysis/${a.$id}`} state={{ n }} className={cls}>{body}</Link>;
@@ -209,6 +210,7 @@ const AccountVideoAnalysisPage = () => {
   const [urls, setUrls] = useState<AnalysisUrls>({});
   const [uploadFor, setUploadFor] = useState<VideoAnalysis | null>(null);
   const [error, setError] = useState('');
+  const navigate = useNavigate();
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -238,7 +240,7 @@ const AccountVideoAnalysisPage = () => {
   const groups = useMemo(() => {
     const list = analyses || [];
     return [
-      { title: 'To do', items: list.filter((a) => a.status === 'awaiting_upload') },
+      { title: 'To do', items: list.filter((a) => a.status === 'awaiting_upload' || a.status === 'uploaded') },
       { title: 'With your coach', items: list.filter((a) => a.status === 'submitted' || a.status === 'in_review') },
       { title: 'Ready', items: list.filter((a) => a.status === 'completed') },
     ].filter((g) => g.items.length > 0);
@@ -277,7 +279,11 @@ const AccountVideoAnalysisPage = () => {
         <UploadPanel
           analysis={uploadFor}
           onClose={() => setUploadFor(null)}
-          onDone={() => { setUploadFor(null); load(); }}
+          onDone={() => {
+            const a = uploadFor;
+            setUploadFor(null);
+            navigate(`/account/video-analysis/${a.$id}`, { state: { n: numbers[a.$id] } });
+          }}
         />
       )}
     </div>

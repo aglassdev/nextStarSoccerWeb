@@ -12,7 +12,8 @@ export const FILM_BUCKET = 'game-film';
 const VIDEO_ANALYSIS_FUNCTION = 'video-analysis';
 const REGISTER_FUNCTION = 'register-clinic';
 
-export type AnalysisStatus = 'awaiting_upload' | 'submitted' | 'in_review' | 'completed';
+/** uploaded = film is up, the family is marking moments and hasn't submitted yet. */
+export type AnalysisStatus = 'awaiting_upload' | 'uploaded' | 'submitted' | 'in_review' | 'completed';
 
 export interface VideoAnalysis {
   $id: string;
@@ -34,6 +35,9 @@ export interface VideoAnalysis {
   filmUploadedAt?: string;
   thumbFileId?: string;
   playerNotes?: string;
+  /** The family's marked moments, JSON: Moment[]. */
+  moments?: string;
+  submittedAt?: string;
   dueAt?: string;
   annotations?: string;
   recordingFileId?: string;
@@ -53,8 +57,17 @@ export interface Annotation {
   author?: string;
 }
 
+/** A moment in the film the family wants the coach to look at. */
+export interface Moment {
+  id: string;
+  /** Seconds into the film. */
+  t: number;
+  label: string;
+}
+
 export const STATUS_LABEL: Record<AnalysisStatus, string> = {
   awaiting_upload: 'Upload your film',
+  uploaded: 'Mark moments',
   submitted: 'With your coach',
   in_review: 'In review',
   completed: 'Ready',
@@ -94,13 +107,22 @@ const action = <T = any>(name: string, payload: Record<string, any> = {}) =>
 /** Analyses bought as a guest with this account's email become theirs. */
 export const claimGuestAnalyses = () => action<{ claimed: number }>('claim');
 
+/** Puts the uploaded film on the analysis; it waits as "uploaded" until the family submits it. */
 export const attachFilm = (payload: {
   analysisId: string;
   fileId: string;
   thumbFileId?: string;
   notes?: string;
   player?: ClinicPlayerRef;
-}) => action<{ analysis: VideoAnalysis }>('attachFilm', payload);
+}) => action<{ analysis: VideoAnalysis }>('attachFilm', { ...payload, draft: true });
+
+/** Saves the family's notes and moments while they're marking. */
+export const saveAnalysisDraft = (analysisId: string, draft: { notes: string; moments: Moment[] }) =>
+  action<{ analysis: VideoAnalysis }>('saveDraft', { analysisId, ...draft });
+
+/** Sends the film, notes and moments to the coach (the 7-day clock starts). */
+export const submitAnalysis = (analysisId: string, draft: { notes: string; moments: Moment[] }) =>
+  action<{ analysis: VideoAnalysis }>('submit', { analysisId, ...draft });
 
 export const completeAnalysis = (analysisId: string, recordingFileId?: string) =>
   action<{ analysis: VideoAnalysis; emailed: boolean }>('complete', { analysisId, recordingFileId });
@@ -200,6 +222,24 @@ export function parseAnnotations(raw?: string): Annotation[] {
   }
 }
 
+export function parseMoments(raw?: string): Moment[] {
+  if (!raw) return [];
+  try {
+    const list = JSON.parse(raw);
+    return Array.isArray(list) ? list.filter((m) => typeof m?.t === 'number').sort((a, b) => a.t - b.t) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** The next default name: "Moment 1", "Moment 2"… skipping any already used. */
+export function nextMomentName(moments: Moment[]) {
+  const used = new Set(moments.map((m) => m.label.trim().toLowerCase()));
+  let n = moments.length + 1;
+  while (used.has(`moment ${n}`)) n++;
+  return `Moment ${n}`;
+}
+
 /** The annotations the family sees: comments only, never a coach's notes. */
 export const sharedAnnotations = (raw?: string) => parseAnnotations(raw).filter((a) => a.kind !== 'note');
 
@@ -243,6 +283,7 @@ export const formatLongDate = (iso?: string) =>
 /** What the family sees as the status. */
 export const CLIENT_STATUS: Record<AnalysisStatus, string> = {
   awaiting_upload: 'Awaiting Upload',
+  uploaded: 'Not Submitted',
   submitted: 'In Progress',
   in_review: 'In Progress',
   completed: 'Ready',
