@@ -103,7 +103,7 @@ const Navigation = () => {
                     to="/signin"
                     className="hidden sm:inline-flex items-center text-black bg-white hover:bg-white/85 px-4 py-2 text-sm font-semibold rounded-full transition-colors"
                   >
-                    My Account
+                    Dashboard
                   </Link>
                 ) : (
                 <div className="relative">
@@ -178,7 +178,7 @@ const Navigation = () => {
                     className="w-full text-black bg-white hover:bg-white/85 px-4 py-2.5 text-sm font-semibold rounded-full transition-colors"
                     onClick={() => { setIsMobileMenuOpen(false); navigate('/signin'); }}
                   >
-                    My Account
+                    Dashboard
                   </button>
                 ) : (
                   <>

@@ -59,7 +59,11 @@ const SignInPage = () => {
             />
           </Link>
           <h1 className="text-2xl font-bold text-white">Sign in</h1>
-          <p className="text-gray-400 mt-2 text-sm">Manage your Next Star account, bills, players and video analysis</p>
+          <p className="text-gray-400 mt-2 text-sm">
+            {from === '/checkout/video-analysis'
+              ? 'Sign in to buy video analysis. Your film is uploaded from your account.'
+              : 'Manage your Next Star account, bills, players and video analysis'}
+          </p>
         </div>
 
         <div className="bg-[#111] rounded-lg shadow-xl p-6 md:p-8 border border-white/10">
@@ -105,12 +109,15 @@ const SignInPage = () => {
           </form>
         </div>
 
-        <div className="text-center text-xs mt-6 space-y-2">
-          <p className="text-gray-600">Use the same email and password as the Next Star Soccer app. Coaches too.</p>
-          <p className="text-gray-500">
-            No account yet?{' '}
-            <button onClick={() => setShowCreate(true)} className="text-white underline underline-offset-2">Create one</button>
-            {' · '}Forgot your password? Reset it in the app.
+        <div className="text-center mt-6 space-y-3">
+          <p className="text-gray-400 text-sm">
+            Don't have an account?{' '}
+            <button onClick={() => setShowCreate(true)} className="text-white font-medium underline underline-offset-4 hover:text-gray-300">
+              Register
+            </button>
+          </p>
+          <p className="text-gray-600 text-xs">
+            Use the same email and password as the Next Star Soccer app. Forgot your password? Reset it in the app.
           </p>
         </div>
       </div>

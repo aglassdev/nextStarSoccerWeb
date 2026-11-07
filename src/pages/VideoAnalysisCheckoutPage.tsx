@@ -9,28 +9,22 @@ import {
   resolveUserStripeContext,
   SavedPaymentMethod,
 } from '../services/payment/paymentApi';
-import {
-  paymentIntentIdFromSecret,
-  getParentChildren,
-  ClinicPlayerRef,
-  GuestRegistration,
-} from '../services/clinicRegistration';
+import { paymentIntentIdFromSecret, getParentChildren, ClinicPlayerRef } from '../services/clinicRegistration';
 import { registerVideoAnalysis } from '../services/videoAnalysis';
 import { ANALYSIS_COACHES, VIDEO_ANALYSIS, formatCents, quoteVideoAnalysis } from '../constants/videoAnalysis';
 import { friendlyPaymentError } from '../services/payment/paymentErrors';
+import { SIGN_IN_PATH } from '../constants/features';
 
-// Video analysis checkout. Same flow as the clinic checkout (sign in or guest,
-// parent or player, the same payment methods); the order is a number of
-// analyses, each with its own player and preferred coach.
-
-type Step = 'choose' | 'login' | 'guest-role' | 'pay';
-type GuestRole = 'parent' | 'player';
+// Video analysis checkout. Buyers need a Next Star account (the film is
+// uploaded from it), so this page sits behind sign-in — there's no guest
+// checkout. Otherwise it's the clinic checkout's flow and payment methods;
+// the order is a number of analyses, each with its own player and preferred
+// coach.
 
 interface DoneResult {
   count: number;
   players: string[];
   email: string;
-  isGuest: boolean;
   pending: boolean;
   bankProcessing: boolean;
 }
@@ -52,12 +46,10 @@ interface Player extends ClinicPlayerRef {
 }
 
 interface Item {
-  /** A player id (parents), or '' for self/guest. */
+  /** A player id (parents), or '' for the player themselves. */
   playerId: string;
   coach: string;
 }
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const cardElementOptions = {
   style: {
@@ -69,24 +61,18 @@ const cardElementOptions = {
 const inputClass =
   'w-full rounded-xl border border-black/15 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-black/40 [color-scheme:light]';
 
-const CheckoutForm = ({ guestRole, onDone }: { guestRole: GuestRole | null; onDone: (r: DoneResult) => void }) => {
+const CheckoutForm = ({ onDone }: { onDone: (r: DoneResult) => void }) => {
   const stripe = useStripe();
   const elements = useElements();
   const { user } = useAuth();
-  const isGuest = guestRole !== null;
 
-  const [loadingAccount, setLoadingAccount] = useState(!isGuest);
+  const [loadingAccount, setLoadingAccount] = useState(true);
   const [accountError, setAccountError] = useState('');
   const [stripeCustomerId, setStripeCustomerId] = useState<string | null>(null);
   const [userType, setUserType] = useState<string | null>(null);
   const [profile, setProfile] = useState<any>(null);
   const [children, setChildren] = useState<Player[]>([]);
   const [savedMethods, setSavedMethods] = useState<SavedPaymentMethod[]>([]);
-
-  const [guest, setGuest] = useState({
-    parentFirstName: '', parentLastName: '', parentEmail: '',
-    playerFirstName: '', playerLastName: '', playerBirthDate: '', playerEmail: '',
-  });
 
   const [items, setItems] = useState<Item[]>([{ playerId: '', coach: '' }]);
 
@@ -98,7 +84,7 @@ const CheckoutForm = ({ guestRole, onDone }: { guestRole: GuestRole | null; onDo
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (isGuest || !user) return;
+    if (!user) return;
     (async () => {
       try {
         const ctx = await resolveUserStripeContext(user.$id);
@@ -106,7 +92,7 @@ const CheckoutForm = ({ guestRole, onDone }: { guestRole: GuestRole | null; onDo
         setUserType(ctx.userType);
         setProfile(ctx.profile);
         if (!ctx.userType) {
-          setAccountError("We couldn't find a Next Star profile for this account.");
+          setAccountError("We couldn't find a Next Star profile for this account. Finish setting it up in the app first.");
           return;
         }
         if (ctx.userType === 'coach') {
@@ -117,7 +103,7 @@ const CheckoutForm = ({ guestRole, onDone }: { guestRole: GuestRole | null; onDo
           const kids = await getParentChildren(user.$id);
           setChildren(kids.map((k) => ({ kind: k.kind, id: k.id, name: `${k.firstName} ${k.lastName}`.trim() })));
           if (kids.length > 0) setItems((prev) => prev.map((it) => ({ ...it, playerId: it.playerId || kids[0].id })));
-          else setAccountError('Add a player to your family first (Account Center → My Family), then come back.');
+          else setAccountError('Add a player to your family first (Dashboard → My Family), then come back.');
         }
         if (ctx.stripeId) {
           const methods = await listPaymentMethods(ctx.stripeId);
@@ -130,12 +116,10 @@ const CheckoutForm = ({ guestRole, onDone }: { guestRole: GuestRole | null; onDo
         setLoadingAccount(false);
       }
     })();
-  }, [isGuest, user]);
+  }, [user]);
 
-  const isParent = !isGuest && userType === 'parent';
-  const selfName = isGuest
-    ? `${guest.playerFirstName} ${guest.playerLastName}`.trim() || 'Player'
-    : `${profile?.firstName || ''} ${profile?.lastName || ''}`.trim() || 'You';
+  const isParent = userType === 'parent';
+  const selfName = `${profile?.firstName || ''} ${profile?.lastName || ''}`.trim() || 'You';
 
   /** The player each analysis is for. */
   const resolved: Player[] = useMemo(
@@ -143,9 +127,9 @@ const CheckoutForm = ({ guestRole, onDone }: { guestRole: GuestRole | null; onDo
       items.map((it) =>
         isParent
           ? children.find((c) => c.id === it.playerId) || { kind: 'proxy', id: '', name: '' }
-          : { kind: 'self' as const, id: isGuest ? 'guest' : user?.$id || '', name: selfName },
+          : { kind: 'self' as const, id: user?.$id || '', name: selfName },
       ),
-    [items, isParent, children, isGuest, user, selfName],
+    [items, isParent, children, user, selfName],
   );
 
   // New analyses start with the first one's player and coach.
@@ -167,18 +151,6 @@ const CheckoutForm = ({ guestRole, onDone }: { guestRole: GuestRole | null; onDo
 
   const price = quoteVideoAnalysis(items.length);
 
-  const guestProblem = (): string => {
-    if (!isGuest) return '';
-    if (guestRole === 'parent') {
-      if (!guest.parentFirstName.trim() || !guest.parentLastName.trim()) return 'Enter your first and last name.';
-      if (!EMAIL_RE.test(guest.parentEmail.trim())) return 'Enter a valid email address.';
-    }
-    if (!guest.playerFirstName.trim() || !guest.playerLastName.trim()) return "Enter the player's first and last name.";
-    if (!guest.playerBirthDate || new Date(guest.playerBirthDate) >= new Date()) return "Enter the player's birthdate.";
-    if (guestRole === 'player' && !EMAIL_RE.test(guest.playerEmail.trim())) return 'Enter a valid email address.';
-    return '';
-  };
-
   const isCardMode = selection === 'card';
   const isAchMode = selection === 'ach';
   const noneSelected = selection === '';
@@ -188,29 +160,18 @@ const CheckoutForm = ({ guestRole, onDone }: { guestRole: GuestRole | null; onDo
 
   const handlePay = async () => {
     setError('');
-    const problem = guestProblem();
-    if (problem) return setError(problem);
-    if (!stripe || !elements || !canPay) return;
+    if (!stripe || !elements || !canPay || !user) return;
 
     setProcessing(true);
-    const contactEmail = isGuest
-      ? (guestRole === 'parent' ? guest.parentEmail : guest.playerEmail).trim().toLowerCase()
-      : user?.email || '';
-    const contactName = isGuest
-      ? guestRole === 'parent'
-        ? `${guest.parentFirstName} ${guest.parentLastName}`.trim()
-        : `${guest.playerFirstName} ${guest.playerLastName}`.trim()
-      : user?.name || '';
+    const contactEmail = user.email || '';
+    const contactName = user.name || '';
     const metadata = {
       product: 'video-analysis',
       analysisCount: String(items.length),
       pricingType: 'video_analysis',
       campName: VIDEO_ANALYSIS.name,
-      ...(isGuest ? { guestCheckout: 'true' } : {}),
     };
-    const userInfo = isGuest
-      ? { userId: '', email: contactEmail, name: contactName, userType: 'guest' }
-      : { userId: user!.$id, email: user!.email, name: user!.name, userType: userType || undefined };
+    const userInfo = { userId: user.$id, email: user.email, name: user.name, userType: userType || undefined };
 
     // ── 1. Charge ──
     let paymentIntentId = '';
@@ -233,7 +194,7 @@ const CheckoutForm = ({ guestRole, onDone }: { guestRole: GuestRole | null; onDo
       } else if (isAchMode) {
         const res = await createPaymentIntent({
           amount: price.total, metadata,
-          existingStripeCustomerId: isGuest ? undefined : stripeCustomerId || undefined,
+          existingStripeCustomerId: stripeCustomerId || undefined,
           userInfo,
         });
         if (!res.clientSecret) throw new Error('Could not initialize payment.');
@@ -263,7 +224,7 @@ const CheckoutForm = ({ guestRole, onDone }: { guestRole: GuestRole | null; onDo
       } else {
         const res = await createPaymentIntent({
           amount: price.total, metadata,
-          existingStripeCustomerId: isGuest ? undefined : stripeCustomerId || undefined,
+          existingStripeCustomerId: stripeCustomerId || undefined,
           userInfo,
         });
         if (!res.clientSecret) throw new Error('Could not initialize payment.');
@@ -291,27 +252,12 @@ const CheckoutForm = ({ guestRole, onDone }: { guestRole: GuestRole | null; onDo
     }
 
     // ── 2. Register (retried — the card has already been charged) ──
-    const guestPayload: GuestRegistration | undefined = isGuest
-      ? {
-          role: guestRole!,
-          playerFirstName: guest.playerFirstName.trim(),
-          playerLastName: guest.playerLastName.trim(),
-          playerBirthDate: guest.playerBirthDate,
-          ...(guestRole === 'parent'
-            ? { parentFirstName: guest.parentFirstName.trim(), parentLastName: guest.parentLastName.trim(), parentEmail: contactEmail }
-            : { playerEmail: contactEmail }),
-        }
-      : undefined;
     let registered = false;
     for (let attempt = 0; attempt < 3 && !registered; attempt++) {
       try {
         await registerVideoAnalysis({
           paymentIntentId,
-          items: items.map((it, i) => ({
-            coach: it.coach,
-            ...(isGuest ? {} : { player: { kind: resolved[i].kind, id: resolved[i].id } }),
-          })),
-          ...(isGuest ? { guest: guestPayload } : {}),
+          items: items.map((it, i) => ({ coach: it.coach, player: { kind: resolved[i].kind, id: resolved[i].id } })),
         });
         registered = true;
       } catch (e) {
@@ -325,7 +271,6 @@ const CheckoutForm = ({ guestRole, onDone }: { guestRole: GuestRole | null; onDo
       count: items.length,
       players: [...new Set(resolved.map((p) => p.name))],
       email: contactEmail,
-      isGuest,
       pending: !registered,
       bankProcessing,
     });
@@ -343,44 +288,6 @@ const CheckoutForm = ({ guestRole, onDone }: { guestRole: GuestRole | null; onDo
     <div className="space-y-6">
       {accountError && (
         <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-700 text-sm">{accountError}</div>
-      )}
-
-      {isGuest && (
-        <div className="bg-white border border-black/10 rounded-2xl p-6 shadow-sm space-y-3">
-          <h3 className="text-gray-900 font-semibold">{guestRole === 'parent' ? 'Your Details' : 'Player Details'}</h3>
-          {guestRole === 'parent' && (
-            <>
-              <div className="grid grid-cols-2 gap-3">
-                <input className={inputClass} placeholder="First name" autoComplete="given-name"
-                  value={guest.parentFirstName} onChange={(e) => setGuest({ ...guest, parentFirstName: e.target.value })} />
-                <input className={inputClass} placeholder="Last name" autoComplete="family-name"
-                  value={guest.parentLastName} onChange={(e) => setGuest({ ...guest, parentLastName: e.target.value })} />
-              </div>
-              <input className={inputClass} type="email" placeholder="Email" autoComplete="email"
-                value={guest.parentEmail} onChange={(e) => setGuest({ ...guest, parentEmail: e.target.value })} />
-              <p className="text-gray-900 text-sm font-medium pt-3">Player</p>
-            </>
-          )}
-          <div className="grid grid-cols-2 gap-3">
-            <input className={inputClass} placeholder="Player first name"
-              value={guest.playerFirstName} onChange={(e) => setGuest({ ...guest, playerFirstName: e.target.value })} />
-            <input className={inputClass} placeholder="Player last name"
-              value={guest.playerLastName} onChange={(e) => setGuest({ ...guest, playerLastName: e.target.value })} />
-          </div>
-          <label className="block">
-            <span className="text-gray-500 text-xs">Birthdate</span>
-            <input className={`${inputClass} mt-1`} type="date"
-              value={guest.playerBirthDate} onChange={(e) => setGuest({ ...guest, playerBirthDate: e.target.value })} />
-          </label>
-          {guestRole === 'player' && (
-            <input className={inputClass} type="email" placeholder="Email" autoComplete="email"
-              value={guest.playerEmail} onChange={(e) => setGuest({ ...guest, playerEmail: e.target.value })} />
-          )}
-          <p className="text-gray-500 text-xs">
-            You'll upload your film from a Next Star account using this email, so use the one you'll sign up with in the app.
-            To buy for more than one player, sign in instead.
-          </p>
-        </div>
       )}
 
       {/* Order */}
@@ -426,7 +333,7 @@ const CheckoutForm = ({ guestRole, onDone }: { guestRole: GuestRole | null; onDo
         </div>
 
         <p className="text-gray-500 text-xs mt-4">
-          You'll upload each game from your Account Center whenever you're ready. Live video-call and in-person analysis
+          You'll upload each game from your Dashboard whenever you're ready. Live video-call and in-person analysis
           are requested in the Next Star app.
         </p>
 
@@ -535,53 +442,17 @@ const CheckoutForm = ({ guestRole, onDone }: { guestRole: GuestRole | null; onDo
   );
 };
 
-const ChoiceButton = ({ label, onClick }: { label: string; onClick: () => void }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className="w-full bg-white border border-black/10 rounded-2xl px-6 py-5 shadow-sm hover:border-black/40 transition-colors text-gray-900 font-semibold text-center"
-  >
-    {label}
-  </button>
-);
-
 const VideoAnalysisCheckoutPage = () => {
   const navigate = useNavigate();
-  const { user, initialized, login, logout, loading } = useAuth();
-  const [step, setStep] = useState<Step>('choose');
-  const [guestRole, setGuestRole] = useState<GuestRole | null>(null);
+  const { user, logout } = useAuth();
   const [done, setDone] = useState<DoneResult | null>(null);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loginError, setLoginError] = useState('');
-
-  useEffect(() => {
-    if (initialized && user && guestRole === null) setStep('pay');
-  }, [initialized, user, guestRole]);
-
-  const back = () => {
-    if (step === 'login' || step === 'guest-role') setStep('choose');
-    else if (step === 'pay' && guestRole) { setGuestRole(null); setStep('guest-role'); }
-    else navigate('/services/video-analysis');
-  };
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoginError('');
-    try {
-      await login(email.trim(), password);
-      setStep('pay');
-    } catch (err: any) {
-      setLoginError(err.message || 'Failed to sign in');
-    }
-  };
 
   return (
     <div className="min-h-screen bg-[#F4F2EE]">
       <header className="border-b border-black/10">
         <div className="max-w-2xl mx-auto px-4 md:px-6 py-4 flex items-center gap-3">
           {!done && (
-            <button onClick={back} className="text-gray-500 hover:text-gray-900 transition-colors" aria-label="Back">
+            <button onClick={() => navigate('/services/video-analysis')} className="text-gray-500 hover:text-gray-900 transition-colors" aria-label="Back">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" />
               </svg>
@@ -607,11 +478,7 @@ const VideoAnalysisCheckoutPage = () => {
               Your film analysis will be ready within 7 days of uploading your video, we will notify you when it's ready.
             </p>
             <div className="text-gray-600 text-sm mb-8 max-w-md mx-auto space-y-2">
-              <p>
-                {done.isGuest
-                  ? `Next step: create your free account in the Next Star app with ${done.email}, then sign in here to upload your game film.`
-                  : 'Next step: upload your game film from your Account Center.'}
-              </p>
+              <p>Next step: upload your game film from Video Analysis on your Dashboard.</p>
               <p>
                 {done.pending
                   ? "We received your payment and are finishing your order. If you don't get a confirmation email shortly, contact us and we'll sort it out."
@@ -619,55 +486,30 @@ const VideoAnalysisCheckoutPage = () => {
               </p>
             </div>
             <button
-              onClick={() => navigate(done.isGuest ? '/signin' : '/account/video-analysis')}
+              onClick={() => navigate('/account/video-analysis')}
               className="px-8 py-3 bg-black hover:bg-gray-900 text-white font-semibold rounded-lg transition-colors"
             >
-              {done.isGuest ? 'Sign in' : 'Upload your film'}
+              Upload your film
             </button>
-          </div>
-        ) : !initialized ? (
-          <div className="flex items-center justify-center h-48">
-            <div className="w-8 h-8 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-          </div>
-        ) : step === 'choose' ? (
-          <div className="space-y-4">
-            <ChoiceButton label="Log in to your Next Star account" onClick={() => setStep('login')} />
-            <ChoiceButton label="Continue as Guest" onClick={() => setStep('guest-role')} />
-          </div>
-        ) : step === 'login' ? (
-          <div className="bg-white border border-black/10 rounded-2xl p-6 shadow-sm">
-            <h3 className="text-gray-900 font-semibold mb-4">Log in</h3>
-            {loginError && <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-700 text-sm">{loginError}</div>}
-            <form onSubmit={handleLogin} className="space-y-3">
-              <input className={inputClass} type="email" placeholder="Email" autoComplete="email"
-                value={email} onChange={(e) => setEmail(e.target.value)} disabled={loading} />
-              <input className={inputClass} type="password" placeholder="Password" autoComplete="current-password"
-                value={password} onChange={(e) => setPassword(e.target.value)} disabled={loading} />
-              <button type="submit" disabled={loading || !email || !password}
-                className="w-full py-3 bg-black hover:bg-gray-900 text-white font-semibold rounded-xl transition-colors disabled:opacity-40">
-                {loading ? 'Signing in…' : 'Sign In'}
-              </button>
-            </form>
-            <p className="text-gray-500 text-xs mt-4">Use the same email and password as the Next Star Soccer app.</p>
-          </div>
-        ) : step === 'guest-role' ? (
-          <div className="space-y-4">
-            <p className="text-gray-900 font-semibold">Who's checking out?</p>
-            <ChoiceButton label="I'm a parent" onClick={() => { setGuestRole('parent'); setStep('pay'); }} />
-            <ChoiceButton label="I'm a player" onClick={() => { setGuestRole('player'); setStep('pay'); }} />
           </div>
         ) : (
           <>
-            {user && !guestRole && (
+            {user && (
               <p className="text-gray-500 text-sm mb-4">
                 Signed in as {user.email}.{' '}
-                <button onClick={async () => { await logout(); setStep('choose'); }} className="underline underline-offset-2 hover:text-gray-900">
+                <button
+                  onClick={async () => {
+                    await logout();
+                    navigate(SIGN_IN_PATH, { state: { from: '/checkout/video-analysis' } });
+                  }}
+                  className="underline underline-offset-2 hover:text-gray-900"
+                >
                   Not you?
                 </button>
               </p>
             )}
             <Elements stripe={getStripe()}>
-              <CheckoutForm guestRole={guestRole} onDone={setDone} />
+              <CheckoutForm onDone={setDone} />
             </Elements>
           </>
         )}

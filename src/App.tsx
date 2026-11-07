@@ -133,7 +133,19 @@ function AppRoutes() {
       <Route path="/services/clinics/:slug" element={<ClinicDetailPage />} />
       {/* Buying video analysis needs website accounts (film is uploaded from the Account Center) */}
       <Route path="/services/video-analysis" element={ACCOUNTS_LIVE ? <VideoAnalysisPage /> : <Navigate to="/services" replace />} />
-      <Route path="/checkout/video-analysis" element={ACCOUNTS_LIVE ? <VideoAnalysisCheckoutPage /> : <Navigate to="/services" replace />} />
+      {/* An account is required to buy (no guest checkout): signed-out buyers go to sign in first. */}
+      <Route
+        path="/checkout/video-analysis"
+        element={
+          ACCOUNTS_LIVE ? (
+            <UserProtectedRoute>
+              <VideoAnalysisCheckoutPage />
+            </UserProtectedRoute>
+          ) : (
+            <Navigate to="/services" replace />
+          )
+        }
+      />
       <Route path="/checkout/:slug" element={<ClinicCheckoutPage />} />
       <Route path="/alumni" element={<AlumniPage />} />
       <Route path="/calendar" element={<CalendarPage />} />
