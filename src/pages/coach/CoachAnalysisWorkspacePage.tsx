@@ -84,7 +84,10 @@ const CoachAnalysisWorkspacePage = () => {
 
   const complete = async () => {
     if (!a) return;
-    if (!a.recordingFileId) return setError('Record or upload your video breakdown first.');
+    // Annotations alone are enough; the recording and summary are extras.
+    if (!a.recordingFileId && annotations.length === 0 && !summary.trim()) {
+      return setError('Add at least one annotation to the film first.');
+    }
     if (!confirm(`Send this analysis to ${a.purchaserName || 'the family'}? They'll get an email that it's ready.`)) return;
     setCompleting(true);
     setError('');
@@ -135,8 +138,7 @@ const CoachAnalysisWorkspacePage = () => {
           </p>
         </div>
         {!done && (
-          <button onClick={complete} disabled={completing || !a.recordingFileId}
-            title={a.recordingFileId ? '' : 'Record or upload your breakdown first'}
+          <button onClick={complete} disabled={completing || (!a.recordingFileId && annotations.length === 0 && !summary.trim())}
             className="px-5 py-2.5 bg-white hover:bg-gray-200 text-black text-sm font-semibold rounded-lg disabled:opacity-40">
             {completing ? 'Sending…' : 'Mark complete & notify family'}
           </button>
@@ -187,7 +189,7 @@ const CoachAnalysisWorkspacePage = () => {
           )}
         </section>
         <section className="bg-[#0b0b0b] border border-white/10 rounded-2xl p-5 flex flex-col">
-          <p className="text-white font-semibold text-sm mb-1">Summary <span className="text-gray-600 font-normal">(optional)</span></p>
+          <p className="text-white font-semibold text-sm mb-1">Summary</p>
           <p className="text-gray-500 text-xs mb-3">A few lines the family reads first: strengths, what to work on, next steps.</p>
           <textarea
             value={summary}
