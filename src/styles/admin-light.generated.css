@@ -209,8 +209,6 @@ html.admin-light .hover\:border-\[\#3a3a3a\]:hover { border-color: rgba(0,0,0,0.
 html.admin-light .bg-\[\#1A1A1A\] { background-color: #efefec !important; }
 html.admin-light .border-\[\#2A2A2A\] { border-color: rgba(0,0,0,0.1) !important; }
 html.admin-light .text-\[\#aaa\] { color: #141414 !important; }
-html.admin-light .border-green-500\/30 { border-color: rgba(22,163,74,0.3) !important; }
-html.admin-light .border-blue-500\/30 { border-color: rgba(37,99,235,0.3) !important; }
 html.admin-light .hover\:bg-white:hover { background-color: #141414 !important; }
 html.admin-light .bg-\[\#26252b\] { background-color: #efefec !important; }
 html.admin-light .bg-\[\#1d1c21\] { background-color: #efefec !important; }
@@ -243,6 +241,7 @@ html.admin-light .bg-\[\#141414\] { background-color: #ffffff !important; }
 html.admin-light .border-white\/\[0\.04\] { border-color: rgba(0,0,0,0.054) !important; }
 html.admin-light .ring-green-400\/60 { --tw-ring-color: rgba(22,163,74,0.6) !important; }
 html.admin-light .hover\:bg-white\/\[0\.12\]:hover { background-color: rgba(0,0,0,0.12) !important; }
+html.admin-light .border-green-500\/30 { border-color: rgba(22,163,74,0.3) !important; }
 html.admin-light .border-red-400 { border-color: #dc2626 !important; }
 html.admin-light .border-red-500\/40 { border-color: rgba(220,38,38,0.4) !important; }
 html.admin-light .hover\:border-red-600:hover { border-color: #dc2626 !important; }
@@ -291,6 +290,7 @@ html.admin-light .bg-black\/10 { background-color: rgba(0,0,0,0.055) !important;
 html.admin-light .disabled\:bg-\[\#2a2a2a\]:disabled { background-color: #efefec !important; }
 html.admin-light .placeholder-white\/30::placeholder { color: rgba(20,20,20,0.3) !important; }
 html.admin-light .hover\:bg-white\/\[0\.03\]:hover { background-color: rgba(0,0,0,0.03) !important; }
+html.admin-light .border-blue-500\/30 { border-color: rgba(37,99,235,0.3) !important; }
 html.admin-light .text-purple-400 { color: #9333ea !important; }
 html.admin-light .border-purple-500\/30 { border-color: rgba(147,51,234,0.3) !important; }
 html.admin-light .border-blue-500\/25 { border-color: rgba(37,99,235,0.25) !important; }

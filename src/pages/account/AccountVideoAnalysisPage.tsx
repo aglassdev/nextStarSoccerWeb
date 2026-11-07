@@ -6,14 +6,16 @@ import { AccountPageHeader, AccountSpinner } from './AccountLayout';
 import {
   VideoAnalysis,
   AnalysisUrls,
-  STATUS_LABEL,
+  CLIENT_STATUS,
   attachFilm,
   captureThumbnail,
   claimGuestAnalyses,
   formatBytes,
-  formatDueDate,
+  formatLongDate,
   getAnalysisUrls,
   listMyAnalyses,
+  analysisTitle,
+  numberAnalyses,
   uploadToFilmBucket,
 } from '../../services/videoAnalysis';
 import { VIDEO_ANALYSIS } from '../../constants/videoAnalysis';
@@ -24,16 +26,6 @@ import type { ClinicPlayerRef } from '../../services/clinicRegistration';
 // is ready (one game per analysis).
 
 const claimedThisSession = new Set<string>();
-
-const StatusBadge = ({ a }: { a: VideoAnalysis }) => {
-  const tone =
-    a.status === 'completed'
-      ? 'bg-green-500/20 text-green-400 border-green-500/30'
-      : a.status === 'awaiting_upload'
-        ? 'bg-yellow-500/15 text-yellow-300 border-yellow-500/30'
-        : 'bg-blue-500/20 text-blue-400 border-blue-500/30';
-  return <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium border ${tone}`}>{STATUS_LABEL[a.status]}</span>;
-};
 
 const UploadPanel = ({ analysis, onClose, onDone }: { analysis: VideoAnalysis; onClose: () => void; onDone: () => void }) => {
   const { userType, children } = useAccount();
@@ -170,7 +162,7 @@ const UploadPanel = ({ analysis, onClose, onDone }: { analysis: VideoAnalysis; o
   );
 };
 
-const AnalysisCard = ({ a, thumb, film, onUpload }: { a: VideoAnalysis; thumb?: string; film?: string; onUpload: () => void }) => {
+const AnalysisCard = ({ a, n, thumb, film, onUpload }: { a: VideoAnalysis; n: number; thumb?: string; film?: string; onUpload: () => void }) => {
   const body = (
     <>
       <div className="relative aspect-video bg-white/[0.04] flex items-center justify-center overflow-hidden">
@@ -183,17 +175,14 @@ const AnalysisCard = ({ a, thumb, film, onUpload }: { a: VideoAnalysis; thumb?: 
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.55-2.28A1 1 0 0121 8.62v6.76a1 1 0 01-1.45.9L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
           </svg>
         )}
-        <div className="absolute top-2 left-2"><StatusBadge a={a} /></div>
       </div>
       <div className="px-6 py-5">
-        <p className="text-white text-xl font-medium truncate">{a.playerName}</p>
-        <p className="text-[#aaa] text-sm mt-1 truncate">
-          {a.status === 'awaiting_upload'
-            ? `Preferred coach: ${a.preferredCoach}`
-            : a.status === 'completed'
-              ? `Ready · ${a.coachName || a.preferredCoach}`
-              : `Due ${formatDueDate(a.dueAt)} · ${a.coachName || a.preferredCoach}`}
-        </p>
+        <p className="text-white text-xl font-medium truncate">{analysisTitle(a, n)}</p>
+        <div className="mt-2 space-y-0.5 text-sm text-[#888]">
+          <p>Status: <span className="text-white">{CLIENT_STATUS[a.status]}</span></p>
+          <p className="truncate">Coach: <span className="text-white">{a.coachName || a.preferredCoach}</span></p>
+          {a.filmUploadedAt && <p>{formatLongDate(a.filmUploadedAt)}</p>}
+        </div>
         {a.status === 'awaiting_upload' && (
           <button onClick={onUpload} className="mt-4 w-full py-3 bg-[#F4F2EE] hover:bg-white text-black text-sm font-semibold rounded-xl">
             Upload your film
@@ -205,7 +194,7 @@ const AnalysisCard = ({ a, thumb, film, onUpload }: { a: VideoAnalysis; thumb?: 
   const cls = 'block bg-[#111] border border-[#222] rounded-2xl overflow-hidden hover:border-[#3a3a3a] transition-colors text-left';
   return a.status === 'awaiting_upload'
     ? <div className={cls}>{body}</div>
-    : <Link to={`/account/video-analysis/${a.$id}`} className={cls}>{body}</Link>;
+    : <Link to={`/account/video-analysis/${a.$id}`} state={{ n }} className={cls}>{body}</Link>;
 };
 
 const AccountVideoAnalysisPage = () => {
@@ -238,6 +227,8 @@ const AccountVideoAnalysisPage = () => {
 
   useEffect(() => { load(); }, [load]);
 
+  const numbers = useMemo(() => numberAnalyses(analyses || []), [analyses]);
+
   const groups = useMemo(() => {
     const list = analyses || [];
     return [
@@ -269,7 +260,7 @@ const AccountVideoAnalysisPage = () => {
             </h3>
             <div className="grid md:grid-cols-2 gap-4">
               {g.items.map((a) => (
-                <AnalysisCard key={a.$id} a={a} thumb={urls[a.$id]?.thumb} film={urls[a.$id]?.film} onUpload={() => setUploadFor(a)} />
+                <AnalysisCard key={a.$id} a={a} n={numbers[a.$id]} thumb={urls[a.$id]?.thumb} film={urls[a.$id]?.film} onUpload={() => setUploadFor(a)} />
               ))}
             </div>
           </section>

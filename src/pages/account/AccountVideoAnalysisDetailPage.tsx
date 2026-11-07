@@ -1,12 +1,16 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import AnnotatedPlayer from '../../components/analysis/AnnotatedPlayer';
 import { AccountPageHeader, AccountSpinner } from './AccountLayout';
 import {
   VideoAnalysis,
   formatDueDate,
   getAnalysis,
+  analysisTitle,
   getAnalysisUrls,
+  listMyAnalyses,
+  numberAnalyses,
   sharedAnnotations,
 } from '../../services/videoAnalysis';
 
@@ -14,6 +18,9 @@ import {
 // annotated game film (read-only) once it's ready; its progress before then.
 const AccountVideoAnalysisDetailPage = () => {
   const { id = '' } = useParams<{ id: string }>();
+  const { user } = useAuth();
+  const location = useLocation();
+  const [n, setN] = useState<number | undefined>((location.state as { n?: number } | null)?.n);
   const [a, setA] = useState<VideoAnalysis | null>(null);
   const [urls, setUrls] = useState<{ film?: string; thumb?: string; recording?: string }>({});
   const [error, setError] = useState('');
@@ -30,7 +37,14 @@ const AccountVideoAnalysisDetailPage = () => {
     })();
   }, [id]);
 
-  const back = <AccountPageHeader title={a?.playerName || 'Video Analysis'} back="/account/video-analysis" />;
+  // Opened from a link (not the list): work out which number it is.
+  useEffect(() => {
+    if (n || !user) return;
+    listMyAnalyses(user.$id).then((list) => setN(numberAnalyses(list)[id])).catch(() => {});
+  }, [n, user, id]);
+
+  const title = analysisTitle(a, n);
+  const back = <AccountPageHeader title={title} back="/account/video-analysis" />;
 
   if (error) return <div className="space-y-4">{back}<p className="text-gray-400 text-sm">{error}</p></div>;
   if (!a) return <>{back}<AccountSpinner /></>;
@@ -41,7 +55,7 @@ const AccountVideoAnalysisDetailPage = () => {
   return (
     <div className="space-y-6">
       <AccountPageHeader
-        title={a.playerName}
+        title={title}
         back="/account/video-analysis"
         right={
           <p className="text-[#888] text-sm">

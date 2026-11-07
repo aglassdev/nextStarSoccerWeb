@@ -16,6 +16,7 @@ export type AnalysisStatus = 'awaiting_upload' | 'submitted' | 'in_review' | 'co
 
 export interface VideoAnalysis {
   $id: string;
+  $createdAt?: string;
   orderId: string;
   purchaserUserId: string;
   purchaserEmail: string;
@@ -234,6 +235,39 @@ export function formatTimestamp(seconds: number) {
 
 export const formatDueDate = (iso?: string) =>
   iso ? new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' }) : '';
+
+/** "Nov 6, 2026" */
+export const formatLongDate = (iso?: string) =>
+  iso ? new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/New_York' }) : '';
+
+/** What the family sees as the status. */
+export const CLIENT_STATUS: Record<AnalysisStatus, string> = {
+  awaiting_upload: 'Awaiting Upload',
+  submitted: 'In Progress',
+  in_review: 'In Progress',
+  completed: 'Ready',
+};
+
+const forChild = (a: Pick<VideoAnalysis, 'playerKind'>) => a.playerKind === 'proxy' || a.playerKind === 'real';
+
+/** Numbers a family's analyses 1, 2, 3… by purchase, oldest first; separately for each child a parent bought for. */
+export function numberAnalyses(list: VideoAnalysis[]): Record<string, number> {
+  const key = (a: VideoAnalysis) => a.purchasedAt || a.$createdAt || '';
+  const counts: Record<string, number> = {};
+  const out: Record<string, number> = {};
+  for (const a of [...list].sort((x, y) => key(x).localeCompare(key(y)) || x.$id.localeCompare(y.$id))) {
+    const group = forChild(a) ? `${a.playerKind}:${a.playerId}` : 'self';
+    out[a.$id] = counts[group] = (counts[group] || 0) + 1;
+  }
+  return out;
+}
+
+/** "Game Analysis 2", or "Emma's Game Analysis 2" when a parent bought it for their child. */
+export function analysisTitle(a: Pick<VideoAnalysis, 'playerKind' | 'playerName'> | null, n?: number) {
+  const base = n ? `Game Analysis ${n}` : 'Game Analysis';
+  const first = a && forChild(a) ? (a.playerName || '').trim().split(/\s+/)[0] : '';
+  return first ? `${first}'s ${base}` : base;
+}
 
 export const formatBytes = (n?: number) =>
   !n ? '' : n >= 1e9 ? `${(n / 1e9).toFixed(1)} GB` : `${Math.max(1, Math.round(n / 1e6))} MB`;
