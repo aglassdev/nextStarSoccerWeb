@@ -105,44 +105,62 @@ const COLLEGE_ICONS = [
 ];
 
 /* ── Logo Carousel ──────────────────────────────────────────────────────────── */
+// The logos scroll as short pieces of LOGOS_PER_PIECE fixed-width slots that
+// all run the same animation, so the strip moves as one. A single strip of
+// every logo (17,000 px wide for the clubs) is too big a moving layer for
+// iPhone Safari, which then doesn't draw it at all. Every piece is the same
+// width, so shifting each by (pieces × 100%) of itself moves the whole strip
+// by exactly one copy of the list, and the second copy takes its place.
+const LOGOS_PER_PIECE = 8;
+
 function LogoCarousel({ icons, folder, direction, duration = '60s' }: {
   icons: string[];
   folder: 'clubs' | 'colleges';
   direction: 'left' | 'right';
   duration?: string;
 }) {
-  const doubled = [...icons, ...icons];
+  // Fill the last piece (with the first few logos again) so all pieces match.
+  const short = icons.length % LOGOS_PER_PIECE;
+  const filled = short ? [...icons, ...icons.slice(0, LOGOS_PER_PIECE - short)] : icons;
+  const pieces: string[][] = [];
+  for (let i = 0; i < filled.length; i += LOGOS_PER_PIECE) pieces.push(filled.slice(i, i + LOGOS_PER_PIECE));
+
+  const name = `logos-${folder}-${direction}`;
+  const shift = `-${pieces.length * 100}%`;
+  const [from, to] = direction === 'left' ? ['0%', shift] : [shift, '0%'];
   // Soft edges so logos dissolve into the page rather than hitting a hard cut.
   const maskStyle = 'linear-gradient(to right, transparent, black 12%, black 88%, transparent)';
 
   return (
-    <div
-      className="overflow-hidden w-full"
-      style={{ maskImage: maskStyle, WebkitMaskImage: maskStyle }}
-    >
-      <div
-        className={`flex items-center gap-12 w-max ${direction === 'left' ? 'carousel-left' : 'carousel-right'}`}
-        style={{
-          animationDuration: duration,
-          // Force a GPU compositor layer so iOS Safari never pauses this
-          // animation when the element is temporarily off-screen.
-          transform: 'translateZ(0)',
-          backfaceVisibility: 'hidden',
-          WebkitBackfaceVisibility: 'hidden' as any,
-          willChange: 'transform',
-        }}
-      >
-        {doubled.map((file, i) => (
-          <img
-            key={i}
-            src={`/assets/icons/${folder}/${encodeURIComponent(file)}`}
-            alt=""
-            aria-hidden="true"
-            className="h-10 w-auto object-contain flex-shrink-0"
-            loading="eager"
-            onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-          />
-        ))}
+    <div className="overflow-hidden w-full" style={{ maskImage: maskStyle, WebkitMaskImage: maskStyle }}>
+      <style>{`@keyframes ${name} { from { transform: translateX(${from}); } to { transform: translateX(${to}); } }`}</style>
+      <div className="flex w-max">
+        {[0, 1].flatMap((copy) => pieces.map((piece, k) => (
+          <div
+            key={`${copy}-${k}`}
+            className="flex flex-shrink-0 items-center"
+            style={{
+              animation: `${name} ${duration} linear infinite`,
+              willChange: 'transform',
+              backfaceVisibility: 'hidden',
+              WebkitBackfaceVisibility: 'hidden' as any,
+            }}
+          >
+            {piece.map((file, j) => (
+              <span key={j} className="flex items-center justify-center flex-shrink-0 w-14 md:w-[72px] h-9 md:h-10 mr-7 md:mr-12">
+                <img
+                  src={`/assets/icons/${folder}/${encodeURIComponent(file)}`}
+                  alt=""
+                  aria-hidden="true"
+                  className="max-h-full max-w-full object-contain"
+                  loading="eager"
+                  decoding="async"
+                  onError={e => { (e.target as HTMLImageElement).style.visibility = 'hidden'; }}
+                />
+              </span>
+            ))}
+          </div>
+        )))}
       </div>
     </div>
   );
@@ -328,6 +346,44 @@ const AboutReveal = ({ chapter }: { chapter: Chapter }) => {
     );
 };
 
+// Photo or video beside the text (stacked on phones: text, then the media at
+// its own shape so nothing is cropped). On phones About uses this too, in
+// place of the pinned reveal, which would squeeze its wide photo into a tall
+// frame and its card into a strip.
+const StorySplit = ({ chapter: ch, mediaLeft }: { chapter: Chapter; mediaLeft: boolean }) => (
+    <section className="border-b border-white/[0.08] grid md:grid-cols-2">
+        <div className={`relative ${ch.video ? 'aspect-video' : 'aspect-[4/3]'} md:aspect-auto md:min-h-[600px] bg-neutral-900 order-2 ${mediaLeft ? 'md:order-1' : 'md:order-2'}`}>
+            {ch.video ? (
+                <video src={ch.video} poster={ch.poster} autoPlay loop muted playsInline preload="metadata" className="absolute inset-0 w-full h-full object-cover" />
+            ) : (
+                <img src={ch.image} alt={ch.alt} className="absolute inset-0 w-full h-full object-cover" loading="lazy" decoding="async" />
+            )}
+        </div>
+        <div className={`flex items-center px-6 lg:px-8 py-14 md:py-24 order-1 ${mediaLeft ? 'md:order-2' : 'md:order-1'}`}>
+            <div className={`max-w-xl ${mediaLeft ? 'md:mr-auto md:ml-12 lg:ml-16' : 'md:ml-auto md:mr-12 lg:mr-16'}`}>
+                <StoryText chapter={ch} />
+            </div>
+        </div>
+    </section>
+);
+
+// The social cards fan out from the middle. On phones the spread is worked
+// out from the screen width so the outer cards (rotation included) stay on
+// screen with a margin.
+const MOBILE_CARD = { w: 132, h: 220 };
+const fanFor = (mobile: boolean) => {
+    if (!mobile) {
+        return [{ x: -330, rotation: -24, z: 1 }, { x: -162, rotation: -12, z: 2 }, { x: 0, rotation: 0, z: 5 }, { x: 162, rotation: 12, z: 2 }, { x: 312, rotation: 22, z: 1 }];
+    }
+    const rotations = [-10, -5, 0, 5, 10];
+    const r = (10 * Math.PI) / 180;
+    // How far the outer card reaches past its centre: rotated about a point
+    // 85% down, its top corner swings out the most.
+    const reach = (MOBILE_CARD.w / 2) * Math.cos(r) + MOBILE_CARD.h * 0.85 * Math.sin(r);
+    const step = Math.max(26, Math.min(80, (window.innerWidth / 2 - 16 - reach) / 2));
+    return rotations.map((rotation, i) => ({ x: Math.round((i - 2) * step), rotation, z: [1, 2, 5, 2, 1][i] }));
+};
+
 /* ─── Component ─────────────────────────────────────────────────────────────── */
 
 const HomePageNew = () => {
@@ -369,9 +425,7 @@ const HomePageNew = () => {
         const cards = gsap.utils.toArray<HTMLElement>('.social-card');
         if (!cards.length) return;
 
-        const fanData = isMobile
-            ? [{ x: -220, rotation: -24, z: 1 }, { x: -110, rotation: -12, z: 2 }, { x: 0, rotation: 0, z: 5 }, { x: 110, rotation: 12, z: 2 }, { x: 208, rotation: 22, z: 1 }]
-            : [{ x: -330, rotation: -24, z: 1 }, { x: -162, rotation: -12, z: 2 }, { x: 0, rotation: 0, z: 5 }, { x: 162, rotation: 12, z: 2 }, { x: 312, rotation: 22, z: 1 }];
+        const fanData = fanFor(isMobile);
 
         gsap.set(cards, { x: 0, rotation: 0, transformOrigin: 'center 85%' });
 
@@ -384,7 +438,7 @@ const HomePageNew = () => {
             ),
         });
 
-        const NUDGE = isMobile ? 28 : 38;
+        const NUDGE = isMobile ? 16 : 38;
         cards.forEach((card, i) => {
             card.addEventListener('mouseenter', () => {
                 gsap.to(card, { y: -22, scale: 1.05, zIndex: 20, duration: 0.28, ease: 'power2.out' });
@@ -408,7 +462,7 @@ const HomePageNew = () => {
         <div className="min-h-screen bg-black font-lt-wave overflow-x-clip">
 
             {/* ═══════════════════════ HERO ═══════════════════════ */}
-            <section className="relative h-screen overflow-hidden bg-black">
+            <section className="relative h-screen overflow-hidden bg-black" style={{ height: '100svh' }}>
                 {/* Served from the site itself rather than Appwrite storage, which
                     sent the 107 MB original slowly and kept dropping the line.
                     Phones get a lighter 720p cut. The poster is the first frame,
@@ -455,7 +509,7 @@ const HomePageNew = () => {
                     </div>
                     <div ref={statsRef} className="md:col-span-8 grid grid-cols-2 sm:grid-cols-3 border-t border-l border-white/[0.08]">
                         {STATS.map((stat) => (
-                            <div key={stat.label} className="border-r border-b border-white/[0.08] p-6 md:p-8">
+                            <div key={stat.label} className="border-r border-b border-white/[0.08] p-5 md:p-8">
                                 <AnimatedCounter
                                     isVisible={countersVisible}
                                     endValue={stat.end}
@@ -465,7 +519,7 @@ const HomePageNew = () => {
                                     numberClassName="text-white font-medium tracking-[-0.03em] tabular-nums"
                                     numberStyle={{ fontSize: 'clamp(2.1rem, 4.2vw, 3.4rem)', lineHeight: 1, fontFamily: "'LT Wave', sans-serif" }}
                                 />
-                                <p className="mt-5 text-[13px] text-white">{stat.label}</p>
+                                <p className="mt-4 md:mt-5 text-[13px] text-white">{stat.label}</p>
                                 <p className="mt-1 text-[13px] text-white/40 leading-relaxed">{stat.detail}</p>
                             </div>
                         ))}
@@ -477,29 +531,11 @@ const HomePageNew = () => {
                 <LogoCarousel icons={COLLEGE_ICONS} folder="colleges" direction="left" duration="60s" />
             </section>
 
-            {/* ═══════════════════════ ABOUT US — scroll reveal ═══════════════════════ */}
-            <AboutReveal chapter={STORY[0]} />
+            {/* ═══════════════════════ ABOUT US — scroll reveal (phones: photo and text) ═══════════════════════ */}
+            {isMobile ? <StorySplit chapter={STORY[0]} mediaLeft={false} /> : <AboutReveal chapter={STORY[0]} />}
 
             {/* ═══════════════════════ FUNDAMENTALS + TEAM — half and half ═══════════════════════ */}
-            {STORY.slice(1).map(ch => {
-                const mediaLeft = !!ch.video;
-                return (
-                    <section key={ch.label} className="border-b border-white/[0.08] grid md:grid-cols-2">
-                        <div className={`relative min-h-[360px] md:min-h-[600px] bg-neutral-900 order-2 ${mediaLeft ? 'md:order-1' : 'md:order-2'}`}>
-                            {ch.video ? (
-                                <video src={ch.video} poster={ch.poster} autoPlay loop muted playsInline preload="metadata" className="absolute inset-0 w-full h-full object-cover" />
-                            ) : (
-                                <img src={ch.image} alt={ch.alt} className="absolute inset-0 w-full h-full object-cover" />
-                            )}
-                        </div>
-                        <div className={`flex items-center px-4 sm:px-6 lg:px-8 py-16 md:py-24 order-1 ${mediaLeft ? 'md:order-2' : 'md:order-1'}`}>
-                            <div className={`max-w-xl ${mediaLeft ? 'md:mr-auto md:ml-12 lg:ml-16' : 'md:ml-auto md:mr-12 lg:mr-16'}`}>
-                                <StoryText chapter={ch} />
-                            </div>
-                        </div>
-                    </section>
-                );
-            })}
+            {STORY.slice(1).map(ch => <StorySplit key={ch.label} chapter={ch} mediaLeft={!!ch.video} />)}
 
             {/* ═══════════════════════ SOCIAL (unchanged) ═══════════════════════ */}
             <section
@@ -518,7 +554,7 @@ const HomePageNew = () => {
 
                 <div
                     className="relative flex items-center justify-center"
-                    style={{ height: isMobile ? '320px' : '480px' }}
+                    style={{ height: isMobile ? '280px' : '480px' }}
                 >
                     {INSTAGRAM_POSTS.map((postUrl, i) => (
                         <a
@@ -526,8 +562,8 @@ const HomePageNew = () => {
                             href={postUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className={`social-card absolute rounded-3xl overflow-hidden shadow-2xl cursor-pointer ${
-                                isMobile ? 'w-[150px] h-[250px]' : 'w-[240px] h-[400px] md:w-[270px] md:h-[440px]'
+                            className={`social-card absolute overflow-hidden shadow-2xl cursor-pointer ${
+                                isMobile ? 'w-[132px] h-[220px] rounded-2xl' : 'w-[240px] h-[400px] md:w-[270px] md:h-[440px] rounded-3xl'
                             }`}
                             style={{ zIndex: i === 2 ? 10 : 5 - Math.abs(i - 2) }}
                         >
