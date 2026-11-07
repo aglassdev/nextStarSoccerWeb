@@ -124,10 +124,25 @@ const ServiceAction = ({ action }: { action: Action }) => {
             View clinics <span aria-hidden="true">→</span>
         </Link>
     );
+    // Game analysis: the recording is bought here; meetings are requested in the app.
     if (action === 'video-analysis') return (
-        <Link to="/services/video-analysis" onClick={e => e.stopPropagation()} className="inline-flex items-center gap-1.5 bg-white text-black hover:bg-white/85 px-4 py-2 rounded-full text-sm font-semibold">
-            Buy video analysis <span aria-hidden="true">→</span>
-        </Link>
+        <div onClick={e => e.stopPropagation()}>
+            <div className="grid grid-cols-3 gap-2">
+                <Link to="/checkout/video-analysis" className="flex flex-col items-center justify-center rounded-xl bg-white text-black hover:bg-white/85 px-3 py-3 text-center transition-colors">
+                    <span className="text-sm font-semibold">Recording</span>
+                    <span className="text-xs text-black/55 mt-0.5">$150</span>
+                </Link>
+                {[['Video Meeting', '$150'], ['In-Person Meeting', '$200']].map(([label, price]) => (
+                    <button key={label} type="button" disabled aria-disabled="true"
+                        className="flex flex-col items-center justify-center rounded-xl border border-white/10 text-white/30 px-3 py-3 text-center cursor-not-allowed">
+                        <span className="text-sm font-semibold">{label}</span>
+                        <span className="text-xs mt-0.5">{price}</span>
+                    </button>
+                ))}
+            </div>
+            <p className="mt-3 text-[13px] text-white/40">Video and in-person meetings can only be requested in the app.</p>
+            <div className="mt-4"><StoreBadges /></div>
+        </div>
     );
     return <StoreBadges />;
 };

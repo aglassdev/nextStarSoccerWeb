@@ -3,7 +3,7 @@ import { ID } from 'appwrite';
 import { useAuth } from '../../contexts/AuthContext';
 import { databases, databaseId, collections } from '../../services/appwrite';
 import { useAccount } from './AccountContext';
-import { AccountSpinner } from './AccountLayout';
+import { AccountPageHeader, AccountSpinner } from './AccountLayout';
 
 const inputClass =
   'w-full px-4 py-2.5 bg-[#1a1a1a] border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-white/20';
@@ -81,17 +81,17 @@ const AccountFamilyPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-2xl md:text-3xl font-bold text-white">My Family</h2>
-        {!adding && (
+      <AccountPageHeader
+        title="My Family"
+        right={!adding && (
           <button
             onClick={() => setAdding(true)}
-            className="px-5 py-2 bg-white hover:bg-gray-200 text-black text-sm font-semibold rounded-lg transition-colors"
+            className="px-5 py-2.5 bg-white hover:bg-gray-200 text-black text-sm font-semibold rounded-lg transition-colors"
           >
             Add a player
           </button>
         )}
-      </div>
+      />
 
       {adding && (
         <form onSubmit={save} className="bg-[#111] border border-white/10 rounded-2xl p-5 space-y-4">
@@ -136,11 +136,11 @@ const AccountFamilyPage = () => {
       {children.length === 0 ? (
         <p className="text-gray-500 text-sm">No players on your account yet.</p>
       ) : (
-        <div className="space-y-3">
+        <div className="grid md:grid-cols-2 gap-4">
           {children.map((c) => (
-            <div key={c.id} className="bg-[#111] border border-white/10 rounded-xl p-4 flex items-center justify-between gap-3">
+            <div key={c.id} className="bg-[#111] border border-[#222] rounded-2xl px-6 py-5 flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-white font-medium truncate">{c.firstName} {c.lastName}</p>
+                <p className="text-white text-xl font-medium truncate">{c.firstName} {c.lastName}</p>
                 <p className="text-gray-500 text-xs mt-0.5">
                   {c.kind === 'proxy' ? 'Managed by you' : 'Linked account — manages their own profile'}
                 </p>

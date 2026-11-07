@@ -1,11 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Query } from 'appwrite';
-import { databases, databaseId, collections } from '../../services/appwrite';
 import {
   VideoAnalysis,
   AnalysisUrls,
-  assignCoach,
   formatDueDate,
   getAnalysisUrls,
   listAnalysesForStaff,
@@ -13,7 +10,7 @@ import {
 
 // The coach dashboard's home: every analysis as a card with the film's first
 // frame, the client and the due date. Coaches see what's assigned to them;
-// admins see everything and can assign a coach.
+// admins see everything, with the coach the customer chose (that's fixed).
 
 type Tab = 'review' | 'waiting' | 'done';
 
@@ -38,7 +35,6 @@ const AnalysisQueue = ({ coachUserId, admin }: { coachUserId?: string; admin?: b
   const [list, setList] = useState<VideoAnalysis[] | null>(null);
   const [urls, setUrls] = useState<AnalysisUrls>({});
   const [tab, setTab] = useState<Tab>('review');
-  const [coaches, setCoaches] = useState<{ id: string; name: string }[]>([]);
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
@@ -59,21 +55,6 @@ const AnalysisQueue = ({ coachUserId, admin }: { coachUserId?: string; admin?: b
 
   useEffect(() => { load(); }, [load]);
 
-  useEffect(() => {
-    if (!admin) return;
-    databases
-      .listDocuments(databaseId, collections.coaches, [Query.limit(200)])
-      .then((r) =>
-        setCoaches(
-          (r.documents as any[])
-            .filter((c) => !String(c.$id).startsWith('noauth_'))
-            .map((c) => ({ id: c.$id, name: `${c.firstName || ''} ${c.lastName || ''}`.trim() }))
-            .sort((a, b) => a.name.localeCompare(b.name)),
-        ),
-      )
-      .catch(() => {});
-  }, [admin]);
-
   const counts = useMemo(
     () => Object.fromEntries(TABS.map((t) => [t.key, (list || []).filter((a) => inTab(a, t.key)).length])) as Record<Tab, number>,
     [list],
@@ -84,15 +65,6 @@ const AnalysisQueue = ({ coachUserId, admin }: { coachUserId?: string; admin?: b
       ? items.sort((a, b) => Date.parse(a.dueAt || '') - Date.parse(b.dueAt || ''))
       : items;
   }, [list, tab]);
-
-  const reassign = async (a: VideoAnalysis, coachId: string) => {
-    try {
-      const { analysis } = await assignCoach(a.$id, coachId);
-      setList((prev) => (prev || []).map((x) => (x.$id === a.$id ? analysis : x)));
-    } catch (e: any) {
-      alert(e?.message || 'Could not assign the coach.');
-    }
-  };
 
   if (list === null) {
     return (
@@ -170,16 +142,10 @@ const AnalysisQueue = ({ coachUserId, admin }: { coachUserId?: string; admin?: b
               <div key={a.$id} className="group bg-[#111] border border-white/10 rounded-xl overflow-hidden hover:border-white/25 transition-colors">
                 {a.filmFileId ? <Link to={`/coach/analysis/${a.$id}`} className="block">{card}</Link> : card}
                 {admin && (
-                  <div className="px-4 pb-4 -mt-1">
-                    <select
-                      value={a.coachUserId || ''}
-                      onChange={(e) => reassign(a, e.target.value)}
-                      className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-2.5 py-1.5 text-white text-xs focus:outline-none"
-                    >
-                      <option value="">Unassigned (asked for {a.preferredCoach})</option>
-                      {coaches.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
-                  </div>
+                  <p className="px-4 pb-4 -mt-2 text-xs text-gray-400 truncate">
+                    Coach: {a.coachName || a.preferredCoach}
+                    {!a.coachUserId && <span className="text-yellow-300/80"> · no coach account yet</span>}
+                  </p>
                 )}
               </div>
             );

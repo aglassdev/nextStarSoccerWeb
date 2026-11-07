@@ -59,6 +59,7 @@ html.admin-light .text-white\/20 { color: rgba(20,20,20,0.2) !important; }
 html.admin-light .bg-black\/30 { background-color: rgba(0,0,0,0.165) !important; }
 html.admin-light .bg-black\/60 { background-color: rgba(0,0,0,0.33) !important; }
 html.admin-light .text-green-400 { color: #16a34a !important; }
+html.admin-light .text-yellow-300\/80 { color: rgba(161,98,7,0.8) !important; }
 html.admin-light .border-red-500\/30 { border-color: rgba(220,38,38,0.3) !important; }
 html.admin-light .text-red-300 { color: #b91c1c !important; }
 html.admin-light .border-white\/15 { border-color: rgba(0,0,0,0.203) !important; }
@@ -191,6 +192,7 @@ html.admin-light .divide-gray-700 > :not([hidden]) ~ :not([hidden]) { border-col
 html.admin-light .border-red-500 { border-color: #dc2626 !important; }
 html.admin-light .border-gray-750 { border-color: #e5e7eb !important; }
 html.admin-light .bg-blue-800 { background-color: #bfdbfe !important; }
+html.admin-light .text-black\/55 { color: rgba(255,255,255,0.55) !important; }
 html.admin-light .bg-black\/45 { background-color: rgba(0,0,0,0.248) !important; }
 html.admin-light .group:hover .group-hover\:text-white { color: #141414 !important; }
 html.admin-light .focus-visible\:ring-white\/60:focus-visible { --tw-ring-color: rgba(0,0,0,0.81) !important; }
@@ -201,14 +203,20 @@ html.admin-light .bg-\[\#0f0f0f\] { background-color: #ffffff !important; }
 html.admin-light .divide-white\/\[0\.06\] > :not([hidden]) ~ :not([hidden]) { border-color: rgba(0,0,0,0.081) !important; }
 html.admin-light .hover\:border-white\/15:hover { border-color: rgba(0,0,0,0.203) !important; }
 html.admin-light .hover\:border-white\/60:hover { border-color: rgba(0,0,0,0.81) !important; }
+html.admin-light .border-\[\#222\] { border-color: rgba(0,0,0,0.1) !important; }
 html.admin-light .border-yellow-500\/30 { border-color: rgba(202,138,4,0.3) !important; }
-html.admin-light .bg-white\/\[0\.08\] { background-color: rgba(0,0,0,0.08) !important; }
+html.admin-light .hover\:border-\[\#3a3a3a\]:hover { border-color: rgba(0,0,0,0.1) !important; }
+html.admin-light .bg-\[\#1A1A1A\] { background-color: #efefec !important; }
+html.admin-light .border-\[\#2A2A2A\] { border-color: rgba(0,0,0,0.1) !important; }
+html.admin-light .text-\[\#aaa\] { color: #141414 !important; }
 html.admin-light .border-green-500\/30 { border-color: rgba(22,163,74,0.3) !important; }
 html.admin-light .border-blue-500\/30 { border-color: rgba(37,99,235,0.3) !important; }
+html.admin-light .hover\:bg-white:hover { background-color: #141414 !important; }
 html.admin-light .bg-\[\#26252b\] { background-color: #efefec !important; }
 html.admin-light .bg-\[\#1d1c21\] { background-color: #efefec !important; }
 html.admin-light .bg-\[\#0d0b09\] { background-color: #f6f6f4 !important; }
 html.admin-light .bg-\[\#0f0d0b\] { background-color: #f6f6f4 !important; }
+html.admin-light .bg-white\/\[0\.08\] { background-color: rgba(0,0,0,0.08) !important; }
 html.admin-light .hover\:bg-white\/\[0\.05\]:hover { background-color: rgba(0,0,0,0.05) !important; }
 html.admin-light .bg-\[\#0d0b09\]\/95 { background-color: rgba(246,246,244,0.95) !important; }
 html.admin-light .bg-white\/60 { background-color: rgba(0,0,0,0.6) !important; }
@@ -235,7 +243,6 @@ html.admin-light .bg-\[\#141414\] { background-color: #ffffff !important; }
 html.admin-light .border-white\/\[0\.04\] { border-color: rgba(0,0,0,0.054) !important; }
 html.admin-light .ring-green-400\/60 { --tw-ring-color: rgba(22,163,74,0.6) !important; }
 html.admin-light .hover\:bg-white\/\[0\.12\]:hover { background-color: rgba(0,0,0,0.12) !important; }
-html.admin-light .border-\[\#222\] { border-color: rgba(0,0,0,0.1) !important; }
 html.admin-light .border-red-400 { border-color: #dc2626 !important; }
 html.admin-light .border-red-500\/40 { border-color: rgba(220,38,38,0.4) !important; }
 html.admin-light .hover\:border-red-600:hover { border-color: #dc2626 !important; }
@@ -282,7 +289,6 @@ html.admin-light .text-\[\#f4f2ee\] { color: #141414 !important; }
 html.admin-light .text-black\/60 { color: rgba(255,255,255,0.6) !important; }
 html.admin-light .text-black\/30 { color: rgba(255,255,255,0.3) !important; }
 html.admin-light .bg-black\/10 { background-color: rgba(0,0,0,0.055) !important; }
-html.admin-light .hover\:bg-white:hover { background-color: #141414 !important; }
 html.admin-light .disabled\:bg-\[\#2a2a2a\]:disabled { background-color: #efefec !important; }
 html.admin-light .placeholder-white\/30::placeholder { color: rgba(20,20,20,0.3) !important; }
 html.admin-light .hover\:bg-white\/\[0\.03\]:hover { background-color: rgba(0,0,0,0.03) !important; }

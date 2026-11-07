@@ -45,6 +45,7 @@ import AccountLayout from './pages/account/AccountLayout';
 import AccountOverviewPage from './pages/account/AccountOverviewPage';
 import AccountFamilyPage from './pages/account/AccountFamilyPage';
 import AccountSettingsPage from './pages/account/AccountSettingsPage';
+import AccountSchedulePage from './pages/account/AccountSchedulePage';
 import AccountVideoAnalysisPage from './pages/account/AccountVideoAnalysisPage';
 import AccountVideoAnalysisDetailPage from './pages/account/AccountVideoAnalysisDetailPage';
 import CoachLayout from './pages/coach/CoachLayout';
@@ -198,6 +199,7 @@ function AppRoutes() {
         <Route path="payments" element={<PaymentPortalPage />} />
         <Route path="family" element={<AccountFamilyPage />} />
         <Route path="settings" element={<AccountSettingsPage />} />
+        <Route path="schedule" element={<AccountSchedulePage />} />
         <Route path="video-analysis" element={<AccountVideoAnalysisPage />} />
         <Route path="video-analysis/:id" element={<AccountVideoAnalysisDetailPage />} />
       </Route>

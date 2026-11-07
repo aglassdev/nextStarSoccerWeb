@@ -64,6 +64,9 @@ export interface ParentChild {
   id: string; // proxyId or the child's userId
   firstName: string;
   lastName: string;
+  /** For the Account Center's player cards. */
+  club?: string;
+  photoId?: string | null;
 }
 
 /**
@@ -82,7 +85,7 @@ export async function getParentChildren(parentUserId: string): Promise<ParentChi
     const id = p.proxyId || p.$id;
     if (seen.has(id) || p.accountStatus === 'migrated') continue;
     seen.add(id);
-    out.push({ kind: 'proxy', id, firstName: p.firstName, lastName: p.lastName });
+    out.push({ kind: 'proxy', id, firstName: p.firstName, lastName: p.lastName, club: p.currentClub || p.club || '' });
   }
 
   try {
@@ -106,7 +109,7 @@ export async function getParentChildren(parentUserId: string): Promise<ParentChi
         const p: any = r.documents[0];
         if (p && p.accountStatus !== 'migrated') {
           seen.add(rel.childProxyId);
-          out.push({ kind: 'proxy', id: rel.childProxyId, firstName: p.firstName, lastName: p.lastName });
+          out.push({ kind: 'proxy', id: rel.childProxyId, firstName: p.firstName, lastName: p.lastName, club: p.currentClub || p.club || '' });
         }
       } else if (rel.childUserId && !seen.has(rel.childUserId)) {
         for (const collectionId of playerCollections) {
@@ -117,7 +120,10 @@ export async function getParentChildren(parentUserId: string): Promise<ParentChi
           const c: any = r.documents[0];
           if (c) {
             seen.add(rel.childUserId);
-            out.push({ kind: 'real', id: rel.childUserId, firstName: c.firstName, lastName: c.lastName });
+            out.push({
+              kind: 'real', id: rel.childUserId, firstName: c.firstName, lastName: c.lastName,
+              club: c.currentClub || c.currentCollege || c.club || '', photoId: c.profilePhotoId || null,
+            });
             break;
           }
         }

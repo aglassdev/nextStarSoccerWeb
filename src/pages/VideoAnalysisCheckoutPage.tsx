@@ -604,13 +604,13 @@ const VideoAnalysisCheckoutPage = () => {
             </h2>
             <p className="text-gray-700 mb-4">{done.players.join(', ')}</p>
             <p className="text-gray-900 font-medium mb-6 max-w-md mx-auto">
-              Your film analysis will be ready within 7 days, we will notify you when its ready.
+              Your film analysis will be ready within 7 days of uploading your video, we will notify you when it's ready.
             </p>
             <div className="text-gray-600 text-sm mb-8 max-w-md mx-auto space-y-2">
               <p>
                 {done.isGuest
-                  ? `Next step: create your free account in the Next Star app with ${done.email}, then sign in here to upload your game film. The 7 days start once your film is uploaded.`
-                  : 'Next step: upload your game film from your Account Center. The 7 days start once your film is uploaded.'}
+                  ? `Next step: create your free account in the Next Star app with ${done.email}, then sign in here to upload your game film.`
+                  : 'Next step: upload your game film from your Account Center.'}
               </p>
               <p>
                 {done.pending

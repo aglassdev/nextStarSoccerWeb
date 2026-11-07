@@ -3,17 +3,15 @@ import { Link } from 'react-router-dom';
 import { Query } from 'appwrite';
 import { useAuth } from '../../contexts/AuthContext';
 import { databases, databaseId, collections, storage } from '../../services/appwrite';
-import {
-  Bill,
-  getUserBills,
-  formatMoney,
-  formatBillDate,
-  formatSessionDate,
-  calculateLateFee,
-} from '../../services/payment/billingService';
-import { useAccount } from './AccountContext';
+import { Bill, getUserBills, formatMoney, isBillOverdue } from '../../services/payment/billingService';
 import { VideoAnalysis, listMyAnalyses } from '../../services/videoAnalysis';
+import { COACH_DASHBOARD_LIVE } from '../../services/accountProfile';
+import { useAccount } from './AccountContext';
 import { AccountSpinner } from './AccountLayout';
+
+// The Account Center's Dashboard, the app's Account screen at desktop size:
+// profile cards, the My Schedule and Payment Center cards, then a card for
+// each section.
 
 const PROFILE_PHOTOS_BUCKET = 'profile-photos';
 
@@ -24,43 +22,36 @@ interface Signup {
   firstName?: string;
 }
 
-const Card = ({ title, to, action, children }: { title: string; to?: string; action?: string; children: React.ReactNode }) => (
-  <section className="bg-[#111] border border-white/10 rounded-2xl p-5 flex flex-col">
-    <div className="flex items-center justify-between mb-4">
-      <p className="text-gray-500 text-xs uppercase tracking-wider">{title}</p>
-      {to && (
-        <Link to={to} className="text-xs text-gray-400 hover:text-white transition-colors">
-          {action || 'View'} →
-        </Link>
-      )}
-    </div>
-    {children}
-  </section>
-);
+const card = 'bg-[#111] border border-[#222] rounded-2xl hover:border-[#3a3a3a] transition-colors';
 
-const Avatar = ({ name, photoId }: { name: string; photoId?: string | null }) => {
-  const initials = name.split(' ').map((p) => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
-  if (photoId) {
-    return (
-      <img
-        src={storage.getFileView(PROFILE_PHOTOS_BUCKET, photoId)}
-        alt={name}
-        className="w-12 h-12 rounded-full object-cover bg-white/5"
-      />
-    );
-  }
-  return (
-    <div className="w-12 h-12 rounded-full bg-white/[0.08] flex items-center justify-center text-white text-sm font-semibold">
-      {initials || '•'}
-    </div>
-  );
+const fmtSession = (iso: string) => {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  const day = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/New_York' });
+  return /T\d{2}:\d{2}/.test(iso)
+    ? `${day} · ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' })}`
+    : day;
 };
+const fmtDue = (iso?: string) =>
+  iso ? new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' }) : 'TBD';
+
+const Avatar = ({ photoId }: { photoId?: string | null }) => (
+  <div className="w-16 h-16 rounded-full bg-[#1A1A1A] border border-[#2A2A2A] flex items-center justify-center overflow-hidden flex-shrink-0">
+    {photoId ? (
+      <img src={storage.getFileView(PROFILE_PHOTOS_BUCKET, photoId)} alt="" className="w-full h-full object-cover" />
+    ) : (
+      <svg className="w-7 h-7 text-[#888]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+      </svg>
+    )}
+  </div>
+);
 
 const AccountOverviewPage = () => {
   const { user } = useAuth();
-  const { loading, profile, userType, children } = useAccount();
+  const { loading, profile, userType, children, isCoach, isAdmin } = useAccount();
   const [bills, setBills] = useState<Bill[] | null>(null);
-  const [sessions, setSessions] = useState<Signup[] | null>(null);
+  const [nextSession, setNextSession] = useState<Signup | null | undefined>(undefined);
   const [analyses, setAnalyses] = useState<VideoAnalysis[]>([]);
 
   useEffect(() => {
@@ -73,132 +64,152 @@ const AccountOverviewPage = () => {
         Query.equal('userId', user.$id),
         Query.greaterThanEqual('eventDate', today),
         Query.orderAsc('eventDate'),
-        Query.limit(5),
+        Query.limit(1),
       ])
-      .then((r) => setSessions(r.documents as any))
-      .catch(() => setSessions([]));
+      .then((r) => setNextSession((r.documents[0] as any) || null))
+      .catch(() => setNextSession(null));
   }, [user]);
 
-  const pending = useMemo(() => (bills || []).filter((b) => b.status === 'pending'), [bills]);
-  const outstanding = pending.reduce((s, b) => s + b.totalAmount + calculateLateFee(b), 0);
-  const nextDue = [...pending].sort((a, b) => Date.parse(a.dueDate || '') - Date.parse(b.dueDate || ''))[0];
+  const nextDue = useMemo(
+    () => (bills || []).filter((b) => b.status === 'pending').sort((a, b) => Date.parse(a.dueDate || '') - Date.parse(b.dueDate || ''))[0],
+    [bills],
+  );
 
   if (loading) return <AccountSpinner />;
 
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-  const firstName = (profile?.firstName || '').trim();
   const isParent = userType === 'parent';
-
-  const people = isParent
-    ? children.map((c) => ({ key: c.id, name: `${c.firstName} ${c.lastName}`.trim(), sub: c.kind === 'proxy' ? 'Managed by you' : 'Linked account', photoId: null }))
+  const profiles = isParent
+    ? children.map((c) => ({ key: c.id, name: `${c.firstName} ${c.lastName}`.trim(), club: c.club, photoId: c.photoId, to: '/account/family' }))
     : profile
       ? [{
           key: profile.$id,
           name: `${profile.firstName || ''} ${profile.lastName || ''}`.trim(),
-          sub: profile.currentClub || profile.currentCollege || profile.club || '',
+          club: profile.currentClub || profile.currentCollege || profile.club,
           photoId: profile.profilePhotoId,
+          to: '/account/settings',
         }]
       : [];
 
-  return (
-    <div className="space-y-8">
-      <h2 className="text-2xl md:text-3xl font-bold text-white">
-        {greeting}{firstName ? `, ${firstName}` : ''}
-      </h2>
+  const toUpload = analyses.filter((a) => a.status === 'awaiting_upload').length;
+  const ready = analyses.filter((a) => a.status === 'completed').length;
+  const withCoach = analyses.filter((a) => a.status === 'submitted' || a.status === 'in_review').length;
+  const analysisNote = toUpload
+    ? `${toUpload} film${toUpload === 1 ? '' : 's'} to upload`
+    : ready
+      ? `${ready} ready to watch`
+      : withCoach
+        ? `${withCoach} with your coach`
+        : 'Your game film analyses';
 
-      {!profile && (
-        <div className="p-4 bg-[#111] border border-white/10 rounded-xl text-gray-400 text-sm">
-          We couldn't find a player or parent profile for this account. Finish setting up your account in the
-          Next Star app, then come back here.
+  const menu = [
+    { to: '/account/video-analysis', title: 'Video Analysis', note: analysisNote, show: userType !== 'coach' },
+    { to: '/account/family', title: 'My Family', note: `${children.length} player${children.length === 1 ? '' : 's'}`, show: isParent },
+    { to: '/account/settings', title: 'Settings', note: 'Account information and password', show: true },
+  ].filter((m) => m.show);
+
+  return (
+    <div>
+      <h1 className="text-white text-3xl md:text-4xl font-medium text-center">Dashboard</h1>
+
+      {(isAdmin || (isCoach && COACH_DASHBOARD_LIVE)) && (
+        <div className="flex justify-center gap-6 mt-4">
+          {isAdmin && <Link to="/admin/dashboard" className="text-white text-base font-medium underline underline-offset-4 hover:text-gray-300">Switch to Admin</Link>}
+          {isCoach && COACH_DASHBOARD_LIVE && (
+            <Link to="/coach" className="text-white text-base font-medium underline underline-offset-4 hover:text-gray-300">Switch to Coaching</Link>
+          )}
         </div>
       )}
 
-      {/* Profile cards: each child for a parent, the player themselves otherwise */}
-      {people.length > 0 && (
-        <section>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-white font-semibold text-lg">{isParent ? 'My Players' : 'My Profile'}</h3>
-            <Link to={isParent ? '/account/family' : '/account/settings'} className="text-xs text-gray-400 hover:text-white transition-colors">
-              {isParent ? 'Manage family' : 'Edit profile'} →
-            </Link>
+      <div className="mt-10 space-y-4">
+        {!profile && (
+          <div className={`${card} p-6 text-gray-400`}>
+            We couldn't find a player or parent profile for this account. Finish setting up your account in the Next Star app,
+            then come back here.
           </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {people.map((p) => (
-              <div key={p.key} className="bg-[#111] border border-white/10 rounded-xl p-4 flex items-center gap-3">
-                <Avatar name={p.name} photoId={p.photoId} />
+        )}
+
+        {/* Profile cards */}
+        {profiles.length > 0 && (
+          <div className="grid md:grid-cols-2 gap-4">
+            {profiles.map((p) => (
+              <Link key={p.key} to={p.to} className={`${card} px-6 py-5 flex items-center gap-5`}>
+                <Avatar photoId={p.photoId} />
                 <div className="min-w-0">
-                  <p className="text-white font-medium truncate">{p.name}</p>
-                  {p.sub && <p className="text-gray-500 text-xs truncate mt-0.5">{p.sub}</p>}
+                  <p className="text-white text-xl font-medium truncate">{p.name}</p>
+                  <p className="text-[#aaa] text-[15px] mt-1 truncate">{p.club || 'No club set'}</p>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
-        </section>
-      )}
-      {isParent && children.length === 0 && (
-        <div className="bg-[#111] border border-white/10 rounded-xl p-4 text-sm text-gray-400">
-          No players on your account yet. <Link to="/account/family" className="text-white underline underline-offset-2">Add a player</Link>.
+        )}
+        {isParent && children.length === 0 && (
+          <Link to="/account/family" className={`${card} block px-6 py-6 text-[#aaa]`}>
+            No players on your account yet. <span className="text-white underline underline-offset-2">Add a player</span>
+          </Link>
+        )}
+
+        {/* My Schedule + Payment Center */}
+        <div className="grid md:grid-cols-2 gap-4">
+          <Link to="/account/schedule" className={`${card} p-7 min-h-[220px] flex flex-col`}>
+            <p className="text-white text-xl font-semibold">My Schedule</p>
+            <div className="mt-6">
+              <p className="text-white text-lg font-semibold mb-3">Upcoming</p>
+              {nextSession === undefined ? (
+                <div className="w-5 h-5 border-2 border-white/40 border-t-transparent rounded-full animate-spin" />
+              ) : nextSession ? (
+                <>
+                  <p className="text-white text-base font-medium">{nextSession.eventTitle}</p>
+                  <p className="text-white text-base mt-1.5">
+                    {fmtSession(nextSession.eventDate)}
+                    {isParent && nextSession.firstName ? ` · ${nextSession.firstName}` : ''}
+                  </p>
+                </>
+              ) : (
+                <p className="text-white/70 italic">You have no upcoming sessions</p>
+              )}
+            </div>
+          </Link>
+
+          <Link to="/account/payments" className={`${card} p-7 min-h-[220px] flex flex-col`}>
+            <p className="text-white text-xl font-semibold">Payment Center</p>
+            <div className="mt-6">
+              {bills === null ? (
+                <>
+                  <p className="text-white text-lg font-semibold mb-3">Due</p>
+                  <div className="w-5 h-5 border-2 border-white/40 border-t-transparent rounded-full animate-spin" />
+                </>
+              ) : nextDue ? (
+                <>
+                  <p className={`text-lg font-semibold mb-3 ${isBillOverdue(nextDue) ? 'text-red-500' : 'text-white'}`}>
+                    {isBillOverdue(nextDue) ? 'Overdue' : 'Due'}
+                  </p>
+                  <p className="text-white text-base font-medium">Monthly Bill, {nextDue.monthName}</p>
+                  <p className="text-white text-base mt-1.5">{fmtDue(nextDue.dueDate)} | {formatMoney(nextDue.totalAmount)}</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-white text-lg font-semibold mb-3">Due</p>
+                  <p className="text-white/70 italic">You have no due payments</p>
+                </>
+              )}
+            </div>
+          </Link>
         </div>
-      )}
 
-      {analyses.some((a) => a.status === 'awaiting_upload' || a.status === 'completed') && (
-        <Card title="Video Analysis" to="/account/video-analysis" action="Open">
-          {(() => {
-            const todo = analyses.filter((a) => a.status === 'awaiting_upload').length;
-            const ready = analyses.filter((a) => a.status === 'completed').length;
-            return (
-              <p className="text-white text-sm">
-                {todo > 0 && <span className="text-yellow-300 font-medium">{todo} film{todo === 1 ? '' : 's'} to upload</span>}
-                {todo > 0 && ready > 0 && <span className="text-gray-600"> · </span>}
-                {ready > 0 && <span className="text-green-400 font-medium">{ready} analysis{ready === 1 ? '' : 'es'} ready to watch</span>}
-              </p>
-            );
-          })()}
-        </Card>
-      )}
-
-      <div className="grid md:grid-cols-2 gap-4">
-        <Card title="Payment Center" to="/account/payments" action="Open">
-          {bills === null ? (
-            <div className="h-16 flex items-center"><div className="w-4 h-4 border-2 border-white/40 border-t-transparent rounded-full animate-spin" /></div>
-          ) : pending.length === 0 ? (
-            <div>
-              <p className="text-green-400 font-medium">You're all caught up</p>
-              <p className="text-gray-500 text-sm mt-1">No outstanding bills.</p>
-            </div>
-          ) : (
-            <div>
-              <p className="text-3xl font-bold text-white">{formatMoney(outstanding)}</p>
-              <p className="text-gray-500 text-sm mt-1">
-                {pending.length} unpaid bill{pending.length === 1 ? '' : 's'}
-                {nextDue?.dueDate ? ` · next due ${formatBillDate(nextDue.dueDate)}` : ''}
-              </p>
-            </div>
-          )}
-        </Card>
-
-        <Card title="Upcoming Sessions">
-          {sessions === null ? (
-            <div className="h-16 flex items-center"><div className="w-4 h-4 border-2 border-white/40 border-t-transparent rounded-full animate-spin" /></div>
-          ) : sessions.length === 0 ? (
-            <p className="text-gray-500 text-sm">Nothing booked. Sign up for sessions in the Next Star app or on the <Link to="/calendar" className="text-white underline underline-offset-2">calendar</Link>.</p>
-          ) : (
-            <div className="divide-y divide-white/[0.06] -my-2">
-              {sessions.map((s) => (
-                <div key={s.$id} className="py-2.5 flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-white text-sm truncate">{s.eventTitle}</p>
-                    <p className="text-gray-500 text-xs mt-0.5">
-                      {formatSessionDate(s.eventDate)}
-                      {isParent && s.firstName ? ` · ${s.firstName}` : ''}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
+        {/* Sections */}
+        <div className={`grid gap-4 ${menu.length >= 3 ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
+          {menu.map((m) => (
+            <Link key={m.to} to={m.to} className={`${card} px-7 py-7 flex items-center justify-between gap-4`}>
+              <div className="min-w-0">
+                <p className="text-white text-xl font-medium">{m.title}</p>
+                <p className="text-[#888] text-sm mt-1 truncate">{m.note}</p>
+              </div>
+              <svg className="w-5 h-5 text-[#666] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
+          ))}
+        </div>
       </div>
     </div>
   );

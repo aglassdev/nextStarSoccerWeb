@@ -98,9 +98,6 @@ export const attachFilm = (payload: {
   player?: ClinicPlayerRef;
 }) => action<{ analysis: VideoAnalysis }>('attachFilm', payload);
 
-export const assignCoach = (analysisId: string, coachUserId: string) =>
-  action<{ analysis: VideoAnalysis }>('assign', { analysisId, coachUserId });
-
 export const completeAnalysis = (analysisId: string, recordingFileId?: string) =>
   action<{ analysis: VideoAnalysis; emailed: boolean }>('complete', { analysisId, recordingFileId });
 

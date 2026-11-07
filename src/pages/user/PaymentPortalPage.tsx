@@ -19,6 +19,7 @@ import PaymentMethodsSection from './PaymentMethodsSection';
 import PaymentMethodRequiredModal from './PaymentMethodRequiredModal';
 import AutopayToggle from './AutopayToggle';
 import { PAYMENTS_PATH } from '../../constants/features';
+import { AccountPageHeader } from '../account/AccountLayout';
 
 // ── Bill detail modal ──────────────────────────────────────────────────────────
 const BillModal = ({
@@ -216,21 +217,24 @@ const PaymentPortalPage = ({ standalone = false }: { standalone?: boolean }) => 
     <>
       <div className="space-y-8">
         {/* Title, with the Autopay switch beside it as in the app */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-2xl md:text-3xl font-bold text-white">
-            {standalone ? `${greeting}${fullName ? `, ${fullName}` : ''}` : 'Payment Center'}
-          </h2>
-          {user?.$id && (
-            <div>
-              <AutopayToggle
-                userId={user.$id}
-                onNeedPaymentMethod={() =>
-                  document.getElementById('payment-methods')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                }
-              />
+        {(() => {
+          const autopay = user?.$id && (
+            <AutopayToggle
+              userId={user.$id}
+              onNeedPaymentMethod={() =>
+                document.getElementById('payment-methods')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+              }
+            />
+          );
+          return standalone ? (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-2xl md:text-3xl font-bold text-white">{`${greeting}${fullName ? `, ${fullName}` : ''}`}</h2>
+              {autopay}
             </div>
-          )}
-        </div>
+          ) : (
+            <AccountPageHeader title="Payment Center" right={autopay} />
+          );
+        })()}
 
         {loading ? (
           <div className="flex items-center justify-center h-48">

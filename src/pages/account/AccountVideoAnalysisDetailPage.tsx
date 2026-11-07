@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import AnnotatedPlayer from '../../components/analysis/AnnotatedPlayer';
-import { AccountSpinner } from './AccountLayout';
+import { AccountPageHeader, AccountSpinner } from './AccountLayout';
 import {
   VideoAnalysis,
   formatDueDate,
@@ -30,31 +30,26 @@ const AccountVideoAnalysisDetailPage = () => {
     })();
   }, [id]);
 
-  const back = (
-    <Link to="/account/video-analysis" className="inline-flex items-center gap-1.5 text-gray-400 hover:text-white text-sm">
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-      Video Analysis
-    </Link>
-  );
+  const back = <AccountPageHeader title={a?.playerName || 'Video Analysis'} back="/account/video-analysis" />;
 
   if (error) return <div className="space-y-4">{back}<p className="text-gray-400 text-sm">{error}</p></div>;
-  if (!a) return <AccountSpinner />;
+  if (!a) return <>{back}<AccountSpinner /></>;
 
   const done = a.status === 'completed';
   const annotations = parseAnnotations(a.annotations);
 
   return (
     <div className="space-y-6">
-      {back}
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="text-2xl md:text-3xl font-bold text-white">{a.playerName}</h2>
-          <p className="text-gray-500 text-sm mt-1">
+      <AccountPageHeader
+        title={a.playerName}
+        back="/account/video-analysis"
+        right={
+          <p className="text-[#888] text-sm">
             {a.coachName || a.preferredCoach}
             {done ? ` · ready ${formatDueDate(a.completedAt)}` : a.dueAt ? ` · due ${formatDueDate(a.dueAt)}` : ''}
           </p>
-        </div>
-      </div>
+        }
+      />
 
       {!done ? (
         <div className="bg-[#111] border border-white/10 rounded-2xl p-6">

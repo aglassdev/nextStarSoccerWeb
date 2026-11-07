@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { account, databases, databaseId } from '../../services/appwrite';
 import { useAccount } from './AccountContext';
-import { AccountSpinner } from './AccountLayout';
+import { AccountPageHeader, AccountSpinner } from './AccountLayout';
+import { SIGN_IN_PATH } from '../../constants/features';
 
 const inputClass =
   'w-full px-4 py-2.5 bg-[#1a1a1a] border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-white/20 disabled:opacity-50';
@@ -141,7 +143,8 @@ const PasswordForm = () => {
 };
 
 const AccountSettingsPage = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const { loading, profile, collectionId, userType, refresh } = useAccount();
   if (loading) return <AccountSpinner />;
 
@@ -154,7 +157,7 @@ const AccountSettingsPage = () => {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl md:text-3xl font-bold text-white">Settings</h2>
+      <AccountPageHeader title="Settings" />
 
       <div className="bg-[#111] border border-white/10 rounded-2xl p-5">
         <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">Email</p>
@@ -172,6 +175,13 @@ const AccountSettingsPage = () => {
       )}
 
       <PasswordForm />
+
+      <button
+        onClick={async () => { await logout(); navigate(SIGN_IN_PATH); }}
+        className="w-full bg-[#111] border border-[#222] hover:border-[#3a3a3a] rounded-2xl px-7 py-6 text-left text-white text-xl font-medium transition-colors"
+      >
+        Sign Out
+      </button>
     </div>
   );
 };

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAccount } from './AccountContext';
-import { AccountSpinner } from './AccountLayout';
+import { AccountPageHeader, AccountSpinner } from './AccountLayout';
 import {
   VideoAnalysis,
   AnalysisUrls,
@@ -185,9 +185,9 @@ const AnalysisCard = ({ a, thumb, film, onUpload }: { a: VideoAnalysis; thumb?: 
         )}
         <div className="absolute top-2 left-2"><StatusBadge a={a} /></div>
       </div>
-      <div className="p-4">
-        <p className="text-white font-medium truncate">{a.playerName}</p>
-        <p className="text-gray-500 text-xs mt-0.5 truncate">
+      <div className="px-6 py-5">
+        <p className="text-white text-xl font-medium truncate">{a.playerName}</p>
+        <p className="text-[#aaa] text-sm mt-1 truncate">
           {a.status === 'awaiting_upload'
             ? `Preferred coach: ${a.preferredCoach}`
             : a.status === 'completed'
@@ -195,14 +195,14 @@ const AnalysisCard = ({ a, thumb, film, onUpload }: { a: VideoAnalysis; thumb?: 
               : `Due ${formatDueDate(a.dueAt)} · ${a.coachName || a.preferredCoach}`}
         </p>
         {a.status === 'awaiting_upload' && (
-          <button onClick={onUpload} className="mt-3 w-full py-2 bg-white hover:bg-gray-200 text-black text-sm font-semibold rounded-lg">
+          <button onClick={onUpload} className="mt-4 w-full py-3 bg-[#F4F2EE] hover:bg-white text-black text-sm font-semibold rounded-xl">
             Upload your film
           </button>
         )}
       </div>
     </>
   );
-  const cls = 'block bg-[#111] border border-white/10 rounded-xl overflow-hidden hover:border-white/25 transition-colors text-left';
+  const cls = 'block bg-[#111] border border-[#222] rounded-2xl overflow-hidden hover:border-[#3a3a3a] transition-colors text-left';
   return a.status === 'awaiting_upload'
     ? <div className={cls}>{body}</div>
     : <Link to={`/account/video-analysis/${a.$id}`} className={cls}>{body}</Link>;
@@ -247,27 +247,19 @@ const AccountVideoAnalysisPage = () => {
     ].filter((g) => g.items.length > 0);
   }, [analyses]);
 
-  if (analyses === null) return <AccountSpinner />;
+  if (analyses === null) return <><AccountPageHeader title="Video Analysis" /><AccountSpinner /></>;
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-2xl md:text-3xl font-bold text-white">Video Analysis</h2>
-        <Link to="/services/video-analysis" className="px-5 py-2 border border-white/15 hover:border-white/30 text-white text-sm font-semibold rounded-lg">
-          Buy more
-        </Link>
-      </div>
+      <AccountPageHeader title="Video Analysis" />
       {error && <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">{error}</div>}
 
       {analyses.length === 0 ? (
-        <div className="bg-[#111] border border-white/10 rounded-2xl p-8 text-center">
+        <div className="bg-[#111] border border-[#222] rounded-2xl p-10 text-center">
           <p className="text-white font-medium">No video analysis yet</p>
           <p className="text-gray-500 text-sm mt-1 max-w-md mx-auto">
-            A coach annotates your game film and records a video breaking it down. ${VIDEO_ANALYSIS.pricePerAnalysis} per game.
+            Video analyses you buy show up here, ready for you to upload your game film.
           </p>
-          <Link to="/services/video-analysis" className="inline-block mt-5 px-6 py-2.5 bg-white hover:bg-gray-200 text-black text-sm font-semibold rounded-lg">
-            Learn more
-          </Link>
         </div>
       ) : (
         groups.map((g) => (
@@ -275,7 +267,7 @@ const AccountVideoAnalysisPage = () => {
             <h3 className="text-white font-semibold text-lg mb-3">
               {g.title} <span className="text-gray-600 font-normal text-sm">{g.items.length}</span>
             </h3>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="grid md:grid-cols-2 gap-4">
               {g.items.map((a) => (
                 <AnalysisCard key={a.$id} a={a} thumb={urls[a.$id]?.thumb} film={urls[a.$id]?.film} onUpload={() => setUploadFor(a)} />
               ))}
