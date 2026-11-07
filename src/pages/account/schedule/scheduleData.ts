@@ -397,10 +397,10 @@ export async function fetchSchedule(userId: string, isParent: boolean, children:
     };
   });
 
-  // Cancelled sessions drop off the schedule.
-  // NOTE: the app also deletes every check-in and signup for a cancelled event
-  // (for all users) at this point; the website only hides them.
-  const live = events.filter((e) => !isEventCancelled(e));
+  // A cancelled session keeps its signups and stays listed (marked CANCELLED)
+  // until it's over; its check-ins are removed (by the admin's Cancel Session
+  // and the app) so nobody is billed, so it never shows under Past.
+  const live = events.filter((e) => !isEventCancelled(e) || toInstant(e.endDateTime).getTime() >= Date.now());
   const checkedIn = new Set(checkins.map((c) => c.eventID));
 
   const now = Date.now();
@@ -428,7 +428,7 @@ export async function fetchSchedule(userId: string, isParent: boolean, children:
   }
 
   // Past sessions count only if attended (checked in) or prepaid.
-  const past = pastAll.filter((e) => e.signupType === 'prepaid' || e.hasCheckin);
+  const past = pastAll.filter((e) => !isEventCancelled(e) && (e.signupType === 'prepaid' || e.hasCheckin));
 
   upcoming.sort(byStart);
   ongoing.sort(byStart);

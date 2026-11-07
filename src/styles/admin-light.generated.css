@@ -83,6 +83,8 @@ html.admin-light .hover\:border-white\/20:hover { border-color: rgba(0,0,0,0.27)
 html.admin-light .text-amber-300 { color: #b45309 !important; }
 html.admin-light .text-white\/90 { color: rgba(20,20,20,0.9) !important; }
 html.admin-light .hover\:text-red-400:hover { color: #dc2626 !important; }
+html.admin-light .text-white\/35 { color: rgba(20,20,20,0.35) !important; }
+html.admin-light .hover\:text-white\/60:hover { color: rgba(20,20,20,0.6) !important; }
 html.admin-light .bg-white\/\[0\.08\] { background-color: rgba(0,0,0,0.08) !important; }
 html.admin-light .hover\:bg-white\/85:hover { background-color: rgba(0,0,0,0.85) !important; }
 html.admin-light .text-white\/45 { color: rgba(20,20,20,0.45) !important; }
@@ -151,7 +153,6 @@ html.admin-light .bg-neutral-950 { background-color: #fafafa !important; }
 html.admin-light .hover\:text-black\/60:hover { color: rgba(255,255,255,0.6) !important; }
 html.admin-light .divide-white\/\[0\.1\] > :not([hidden]) ~ :not([hidden]) { border-color: rgba(0,0,0,0.135) !important; }
 html.admin-light .border-white\/\[0\.1\] { border-color: rgba(0,0,0,0.135) !important; }
-html.admin-light .text-white\/35 { color: rgba(20,20,20,0.35) !important; }
 html.admin-light .hover\:bg-white\/90:hover { background-color: rgba(0,0,0,0.9) !important; }
 html.admin-light .text-white\/85 { color: rgba(20,20,20,0.85) !important; }
 html.admin-light .group:hover .group-hover\:text-white\/70 { color: rgba(20,20,20,0.7) !important; }
@@ -213,11 +214,12 @@ html.admin-light .bg-\[\#F4F2EE\]\/50 { background-color: rgba(20,20,20,0.5) !im
 html.admin-light .bg-\[\#3a3a3a\] { background-color: #efefec !important; }
 html.admin-light .text-\[\#ccc\] { color: #141414 !important; }
 html.admin-light .text-\[\#e9e9e9\] { color: #141414 !important; }
+html.admin-light .text-\[\#bbb\] { color: #141414 !important; }
+html.admin-light .border-\[\#222\] { border-color: rgba(0,0,0,0.1) !important; }
 html.admin-light .bg-\[\#2A2A2A\] { background-color: #efefec !important; }
 html.admin-light .bg-\[\#333\] { background-color: #efefec !important; }
 html.admin-light .bg-\[\#1A1A1A\] { background-color: #efefec !important; }
 html.admin-light .text-\[\#F4F2EE\] { color: #141414 !important; }
-html.admin-light .border-\[\#222\] { border-color: rgba(0,0,0,0.1) !important; }
 html.admin-light .bg-\[\#141414\] { background-color: #ffffff !important; }
 html.admin-light .hover\:bg-white\/\[0\.03\]:hover { background-color: rgba(0,0,0,0.03) !important; }
 html.admin-light .text-\[\#9ca3af\] { color: #141414 !important; }
@@ -272,7 +274,6 @@ html.admin-light .border-white\/\[0\.05\] { border-color: rgba(0,0,0,0.068) !imp
 html.admin-light .bg-\[\#131211\] { background-color: #ffffff !important; }
 html.admin-light .hover\:bg-\[\#1a1917\]:hover { background-color: #ffffff !important; }
 html.admin-light .text-green-400\/50 { color: rgba(22,163,74,0.5) !important; }
-html.admin-light .hover\:text-white\/60:hover { color: rgba(20,20,20,0.6) !important; }
 html.admin-light .hover\:text-green-400:hover { color: #16a34a !important; }
 html.admin-light .bg-\[\#0e0d0c\] { background-color: #f6f6f4 !important; }
 html.admin-light .focus\:border-white\/20:focus { border-color: rgba(0,0,0,0.27) !important; }

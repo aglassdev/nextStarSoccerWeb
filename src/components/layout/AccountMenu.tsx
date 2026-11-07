@@ -1,17 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { Query } from 'appwrite';
 import { AccountInfo, COACH_DASHBOARD_LIVE, isPureCoach, resolveAccount } from '../../services/accountProfile';
+import { databases, databaseId } from '../../services/appwrite';
+import { ANALYSES_COLLECTION } from '../../services/videoAnalysis';
 
 // The signed-in person icon in the site navigation. It opens a menu of the
 // account pages (there's no separate account hub page), like the app's
 // Account screen.
 
-type MenuItem = { label: string; to: string };
-
-// Profile and Inbox join the menu once their pages are in place.
-const PROFILE_PAGE_LIVE = true;
-const INBOX_PAGE_LIVE = true;
+/** `locked` shows a lock; `dim` greys it out; `disabled` makes it plain text. */
+type MenuItem = { label: string; to: string; locked?: boolean; dim?: boolean; disabled?: boolean };
 
 // One lookup per signed-in user, shared by every page's navigation bar.
 const accountCache = new Map<string, Promise<AccountInfo>>();
@@ -25,7 +25,22 @@ const accountInfoFor = (userId: string) => {
   return accountCache.get(userId)!;
 };
 
-const menuFor = (info: AccountInfo | null): { items: MenuItem[]; staff: MenuItem[] } => {
+// Whether the account has bought a video analysis (Video Analysis is locked until then).
+const purchaseCache = new Map<string, Promise<boolean>>();
+const hasVideoAnalysis = (userId: string) => {
+  if (!purchaseCache.has(userId)) {
+    purchaseCache.set(userId, databases
+      .listDocuments(databaseId, ANALYSES_COLLECTION, [Query.equal('purchaserUserId', userId), Query.limit(1)])
+      .then((r) => r.total > 0)
+      .catch(() => {
+        purchaseCache.delete(userId);
+        return false;
+      }));
+  }
+  return purchaseCache.get(userId)!;
+};
+
+const menuFor = (info: AccountInfo | null, boughtAnalysis: boolean): { items: MenuItem[]; staff: MenuItem[] } => {
   const staff: MenuItem[] = [
     ...(info?.isCoach && COACH_DASHBOARD_LIVE ? [{ label: 'Coach Dashboard', to: '/coach' }] : []),
     ...(info?.isAdmin ? [{ label: 'Admin', to: '/admin/dashboard' }] : []),
@@ -35,17 +50,26 @@ const menuFor = (info: AccountInfo | null): { items: MenuItem[]; staff: MenuItem
   }
   return {
     items: [
-      ...(PROFILE_PAGE_LIVE ? [{ label: 'Profile', to: '/account/profile' }] : []),
+      { label: 'Profile', to: '/account/profile' },
       { label: 'My Schedule', to: '/account/schedule' },
       { label: 'Payment Center', to: '/account/payments' },
-      { label: 'Video Analysis', to: '/account/video-analysis' },
-      ...(INBOX_PAGE_LIVE ? [{ label: 'Inbox', to: '/account/inbox' }] : []),
+      // Not open yet: shown locked; admins can preview it (as in the app).
+      { label: 'At-Home Training', to: '/account/home-training', locked: true, dim: true, disabled: !info?.isAdmin },
+      { label: 'Video Analysis', to: '/account/video-analysis', locked: !boughtAnalysis },
+      { label: 'Inbox', to: '/account/inbox' },
       ...(info?.userType === 'parent' ? [{ label: 'My Family', to: '/account/family' }] : []),
       { label: 'Settings', to: '/account/settings' },
     ],
     staff,
   };
 };
+
+const LockIcon = () => (
+  <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-label="Locked">
+    <rect x="5" y="11" width="14" height="9" rx="2" strokeWidth={1.9} />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.9} d="M8 11V8a4 4 0 118 0v3" />
+  </svg>
+);
 
 const PersonIcon = ({ className = 'w-5 h-5' }: { className?: string }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -59,12 +83,14 @@ const AccountMenu = () => {
   const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
   const [info, setInfo] = useState<AccountInfo | null>(null);
+  const [boughtAnalysis, setBoughtAnalysis] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!user) return;
     let live = true;
     accountInfoFor(user.$id).then((i) => live && setInfo(i)).catch(() => {});
+    hasVideoAnalysis(user.$id).then((b) => live && setBoughtAnalysis(b));
     return () => { live = false; };
   }, [user]);
 
@@ -83,11 +109,22 @@ const AccountMenu = () => {
   }, [open]);
 
   if (!user) return null;
-  const { items, staff } = menuFor(info);
-  const itemClass = (to: string) =>
-    `block px-4 py-2.5 text-sm transition-colors ${
-      pathname === to || pathname.startsWith(`${to}/`) ? 'text-white bg-white/[0.08]' : 'text-white/80 hover:text-white hover:bg-white/[0.06]'
-    }`;
+  const { items, staff } = menuFor(info, boughtAnalysis);
+  const itemClass = (m: MenuItem) => {
+    const active = pathname === m.to || pathname.startsWith(`${m.to}/`);
+    const tone = m.dim
+      ? `text-white/35 ${m.disabled ? 'cursor-default' : 'hover:text-white/60 hover:bg-white/[0.04]'}`
+      : active ? 'text-white bg-white/[0.08]' : 'text-white/80 hover:text-white hover:bg-white/[0.06]';
+    return `flex items-center justify-between gap-3 px-4 py-2.5 text-sm transition-colors ${tone}`;
+  };
+  const renderItem = (m: MenuItem) => {
+    const content = <><span>{m.label}</span>{m.locked && <LockIcon />}</>;
+    return m.disabled ? (
+      <div key={m.to} role="menuitem" aria-disabled="true" title="Coming soon" className={itemClass(m)}>{content}</div>
+    ) : (
+      <Link key={m.to} to={m.to} role="menuitem" className={itemClass(m)}>{content}</Link>
+    );
+  };
 
   return (
     <div className="relative" ref={ref}>
@@ -108,15 +145,11 @@ const AccountMenu = () => {
             <p className="text-white/45 text-xs truncate mt-0.5">{user.email}</p>
           </div>
           <div className="py-1.5">
-            {items.map((m) => (
-              <Link key={m.to} to={m.to} role="menuitem" className={itemClass(m.to)}>{m.label}</Link>
-            ))}
+            {items.map(renderItem)}
           </div>
           {staff.length > 0 && (
             <div className="py-1.5 border-t border-white/[0.08]">
-              {staff.map((m) => (
-                <Link key={m.to} to={m.to} role="menuitem" className={itemClass(m.to)}>{m.label}</Link>
-              ))}
+              {staff.map(renderItem)}
             </div>
           )}
           <div className="py-1.5 border-t border-white/[0.08]">

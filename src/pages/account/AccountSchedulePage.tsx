@@ -305,7 +305,7 @@ const AccountSchedulePage = () => {
               <h3 className="text-white text-[22px] font-normal mb-3">Your Stats</h3>
               <div className="flex py-[18px] border-y border-[#222]">
                 <Stat value={data.past.length + data.ongoing.length} label="Sessions" />
-                <Stat value={data.upcoming.length} label="Upcoming" />
+                <Stat value={data.upcoming.filter((e) => !isEventCancelled(e)).length} label="Upcoming" />
                 <Stat value={streak.streak} label="Streak" active={streak.active} />
               </div>
             </div>

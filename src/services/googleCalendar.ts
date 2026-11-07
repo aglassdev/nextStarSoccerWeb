@@ -192,35 +192,13 @@ export const resolveEventCoaches = async (
 
 export const isEventCancelled = (event: CalendarEvent): boolean => {
   if (!event.description) return false;
-
   const desc = event.description.trim().toLowerCase();
-  const cancelVariants = [
-    "cancel",
-    "cancelled",
-    "canceled",
-    "cancellation",
-    "event cancelled",
-    "event canceled",
-    "session cancelled",
-    "session canceled",
-  ];
-
-  if (cancelVariants.includes(desc)) {
-    return true;
-  }
-
-  if (desc.startsWith("cancel")) {
-    return true;
-  }
-
-  const words = desc.split(/\s+/);
-  return words.some(
-    (word) =>
-      word === "cancel" ||
-      word === "cancelled" ||
-      word === "canceled" ||
-      word === "cancellation"
-  );
+  // Cancel Session writes "CANCELLED - …" at the start of the description.
+  // Only the words cancelled/canceled (or a bare "cancel") count, so text
+  // like "Cancellation policy: …" doesn't mark a session cancelled; a
+  // cancelled session has its check-ins removed so nobody is billed.
+  if (desc === "cancel") return true;
+  return /\bcancell?ed\b/.test(desc);
 };
 
 // EST-aware date range helpers (mirrors the Appwrite function logic)
