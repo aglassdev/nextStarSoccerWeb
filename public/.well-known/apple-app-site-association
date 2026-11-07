@@ -1,0 +1,25 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["7N66FCVCJY.com.nextstarsoccer.nextstar"],
+        "components": [
+          { "/": "/", "comment": "Home" },
+          { "/": "/account", "comment": "Account Center" },
+          { "/": "/account/*" },
+          { "/": "/user", "comment": "Payments (bill emails)" },
+          { "/": "/user/payments" },
+          { "/": "/services" },
+          { "/": "/services/*" },
+          { "/": "/calendar" },
+          { "/": "/alumni" },
+          { "/": "/coaches" },
+          { "/": "/coaches/*" },
+          { "/": "/about" },
+          { "/": "/contact" },
+          { "/": "/faq" }
+        ]
+      }
+    ]
+  }
+}
