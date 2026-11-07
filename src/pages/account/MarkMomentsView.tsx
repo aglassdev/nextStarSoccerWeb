@@ -44,6 +44,9 @@ const MarkMomentsView = ({ analysis, title, film, poster, onSubmitted }: Props) 
   const saving = useRef<Promise<void>>(Promise.resolve());
   const firstRender = useRef(true);
   const submittingRef = useRef(false);
+  const dirty = useRef(false);
+  const latest = useRef({ notes, moments });
+  latest.current = { notes, moments };
 
   const sorted = useMemo(() => [...moments].sort((a, b) => a.t - b.t), [moments]);
   const markers = useMemo<FilmMarker[]>(() => sorted.map((m) => ({ id: m.id, t: m.t, title: m.label, tone: 'sky' })), [sorted]);
@@ -51,22 +54,33 @@ const MarkMomentsView = ({ analysis, title, film, poster, onSubmitted }: Props) 
   // Drafts save a moment after the last change.
   useEffect(() => {
     if (firstRender.current) { firstRender.current = false; return; }
+    dirty.current = true;
     setSaveState('pending');
     const t = window.setTimeout(() => {
       if (submittingRef.current) return;
       setSaveState('saving');
       const draft = { notes: notes.trim(), moments };
+      dirty.current = false;
       saving.current = saving.current.then(async () => {
         try {
           await saveAnalysisDraft(analysis.$id, draft);
           setSaveState('saved');
         } catch {
+          dirty.current = true;
           setSaveState('error');
         }
       });
     }, 1000);
     return () => clearTimeout(t);
   }, [notes, moments, analysis.$id]);
+
+  // Leaving (e.g. the back arrow) with a change not yet saved: save it on the way out.
+  useEffect(() => () => {
+    if (dirty.current && !submittingRef.current) {
+      const { notes: n, moments: m } = latest.current;
+      saveAnalysisDraft(analysis.$id, { notes: n.trim(), moments: m }).catch(() => {});
+    }
+  }, [analysis.$id]);
 
   // Don't lose unsaved changes by leaving.
   useEffect(() => {
@@ -131,6 +145,7 @@ const MarkMomentsView = ({ analysis, title, film, poster, onSubmitted }: Props) 
         notes: notes.trim(),
         moments: moments.map((m) => ({ ...m, label: m.label.trim() || 'Moment' })),
       });
+      dirty.current = false;
       setSaveState('saved');
       onSubmitted(updated);
     } catch (e: any) {
