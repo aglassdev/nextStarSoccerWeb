@@ -48,6 +48,7 @@ import AccountSchedulePage from './pages/account/AccountSchedulePage';
 import AccountVideoAnalysisPage from './pages/account/AccountVideoAnalysisPage';
 import AccountVideoAnalysisDetailPage from './pages/account/AccountVideoAnalysisDetailPage';
 import AccountInboxPage from './pages/account/AccountInboxPage';
+import AccountProfilePage from './pages/account/AccountProfilePage';
 import CoachLayout from './pages/coach/CoachLayout';
 import CoachHomePage from './pages/coach/CoachHomePage';
 import CoachAnalysisWorkspacePage from './pages/coach/CoachAnalysisWorkspacePage';
@@ -215,6 +216,7 @@ function AppRoutes() {
         <Route path="schedule" element={<AccountSchedulePage />} />
         <Route path="video-analysis" element={<AccountVideoAnalysisPage />} />
         <Route path="video-analysis/:id" element={<AccountVideoAnalysisDetailPage />} />
+        <Route path="profile" element={<AccountProfilePage />} />
         <Route path="inbox" element={<AccountInboxPage />} />
         <Route path="inbox/:conversationId" element={<AccountInboxPage />} />
       </Route>

@@ -10,7 +10,7 @@ import { AccountInfo, COACH_DASHBOARD_LIVE, isPureCoach, resolveAccount } from '
 type MenuItem = { label: string; to: string };
 
 // Profile and Inbox join the menu once their pages are in place.
-const PROFILE_PAGE_LIVE = false;
+const PROFILE_PAGE_LIVE = true;
 const INBOX_PAGE_LIVE = true;
 
 // One lookup per signed-in user, shared by every page's navigation bar.

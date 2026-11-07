@@ -1,187 +1,147 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { account, databases, databaseId } from '../../services/appwrite';
+import { SIGN_IN_PATH } from '../../constants/features';
+import PaymentMethodsSection from '../user/PaymentMethodsSection';
 import { useAccount } from './AccountContext';
 import { AccountPageHeader, AccountSpinner } from './AccountLayout';
-import { SIGN_IN_PATH } from '../../constants/features';
+import AccountDetails from './profile/AccountDetails';
+import { BackArrowIcon, Overlay, SectionCard } from './profile/ui';
 
-const inputClass =
-  'w-full px-4 py-2.5 bg-[#1a1a1a] border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-white/20 disabled:opacity-50';
+// The app's Settings screen (screens/main/account/settings/SettingsScreen.tsx):
+// Account Information, Payment Methods, Notifications and Sign Out. On a wide
+// screen the menu stays on the left and the chosen screen opens beside it; on
+// a phone the menu opens each screen in its place, as in the app.
 
-type Field = { key: string; label: string; list?: boolean };
-
-const PERSONAL: Field[] = [
-  { key: 'firstName', label: 'First name' },
-  { key: 'lastName', label: 'Last name' },
-  { key: 'phone', label: 'Phone' },
-  { key: 'address', label: 'Address' },
+type Section = 'account' | 'payments' | 'notifications';
+const SECTIONS: { id: Section; title: string; heading: string }[] = [
+  { id: 'account', title: 'Account Information', heading: 'Account Details' },
+  { id: 'payments', title: 'Payment Methods', heading: 'Payment Methods' },
+  { id: 'notifications', title: 'Notifications', heading: 'Notifications' },
 ];
 
-// The soccer details the app's Profile screen edits, per player type. Only
-// fields the profile actually has are shown.
-const PLAYER_FIELDS: Record<string, Field[]> = {
-  youth: [
-    { key: 'positions', label: 'Positions', list: true },
-    { key: 'currentClub', label: 'Club' },
-    { key: 'league', label: 'League' },
-    { key: 'ageGroup', label: 'Age group' },
-    { key: 'school', label: 'School' },
-    { key: 'gradYear', label: 'Graduation year' },
-  ],
-  collegiate: [
-    { key: 'positions', label: 'Positions', list: true },
-    { key: 'currentCollege', label: 'College' },
-    { key: 'year', label: 'Year' },
-    { key: 'youthClub', label: 'Youth club' },
-  ],
-  professional: [
-    { key: 'positions', label: 'Positions', list: true },
-    { key: 'currentClub', label: 'Club' },
-    { key: 'college', label: 'College' },
-    { key: 'youthClub', label: 'Youth club' },
-  ],
-};
-
-const toText = (v: any) => (Array.isArray(v) ? v.join(', ') : v ?? '');
-
-const FieldForm = ({ title, fields, profile, onSave }: {
+const MenuItem = ({ title, onClick, active = false, activeWide = false, signOut = false }: {
   title: string;
-  fields: Field[];
-  profile: any;
-  onSave: (changes: Record<string, any>) => Promise<void>;
-}) => {
-  const initial = () => Object.fromEntries(fields.map((f) => [f.key, toText(profile?.[f.key])]));
-  const [values, setValues] = useState<Record<string, string>>(initial);
-  const [state, setState] = useState<'idle' | 'saving' | 'saved'>('idle');
-  const [error, setError] = useState('');
-  useEffect(() => setValues(initial()), [profile]); // eslint-disable-line react-hooks/exhaustive-deps
+  onClick: () => void;
+  active?: boolean;
+  /** Highlighted only on wide screens (the default screen shown beside the menu). */
+  activeWide?: boolean;
+  signOut?: boolean;
+}) => (
+  <button
+    type="button"
+    onClick={onClick}
+    aria-current={active ? 'page' : undefined}
+    className={`w-full text-left rounded-[14px] border px-5 py-5 md:px-6 md:py-6 text-lg font-medium transition-colors ${
+      active ? 'bg-[#1a1a1a] border-white/50'
+        : activeWide ? 'bg-[#111] border-[#222] lg:bg-[#1a1a1a] lg:border-white/50'
+          : 'bg-[#111] border-[#222] hover:border-[#3a3a3a]'
+    } ${signOut ? 'text-[#ff0000]' : 'text-white'}`}
+  >
+    {title}
+  </button>
+);
 
-  const changed = fields.filter((f) => values[f.key] !== toText(profile?.[f.key]));
+const Notifications = () => (
+  <SectionCard title="Notification Preferences">
+    <p className="text-[#666] text-base italic text-center py-6">Notification settings will be available soon.</p>
+  </SectionCard>
+);
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (changed.length === 0) return;
-    if (changed.some((f) => (f.key === 'firstName' || f.key === 'lastName') && !values[f.key].trim())) {
-      setError('Name fields can’t be empty.');
-      return;
-    }
-    setState('saving');
-    setError('');
-    try {
-      await onSave(Object.fromEntries(changed.map((f) => [
-        f.key,
-        f.list ? values[f.key].split(',').map((s) => s.trim()).filter(Boolean) : values[f.key].trim(),
-      ])));
-      setState('saved');
-      setTimeout(() => setState('idle'), 2000);
-    } catch (err: any) {
-      setError(err?.message || 'Could not save.');
-      setState('idle');
-    }
-  };
-
+const PaymentMethods = () => {
+  const { user } = useAuth();
+  const { profile } = useAccount();
+  if (!user) return null;
+  const name = `${profile?.firstName || ''} ${profile?.lastName || ''}`.trim() || user.name || '';
+  // The shared payment-methods panel (also on the Payment Center) brings its
+  // own "Payment Methods" title; the pane heading already says it.
   return (
-    <form onSubmit={submit} className="bg-[#111] border border-white/10 rounded-2xl p-5 space-y-4">
-      <p className="text-white font-semibold">{title}</p>
-      <div className="grid sm:grid-cols-2 gap-3">
-        {fields.map((f) => (
-          <label key={f.key} className={`block ${f.key === 'address' ? 'sm:col-span-2' : ''}`}>
-            <span className="block text-gray-500 text-xs mb-1">{f.label}{f.list ? ' (comma separated)' : ''}</span>
-            <input className={inputClass} value={values[f.key]} onChange={(e) => setValues({ ...values, [f.key]: e.target.value })} />
-          </label>
-        ))}
-      </div>
-      {error && <p className="text-red-400 text-sm">{error}</p>}
-      <button type="submit" disabled={changed.length === 0 || state === 'saving'}
-        className="px-6 py-2 text-sm bg-white hover:bg-gray-200 text-black font-semibold rounded-lg transition-colors disabled:opacity-40">
-        {state === 'saving' ? 'Saving…' : state === 'saved' ? 'Saved' : 'Save changes'}
-      </button>
-    </form>
-  );
-};
-
-const PasswordForm = () => {
-  const [oldPw, setOldPw] = useState('');
-  const [newPw, setNewPw] = useState('');
-  const [confirm, setConfirm] = useState('');
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const [saving, setSaving] = useState(false);
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setMsg(null);
-    if (newPw.length < 8) return setMsg({ ok: false, text: 'New password must be at least 8 characters.' });
-    if (newPw !== confirm) return setMsg({ ok: false, text: 'The new passwords don’t match.' });
-    setSaving(true);
-    try {
-      await account.updatePassword(newPw, oldPw);
-      setOldPw(''); setNewPw(''); setConfirm('');
-      setMsg({ ok: true, text: 'Password updated.' });
-    } catch (err: any) {
-      setMsg({ ok: false, text: err?.message || 'Could not update the password.' });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <form onSubmit={submit} className="bg-[#111] border border-white/10 rounded-2xl p-5 space-y-4">
-      <p className="text-white font-semibold">Password</p>
-      <div className="grid sm:grid-cols-3 gap-3">
-        <input type="password" className={inputClass} placeholder="Current password" value={oldPw} onChange={(e) => setOldPw(e.target.value)} />
-        <input type="password" className={inputClass} placeholder="New password" value={newPw} onChange={(e) => setNewPw(e.target.value)} />
-        <input type="password" className={inputClass} placeholder="Confirm new password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
-      </div>
-      {msg && <p className={`text-sm ${msg.ok ? 'text-green-400' : 'text-red-400'}`}>{msg.text}</p>}
-      <button type="submit" disabled={saving || !oldPw || !newPw}
-        className="px-6 py-2 text-sm bg-white hover:bg-gray-200 text-black font-semibold rounded-lg transition-colors disabled:opacity-40">
-        {saving ? 'Updating…' : 'Update password'}
-      </button>
-    </form>
+    <div className="bg-[#111] border border-[#222] rounded-2xl p-5 md:p-7 [&>div>h3:first-child]:hidden">
+      <PaymentMethodsSection userId={user.$id} userName={name} userEmail={user.email || ''} />
+    </div>
   );
 };
 
 const AccountSettingsPage = () => {
-  const { user, logout } = useAuth();
+  const { logout } = useAuth();
   const navigate = useNavigate();
-  const { loading, profile, collectionId, userType, refresh } = useAccount();
-  if (loading) return <AccountSpinner />;
+  const { loading } = useAccount();
+  const [params, setParams] = useSearchParams();
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
-  const save = async (changes: Record<string, any>) => {
-    if (!profile || !collectionId) throw new Error('No profile to update.');
-    await databases.updateDocument(databaseId, collectionId, profile.$id, changes);
-    await refresh();
+  const requested = params.get('section') as Section | null;
+  const chosen = SECTIONS.find((s) => s.id === requested) || null;
+  // Wide screens always show a screen beside the menu (Account Information first).
+  const shown = chosen || SECTIONS[0];
+
+  const open = (id: Section) => setParams({ section: id });
+  const close = () => setParams({});
+
+  const signOut = async () => {
+    setSigningOut(true);
+    try {
+      await logout();
+      navigate(SIGN_IN_PATH);
+    } catch {
+      setSigningOut(false);
+      setConfirmSignOut(false);
+    }
   };
-  const playerFields = (PLAYER_FIELDS[userType || ''] || []).filter((f) => profile && f.key in profile);
+
+  const body = (id: Section) =>
+    id === 'account' ? <AccountDetails /> : id === 'payments' ? <PaymentMethods /> : <Notifications />;
 
   return (
-    <div className="space-y-6">
+    <div>
       <AccountPageHeader title="Settings" />
 
-      <div className="bg-[#111] border border-white/10 rounded-2xl p-5">
-        <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">Email</p>
-        <p className="text-white text-sm">{user?.email}</p>
-        <p className="text-gray-600 text-xs mt-1">Your email is your login. Contact us to change it.</p>
-      </div>
-
-      {profile ? (
-        <>
-          <FieldForm title="Personal information" fields={PERSONAL.filter((f) => f.key in profile || f.key === 'phone' || f.key === 'address')} profile={profile} onSave={save} />
-          {playerFields.length > 0 && <FieldForm title="Player profile" fields={playerFields} profile={profile} onSave={save} />}
-        </>
+      {loading ? (
+        <AccountSpinner />
       ) : (
-        <p className="text-gray-500 text-sm">No profile found for this account.</p>
+        <div className="lg:grid lg:grid-cols-[320px_minmax(0,1fr)] lg:gap-10 xl:grid-cols-[360px_minmax(0,1fr)]">
+          {/* Menu — on phones it's hidden while a screen is open */}
+          <nav className={`space-y-2.5 lg:sticky lg:top-24 lg:self-start ${chosen ? 'hidden lg:block' : ''}`} aria-label="Settings">
+            {SECTIONS.map((s) => (
+              <MenuItem
+                key={s.id}
+                title={s.title}
+                active={chosen?.id === s.id}
+                activeWide={!chosen && shown.id === s.id}
+                onClick={() => open(s.id)}
+              />
+            ))}
+            <MenuItem title="Sign Out" signOut onClick={() => setConfirmSignOut(true)} />
+          </nav>
+
+          {/* The chosen screen */}
+          <div className={`min-w-0 ${chosen ? '' : 'hidden lg:block'}`}>
+            <div className="flex items-center gap-3 mb-5 md:mb-6">
+              <button type="button" onClick={close} aria-label="Back to Settings" className="lg:hidden text-white hover:text-gray-300 -ml-1 p-1">
+                <BackArrowIcon className="w-6 h-6" />
+              </button>
+              <h3 className="text-white text-[22px] md:text-2xl font-bold">{shown.heading}</h3>
+            </div>
+            {body(shown.id)}
+          </div>
+        </div>
       )}
 
-      <PasswordForm />
-
-      <button
-        onClick={async () => { await logout(); navigate(SIGN_IN_PATH); }}
-        className="w-full bg-[#111] border border-[#222] hover:border-[#3a3a3a] rounded-2xl px-7 py-6 text-left text-white text-xl font-medium transition-colors"
-      >
-        Sign Out
-      </button>
+      {confirmSignOut && (
+        <Overlay onClose={() => !signingOut && setConfirmSignOut(false)} dim="bg-black/50">
+          <div role="alertdialog" aria-modal="true" className="mx-6 rounded-xl border-2 border-white bg-black p-6 text-center">
+            <p className="text-white text-lg font-medium mb-6">Are you sure you want to sign out?</p>
+            <div className="flex justify-center gap-5">
+              <button type="button" onClick={() => setConfirmSignOut(false)} disabled={signingOut}
+                className="px-6 py-3 rounded-lg text-white font-medium hover:bg-white/10 disabled:opacity-40">No</button>
+              <button type="button" onClick={signOut} disabled={signingOut}
+                className="px-6 py-3 rounded-lg text-white font-medium hover:bg-white/10 disabled:opacity-40">
+                {signingOut ? 'Signing out…' : 'Yes'}
+              </button>
+            </div>
+          </div>
+        </Overlay>
+      )}
     </div>
   );
 };
