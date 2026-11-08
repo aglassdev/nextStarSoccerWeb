@@ -13,6 +13,7 @@ import {
   getAnalysisUrls,
   getCoachNotes,
   parseAnnotations,
+  parseGameMarks,
   parseMoments,
   saveCoachNotes,
   updateAnalysis,
@@ -180,6 +181,7 @@ const CoachAnalysisWorkspacePage = () => {
           poster={urls.thumb}
           annotations={annotations}
           moments={parseMoments(a.moments)}
+          gameMarks={parseGameMarks(a.gameMarks)}
           editable={!done}
           sidebarNote={!done ? savedNote : undefined}
           onAdd={(x) => commit([...annotations, { ...x, id: newId(), createdAt: new Date().toISOString(), author }])}

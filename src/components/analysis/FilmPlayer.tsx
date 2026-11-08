@@ -3,15 +3,17 @@ import { formatTimestamp } from '../../services/videoAnalysis';
 
 // The game film player used by the coach workspace, the family's finished
 // analysis and the family's moment marking: a large film with a timeline that
-// carries a dash per marker (an annotation or a marked moment). Clicking a
-// dash calls onMarkerClick. Space plays/pauses, ←/→ skip 5 s.
+// carries a dash per marker (an annotation, a marked moment or a game mark).
+// Clicking a dash calls onMarkerClick. Stretches the coach can skip (before
+// the game, half time, after it) are dimmed on the bar. Space plays/pauses,
+// ←/→ skip 5 s.
 
 export interface FilmMarker {
   id: string;
   t: number;
   title: string;
-  /** white: annotations; sky: the family's marked moments. */
-  tone?: 'white' | 'sky';
+  /** white: annotations; sky: the family's marked moments; game: game start/end and half time. */
+  tone?: 'white' | 'sky' | 'game';
 }
 
 export interface FilmPlayerHandle {
@@ -34,7 +36,11 @@ interface Props {
   actions?: ReactNode;
   /** Extra one-key shortcuts (lower-case key → action); ignored while typing. */
   shortcuts?: Record<string, () => void>;
+  /** [start, end] seconds dimmed on the bar (end may be Infinity: to the end). */
+  dimmed?: [number, number][];
 }
+
+const MARKER_COLOR = { white: 'bg-white', sky: 'bg-[#7dd3fc]', game: 'bg-[#4ade80]' };
 
 const SPEEDS = [0.5, 1, 1.5, 2];
 
@@ -45,7 +51,7 @@ const isTyping = (target: EventTarget | null) => {
 };
 
 const FilmPlayer = forwardRef<FilmPlayerHandle, Props>(
-  ({ src, poster, markers, activeId, onMarkerClick, onTime, overlay, actions, shortcuts }, ref) => {
+  ({ src, poster, markers, activeId, onMarkerClick, onTime, overlay, actions, shortcuts, dimmed = [] }, ref) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [playing, setPlaying] = useState(false);
     const [time, setTime] = useState(0);
@@ -157,9 +163,16 @@ const FilmPlayer = forwardRef<FilmPlayerHandle, Props>(
           >
             <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-1.5 rounded-full bg-white/15 overflow-hidden">
               <div className="h-full bg-white/50" style={{ width: `${pct(time)}%` }} />
+              {duration > 0 && dimmed.map(([from, to]) => (
+                <div
+                  key={`${from}-${to}`}
+                  className="absolute inset-y-0 bg-black/75"
+                  style={{ left: `${pct(from)}%`, width: `${Math.max(0, pct(Math.min(to, duration)) - pct(from))}%` }}
+                />
+              ))}
             </div>
             {duration > 0 && sorted.map((m) => {
-              const color = m.tone === 'sky' ? 'bg-[#7dd3fc]' : 'bg-white';
+              const color = MARKER_COLOR[m.tone || 'white'];
               return (
                 <button
                   key={m.id}

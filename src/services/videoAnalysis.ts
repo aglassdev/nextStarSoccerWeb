@@ -37,6 +37,8 @@ export interface VideoAnalysis {
   playerNotes?: string;
   /** The family's marked moments, JSON: Moment[]. */
   moments?: string;
+  /** When the game starts and ends and half time, JSON: GameMarks. */
+  gameMarks?: string;
   submittedAt?: string;
   dueAt?: string;
   annotations?: string;
@@ -64,6 +66,21 @@ export interface Moment {
   t: number;
   label: string;
 }
+
+/** Points in raw game footage, in seconds: the coach skips what's before, between and after. */
+export interface GameMarks {
+  gameStart?: number;
+  halfStart?: number;
+  halfEnd?: number;
+  gameEnd?: number;
+}
+
+export const GAME_MARKS: { key: keyof GameMarks; label: string }[] = [
+  { key: 'gameStart', label: 'Game starts' },
+  { key: 'halfStart', label: 'Half time starts' },
+  { key: 'halfEnd', label: 'Half time ends' },
+  { key: 'gameEnd', label: 'Game ends' },
+];
 
 export const STATUS_LABEL: Record<AnalysisStatus, string> = {
   awaiting_upload: 'Upload your film',
@@ -117,11 +134,11 @@ export const attachFilm = (payload: {
 }) => action<{ analysis: VideoAnalysis }>('attachFilm', { ...payload, draft: true });
 
 /** Saves the family's notes and moments while they're marking. */
-export const saveAnalysisDraft = (analysisId: string, draft: { notes: string; moments: Moment[] }) =>
+export const saveAnalysisDraft = (analysisId: string, draft: { notes: string; moments: Moment[]; gameMarks: GameMarks }) =>
   action<{ analysis: VideoAnalysis }>('saveDraft', { analysisId, ...draft });
 
 /** Sends the film, notes and moments to the coach (the 7-day clock starts). */
-export const submitAnalysis = (analysisId: string, draft: { notes: string; moments: Moment[] }) =>
+export const submitAnalysis = (analysisId: string, draft: { notes: string; moments: Moment[]; gameMarks: GameMarks }) =>
   action<{ analysis: VideoAnalysis }>('submit', { analysisId, ...draft });
 
 export const completeAnalysis = (analysisId: string, recordingFileId?: string) =>
@@ -230,6 +247,37 @@ export function parseMoments(raw?: string): Moment[] {
   } catch {
     return [];
   }
+}
+
+export function parseGameMarks(raw?: string): GameMarks {
+  if (!raw) return {};
+  try {
+    const g = JSON.parse(raw);
+    const out: GameMarks = {};
+    for (const { key } of GAME_MARKS) if (typeof g?.[key] === 'number') out[key] = g[key];
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+/** Why the marks can't all be right (they must run in order), or null. */
+export function gameMarksProblem(g: GameMarks): string | null {
+  const set = GAME_MARKS.filter(({ key }) => g[key] !== undefined);
+  for (let i = 1; i < set.length; i++) {
+    if (g[set[i].key]! <= g[set[i - 1].key]!) return `“${set[i].label}” has to come after “${set[i - 1].label}”.`;
+  }
+  return null;
+}
+
+/** The parts the coach can skip: before the game, half time and after the game. End may be Infinity (to the end of the film). */
+export function skippedRanges(g: GameMarks): [number, number][] {
+  if (gameMarksProblem(g)) return [];
+  const out: [number, number][] = [];
+  if (g.gameStart !== undefined && g.gameStart > 0) out.push([0, g.gameStart]);
+  if (g.halfStart !== undefined && g.halfEnd !== undefined) out.push([g.halfStart, g.halfEnd]);
+  if (g.gameEnd !== undefined) out.push([g.gameEnd, Infinity]);
+  return out;
 }
 
 /** The next default name: "Moment 1", "Moment 2"… skipping any already used. */

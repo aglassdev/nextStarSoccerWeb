@@ -12,6 +12,7 @@ import {
   getAnalysisUrls,
   listMyAnalyses,
   numberAnalyses,
+  parseGameMarks,
   sharedAnnotations,
 } from '../../services/videoAnalysis';
 
@@ -111,7 +112,7 @@ const AccountVideoAnalysisDetailPage = () => {
           {urls.film && (
             <section>
               <h3 className="text-white font-semibold text-lg mb-3">Annotated film</h3>
-              <AnnotatedPlayer src={urls.film} poster={urls.thumb} annotations={annotations} />
+              <AnnotatedPlayer src={urls.film} poster={urls.thumb} annotations={annotations} gameMarks={parseGameMarks(a.gameMarks)} />
             </section>
           )}
         </>

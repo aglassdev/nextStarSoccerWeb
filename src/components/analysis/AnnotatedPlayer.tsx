@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { Annotation, Moment, formatTimestamp } from '../../services/videoAnalysis';
+import { Annotation, GAME_MARKS, GameMarks, Moment, formatTimestamp, skippedRanges } from '../../services/videoAnalysis';
 import FilmPlayer, { FilmMarker, FilmPlayerHandle } from './FilmPlayer';
 
 // The game film with its annotations: a large player on the left, the
@@ -9,7 +9,8 @@ import FilmPlayer, { FilmMarker, FilmPlayerHandle } from './FilmPlayer';
 // comments (shared with the family) or notes (private to coaches) at the
 // current moment; families see the comments read-only. The moments the
 // family marked before submitting show for the coach as blue dashes and
-// read-only rows.
+// read-only rows. If they marked when the game starts and ends and half
+// time, those show as green ticks and the stretches around them are dimmed.
 
 interface Props {
   src: string;
@@ -17,6 +18,8 @@ interface Props {
   annotations: Annotation[];
   /** The family's marked moments (coach view). */
   moments?: Moment[];
+  /** The family's game start/end and half time marks. */
+  gameMarks?: GameMarks;
   editable?: boolean;
   onAdd?: (a: Pick<Annotation, 't' | 'kind' | 'text'>) => void;
   onEdit?: (id: string, text: string) => void;
@@ -47,7 +50,7 @@ export const FlagIcon = ({ className = 'w-3.5 h-3.5' }: { className?: string }) 
   </svg>
 );
 
-const AnnotatedPlayer = ({ src, poster, annotations, moments = [], editable, onAdd, onEdit, onDelete, sidebarNote }: Props) => {
+const AnnotatedPlayer = ({ src, poster, annotations, moments = [], gameMarks, editable, onAdd, onEdit, onDelete, sidebarNote }: Props) => {
   const player = useRef<FilmPlayerHandle>(null);
   const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [time, setTime] = useState(0);
@@ -65,7 +68,13 @@ const AnnotatedPlayer = ({ src, poster, annotations, moments = [], editable, onA
     t: r.t,
     title: r.type === 'annotation' ? r.a.text : `Moment: ${r.m.label}`,
     tone: r.type === 'moment' ? 'sky' : 'white',
-  })), [rows]);
+  } as FilmMarker)).concat(GAME_MARKS.filter(({ key }) => gameMarks?.[key] !== undefined).map(({ key, label }) => ({
+    id: `g:${key}`,
+    t: gameMarks![key]!,
+    title: label,
+    tone: 'game',
+  }))), [rows, gameMarks]);
+  const dimmed = useMemo(() => skippedRanges(gameMarks || {}), [gameMarks]);
 
   const focusRow = useCallback((key: string, jump = true) => {
     setActiveKey(key);
@@ -110,6 +119,7 @@ const AnnotatedPlayer = ({ src, poster, annotations, moments = [], editable, onA
         activeId={activeKey}
         onMarkerClick={(key) => focusRow(key, false)}
         onTime={setTime}
+        dimmed={dimmed}
         shortcuts={shortcuts}
         overlay={composer && (
           <div className="absolute inset-x-3 bottom-3 sm:inset-x-auto sm:right-3 sm:w-96 bg-[#141414]/95 backdrop-blur border border-white/15 rounded-xl p-3 shadow-2xl"

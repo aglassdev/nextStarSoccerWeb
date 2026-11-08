@@ -3,11 +3,16 @@ import FilmPlayer, { FilmMarker, FilmPlayerHandle } from '../../components/analy
 import { FlagIcon } from '../../components/analysis/AnnotatedPlayer';
 import { AccountPageHeader } from './AccountLayout';
 import {
+  GAME_MARKS,
+  GameMarks,
   Moment,
   VideoAnalysis,
   formatTimestamp,
+  gameMarksProblem,
   nextMomentName,
+  parseGameMarks,
   parseMoments,
+  skippedRanges,
   saveAnalysisDraft,
   submitAnalysis,
 } from '../../services/videoAnalysis';
@@ -15,9 +20,11 @@ import {
 // Right after the film uploads, before the coach gets it: the family watches
 // their film, adds notes for the coach (jersey number and so on) and marks
 // the moments they want analysed. Each "Mark Moment" drops a blue dash on the
-// timeline with a default name (Moment 1, Moment 2…) they can rename. Drafts
-// save as they go; Submit (top right) sends it all to the coach. Submitting
-// with no moments asks them to confirm first.
+// timeline with a default name (Moment 1, Moment 2…) they can rename. For raw
+// game footage they can also mark when the game starts and ends and half
+// time; the stretches outside the game are dimmed on the bar (green ticks).
+// Drafts save as they go; Submit (top right) sends it all to the coach.
+// Submitting with no moments asks them to confirm first.
 
 const newId = () => Math.random().toString(36).slice(2, 10);
 
@@ -34,6 +41,7 @@ const MarkMomentsView = ({ analysis, title, film, poster, onSubmitted }: Props) 
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [notes, setNotes] = useState(analysis.playerNotes || '');
   const [moments, setMoments] = useState<Moment[]>(() => parseMoments(analysis.moments));
+  const [gameMarks, setGameMarks] = useState<GameMarks>(() => parseGameMarks(analysis.gameMarks));
   const [time, setTime] = useState(0);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [naming, setNaming] = useState<{ id: string; text: string } | null>(null);
@@ -45,11 +53,17 @@ const MarkMomentsView = ({ analysis, title, film, poster, onSubmitted }: Props) 
   const firstRender = useRef(true);
   const submittingRef = useRef(false);
   const dirty = useRef(false);
-  const latest = useRef({ notes, moments });
-  latest.current = { notes, moments };
+  const latest = useRef({ notes, moments, gameMarks });
+  latest.current = { notes, moments, gameMarks };
 
   const sorted = useMemo(() => [...moments].sort((a, b) => a.t - b.t), [moments]);
-  const markers = useMemo<FilmMarker[]>(() => sorted.map((m) => ({ id: m.id, t: m.t, title: m.label, tone: 'sky' })), [sorted]);
+  const markers = useMemo<FilmMarker[]>(() => [
+    ...sorted.map((m) => ({ id: m.id, t: m.t, title: m.label, tone: 'sky' as const })),
+    ...GAME_MARKS.filter(({ key }) => gameMarks[key] !== undefined)
+      .map(({ key, label }) => ({ id: `g:${key}`, t: gameMarks[key]!, title: label, tone: 'game' as const })),
+  ], [sorted, gameMarks]);
+  const dimmed = useMemo(() => skippedRanges(gameMarks), [gameMarks]);
+  const problem = gameMarksProblem(gameMarks);
 
   // Drafts save a moment after the last change.
   useEffect(() => {
@@ -59,7 +73,7 @@ const MarkMomentsView = ({ analysis, title, film, poster, onSubmitted }: Props) 
     const t = window.setTimeout(() => {
       if (submittingRef.current) return;
       setSaveState('saving');
-      const draft = { notes: notes.trim(), moments };
+      const draft = { notes: notes.trim(), moments, gameMarks };
       dirty.current = false;
       saving.current = saving.current.then(async () => {
         try {
@@ -72,13 +86,13 @@ const MarkMomentsView = ({ analysis, title, film, poster, onSubmitted }: Props) 
       });
     }, 1000);
     return () => clearTimeout(t);
-  }, [notes, moments, analysis.$id]);
+  }, [notes, moments, gameMarks, analysis.$id]);
 
   // Leaving (e.g. the back arrow) with a change not yet saved: save it on the way out.
   useEffect(() => () => {
     if (dirty.current && !submittingRef.current) {
-      const { notes: n, moments: m } = latest.current;
-      saveAnalysisDraft(analysis.$id, { notes: n.trim(), moments: m }).catch(() => {});
+      const { notes: n, moments: m, gameMarks: g } = latest.current;
+      saveAnalysisDraft(analysis.$id, { notes: n.trim(), moments: m, gameMarks: g }).catch(() => {});
     }
   }, [analysis.$id]);
 
@@ -116,6 +130,14 @@ const MarkMomentsView = ({ analysis, title, film, poster, onSubmitted }: Props) 
     if (naming?.id === id) setNaming(null);
   };
 
+  const setGameMark = (key: keyof GameMarks, t?: number) =>
+    setGameMarks((g) => {
+      const next = { ...g };
+      if (t === undefined) delete next[key];
+      else next[key] = Math.round(t * 10) / 10;
+      return next;
+    });
+
   const focus = (m: Moment) => {
     setActiveId(m.id);
     player.current?.seek(m.t);
@@ -144,6 +166,7 @@ const MarkMomentsView = ({ analysis, title, film, poster, onSubmitted }: Props) 
       const { analysis: updated } = await submitAnalysis(analysis.$id, {
         notes: notes.trim(),
         moments: moments.map((m) => ({ ...m, label: m.label.trim() || 'Moment' })),
+        gameMarks,
       });
       dirty.current = false;
       setSaveState('saved');
@@ -157,6 +180,10 @@ const MarkMomentsView = ({ analysis, title, film, poster, onSubmitted }: Props) 
 
   const onSubmitClick = () => {
     finishNaming();
+    if (problem) {
+      setError(`Check the game start and end: ${problem}`);
+      return;
+    }
     if (moments.length === 0) setConfirmEmpty(true);
     else submit();
   };
@@ -194,6 +221,7 @@ const MarkMomentsView = ({ analysis, title, film, poster, onSubmitted }: Props) 
           activeId={activeId}
           onMarkerClick={setActiveId}
           onTime={setTime}
+          dimmed={dimmed}
           shortcuts={naming ? undefined : shortcuts}
           overlay={namingMoment && (
             <div
@@ -230,7 +258,7 @@ const MarkMomentsView = ({ analysis, title, film, poster, onSubmitted }: Props) 
           }
         />
 
-        <aside className="lg:w-[340px] xl:w-[380px] flex-shrink-0 flex flex-col gap-4 min-h-0">
+        <aside className="lg:w-[340px] xl:w-[380px] flex-shrink-0 flex flex-col gap-4 min-h-0 lg:overflow-y-auto">
           <section className="bg-[#0b0b0b] border border-white/10 rounded-2xl p-4">
             <label className="block">
               <span className="block text-white text-sm font-semibold mb-1">Notes for your coach</span>
@@ -238,7 +266,7 @@ const MarkMomentsView = ({ analysis, title, film, poster, onSubmitted }: Props) 
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                rows={3}
+                rows={2}
                 maxLength={2000}
                 placeholder="e.g. #10, white jersey, left wing"
                 className="w-full px-3 py-2.5 bg-black/40 border border-white/10 rounded-lg text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-white/30 resize-none"
@@ -246,7 +274,46 @@ const MarkMomentsView = ({ analysis, title, film, poster, onSubmitted }: Props) 
             </label>
           </section>
 
-          <section className="flex-1 min-h-[16rem] flex flex-col bg-[#0b0b0b] border border-white/10 rounded-2xl overflow-hidden">
+          <section className="bg-[#0b0b0b] border border-white/10 rounded-2xl p-4">
+            <p className="text-white text-sm font-semibold">Game start and end</p>
+            <p className="text-gray-500 text-xs mt-1 mb-3 leading-relaxed">
+              If this is raw game footage, mark when the game starts and ends, and when half time starts and ends. Your coach will skip the rest.
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {GAME_MARKS.map(({ key, label }) => {
+                const t = gameMarks[key];
+                return (
+                  <div key={key} className="rounded-xl border border-white/[0.08] px-2.5 py-2">
+                    <p className="text-[11px] text-gray-400">{label}</p>
+                    {t === undefined ? (
+                      <button
+                        onClick={() => setGameMark(key, player.current?.currentTime() ?? time)}
+                        className="mt-1.5 w-full px-2 py-1 rounded-md border border-white/15 text-white text-xs tabular-nums hover:border-white/40"
+                      >
+                        Mark at {formatTimestamp(time)}
+                      </button>
+                    ) : (
+                      <div className="mt-1.5 flex items-center justify-between gap-1.5">
+                        <button
+                          onClick={() => player.current?.seek(t)}
+                          className="px-1.5 py-0.5 rounded bg-[#4ade80]/15 text-[#bbf7d0] text-xs tabular-nums font-medium hover:bg-[#4ade80]/25"
+                          title="Go to this point"
+                        >
+                          {formatTimestamp(t)}
+                        </button>
+                        <button onClick={() => setGameMark(key)} className="text-gray-600 hover:text-red-400 p-0.5" aria-label={`Clear ${label}`} title="Clear">
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            {problem && <p className="text-amber-300 text-xs mt-2">{problem}</p>}
+          </section>
+
+          <section className="flex-1 min-h-[14rem] flex flex-col bg-[#0b0b0b] border border-white/10 rounded-2xl overflow-hidden">
             <div className="px-4 py-3 border-b border-white/10">
               <div className="flex items-center justify-between">
                 <p className="text-white text-sm font-semibold">Mark Moments</p>
