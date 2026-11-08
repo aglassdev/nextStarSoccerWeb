@@ -2,7 +2,32 @@ import { useState, useEffect, useCallback } from 'react';
 import { Query } from 'appwrite';
 import { databases, databaseId, collections, functions } from '../../../services/appwrite';
 
-const SEND_INQUIRY_REPLY_FN = import.meta.env.VITE_APPWRITE_REPLY_FUNCTION_ID || '';
+const SEND_INQUIRY_REPLY_FN = import.meta.env.VITE_APPWRITE_REPLY_FUNCTION_ID || '69d4ed8d003d86e282c8';
+
+/** A reply sent from the dashboard (or the app). Older replies were emailed without keeping the text. */
+interface InquiryReply {
+  id: string;
+  message: string | null;
+  textNotSaved?: boolean;
+  sentAt: string;
+  byName?: string;
+}
+
+const parseReplies = (raw?: string): InquiryReply[] => {
+  if (!raw) return [];
+  try {
+    const list = JSON.parse(raw);
+    return Array.isArray(list) ? list.filter((r) => r?.sentAt) : [];
+  } catch {
+    return [];
+  }
+};
+
+const fmtFull = (iso: string) =>
+  new Date(iso).toLocaleString('en-US', {
+    timeZone: 'America/New_York', month: 'short', day: 'numeric',
+    year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true,
+  });
 
 interface Inquiry {
   $id: string;
@@ -17,6 +42,8 @@ interface Inquiry {
   trashedAt?: string;
   resolved?: boolean;
   resolvedAt?: string;
+  /** JSON: InquiryReply[] */
+  replies?: string;
 }
 
 type Tab = 'priority' | 'resolved' | 'trash';
@@ -219,6 +246,7 @@ const InquiriesSection = () => {
     try {
       const name = `${inq.firstName || ''} ${inq.lastName || ''}`.trim();
       const payload = JSON.stringify({
+        inquiryId: inq.$id,
         toEmail: inq.email,
         toName: name || undefined,
         subject: inq.subject || '',
@@ -237,6 +265,12 @@ const InquiriesSection = () => {
         throw new Error(body.error || `HTTP ${res.responseStatusCode}`);
 
       setSendResult('success');
+      // The function saves the reply on the inquiry; show it here straight away.
+      if (body.reply) {
+        setAllDocs(prev => prev.map(i =>
+          i.$id === inq.$id ? { ...i, replies: JSON.stringify([...parseReplies(i.replies), body.reply]) } : i
+        ));
+      }
       await markResolved(inq.$id);
       setTimeout(() => closeReplyModal(), 1800);
     } catch (err) {
@@ -285,6 +319,7 @@ const InquiriesSection = () => {
     const name = `${inq.firstName || ''} ${inq.lastName || ''}`.trim() || 'Unknown';
     const initial = name[0]?.toUpperCase() || '?';
     const daysLeft = inTrash && inq.trashedAt ? daysUntilDelete(inq.trashedAt) : null;
+    const replies = parseReplies(inq.replies);
 
     return (
       <div key={inq.$id} className="rounded-lg border border-white/[0.08] overflow-hidden">
@@ -312,6 +347,9 @@ const InquiriesSection = () => {
             </div>
             <p className="text-white/50 text-[12px] mt-0.5 truncate">
               {inq.subject || 'No subject'}{inq.email ? ` · ${inq.email}` : ''}
+              {replies.length > 0 && (
+                <span className="text-green-400/70"> · Replied{replies.length > 1 ? ` ×${replies.length}` : ''}</span>
+              )}
             </p>
           </div>
 
@@ -470,6 +508,28 @@ const InquiriesSection = () => {
             <p className="text-white/80 text-[13px] leading-relaxed whitespace-pre-wrap">
               {inq.message || '(No message body)'}
             </p>
+
+            {replies.length > 0 && (
+              <div className="mt-5 pt-4 border-t border-white/[0.06] space-y-3">
+                <p className="text-white/30 text-[11px] uppercase tracking-widest">
+                  {replies.length === 1 ? 'Reply' : `Replies · ${replies.length}`}
+                </p>
+                {replies.map(r => (
+                  <div key={r.id} className="border-l-2 border-green-400/40 pl-3">
+                    <p className="text-white/40 text-[11px]">
+                      {r.byName || 'Next Star Soccer'} · {fmtFull(r.sentAt)}
+                    </p>
+                    {r.message ? (
+                      <p className="text-white/80 text-[13px] leading-relaxed whitespace-pre-wrap mt-1">{r.message}</p>
+                    ) : (
+                      <p className="text-white/35 text-[12px] italic mt-1">
+                        Emailed to {inq.email}. The text wasn't saved (sent before replies were kept here).
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

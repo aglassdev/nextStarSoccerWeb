@@ -1,4 +1,17 @@
 import nodemailer from "nodemailer";
+import { Client, Databases, Users } from "node-appwrite";
+
+/**
+ * Emails a reply to a website inquiry (or, from a server script, an outbound
+ * notice). Signed-in callers must be admins. With `inquiryId`, the reply is
+ * also saved on the inquiry (replies: JSON list of { id, message, sentAt,
+ * byUserId, byName }) and the inquiry is marked read and resolved, so the
+ * website and app dashboards show what was sent.
+ */
+
+const DATABASE_ID = process.env.APPWRITE_DATABASE_ID || "6842f11e0030e4b668a8";
+const INQUIRIES = process.env.APPWRITE_WEBSITE_INQUIRIES_COLLECTION_ID || "website_inquiries";
+const COACHES = "6896c95e0004dce4140c";
 
 export default async ({ req, res, log, error }) => {
   try {
@@ -7,16 +20,44 @@ export default async ({ req, res, log, error }) => {
         ? JSON.parse(req.body || "{}")
         : req.body || {};
 
-    const { toEmail, toName, subject, originalMessage, originalDate, replyMessage } = body;
+    const { toEmail, toName, subject, subjectOverride, greetingSuffix, originalMessage, originalDate, replyMessage, inquiryId } = body;
 
     if (!toEmail || !replyMessage) {
       return res.json({ success: false, error: "toEmail and replyMessage are required" }, 400);
     }
 
+    const client = new Client()
+      .setEndpoint(process.env.APPWRITE_FUNCTION_API_ENDPOINT || "https://nyc.cloud.appwrite.io/v1")
+      .setProject(process.env.APPWRITE_FUNCTION_PROJECT_ID || "68577380002195dec512")
+      .setKey(req.headers["x-appwrite-key"] || "");
+    const db = new Databases(client);
+
+    // Signed in: admins only (this sends email as support@). No user: a
+    // server-side call made with an API key.
+    const callerId = req.headers["x-appwrite-user-id"] || "";
+    let senderName = "Next Star Soccer";
+    if (callerId) {
+      const caller = await new Users(client).get(callerId);
+      if (!(caller.labels || []).includes("admin")) {
+        return res.json({ success: false, error: "Only admins can send replies" }, 403);
+      }
+      const coach = await db.getDocument(DATABASE_ID, COACHES, callerId).catch(() => null);
+      senderName = (coach ? `${coach.firstName || ""} ${coach.lastName || ""}`.trim() : "") || caller.name || caller.email || senderName;
+    }
+
     log(`Sending reply to: ${toEmail} re: "${subject}"`);
 
     const firstName = toName?.split(" ")[0] || toName || "there";
-    const emailSubject = subject ? `Re: ${subject}` : "Response from Next Star Soccer";
+    // Punctuation after the greeting. Defaults to "," so inquiry replies are
+    // unchanged; campaigns can pass "!" for a warmer tone.
+    const greeting = greetingSuffix || ",";
+    // subjectOverride sets the subject verbatim (no "Re:" prefix) for outbound
+    // notices that are not replies to an inquiry.
+    const emailSubject = subjectOverride
+      ? subjectOverride
+      : subject
+        ? `Re: ${subject}`
+        : "Response from Next Star Soccer";
     const formattedDate = originalDate
       ? new Date(originalDate).toLocaleDateString("en-US", {
           month: "long", day: "numeric", year: "numeric",
@@ -49,7 +90,7 @@ export default async ({ req, res, log, error }) => {
           <!-- Body -->
           <tr>
             <td style="padding:40px 30px;">
-              <p style="color:#333333;font-size:16px;line-height:1.7;margin:0 0 8px 0;">Hi <strong>${firstName}</strong>,</p>
+              <p style="color:#333333;font-size:16px;line-height:1.7;margin:0 0 8px 0;">Hi <strong>${firstName}</strong>${greeting}</p>
               <p style="color:#333333;font-size:16px;line-height:1.7;margin:0 0 24px 0;white-space:pre-wrap;">${escapeHtml(replyMessage)}</p>
 
               ${originalMessage ? `
@@ -122,7 +163,40 @@ export default async ({ req, res, log, error }) => {
     });
 
     log(`Reply sent successfully to ${toEmail}`);
-    return res.json({ success: true });
+
+    // Keep a copy on the inquiry. The email has gone either way.
+    let reply = null;
+    if (inquiryId) {
+      try {
+        const doc = await db.getDocument(DATABASE_ID, INQUIRIES, String(inquiryId));
+        let replies = [];
+        try {
+          replies = JSON.parse(doc.replies || "[]");
+          if (!Array.isArray(replies)) replies = [];
+        } catch {
+          replies = [];
+        }
+        const now = new Date().toISOString();
+        reply = {
+          id: Math.random().toString(36).slice(2, 10),
+          message: String(replyMessage),
+          sentAt: now,
+          byUserId: callerId || null,
+          byName: senderName,
+        };
+        replies.push(reply);
+        await db.updateDocument(DATABASE_ID, INQUIRIES, doc.$id, {
+          replies: JSON.stringify(replies),
+          read: true,
+          resolved: true,
+          resolvedAt: now,
+        });
+      } catch (e) {
+        error(`Reply sent but not saved on inquiry ${inquiryId}: ${e.message}`);
+      }
+    }
+
+    return res.json({ success: true, reply });
 
   } catch (err) {
     error(`sendMail failed: ${err.message}`);

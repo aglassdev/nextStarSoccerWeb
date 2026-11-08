@@ -5,6 +5,7 @@
   "main": "src/main.js",
   "type": "module",
   "dependencies": {
-    "nodemailer": "^6.9.7"
+    "nodemailer": "^6.9.7",
+    "node-appwrite": "^13.0.0"
   }
 }
