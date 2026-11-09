@@ -36,14 +36,13 @@ const FUNDAMENTALS_VIDEO = '/assets/fundamentals.mp4?v=15hq';
 const FUNDAMENTALS_POSTER = '/assets/fundamentals-poster.jpg';
 
 const STORY: {
-    label: string; title: [string, string?]; body: string; cta: string; to: string;
+    label: string; title: [string, string?]; body: string; cta?: string; to?: string;
     image?: string; video?: string; poster?: string; alt?: string;
 }[] = [
     {
         label: 'About us',
         title: ['Founded in 2018,', 'built in the DC area'],
         body: 'Founded in 2018, Next Star started with a simple goal: give young players the coaching, guidance and opportunities to reach their potential. Today it trains players of every age across the DC area, with alumni competing in college and professional soccer around the world.',
-        cta: 'See where our alumni play', to: '/alumni',
         image: ABOUT_IMAGE, alt: 'Next Star players training',
     },
     {
@@ -262,25 +261,34 @@ const StoryText = ({ chapter: ch }: { chapter: Chapter }) => (
             {ch.title[0]}{ch.title[1] && <><br /><span className="text-white/40">{ch.title[1]}</span></>}
         </h2>
         <p className="mt-6 text-[clamp(1.05rem,1.45vw,1.25rem)] leading-relaxed text-white/60">{ch.body}</p>
-        <Link to={ch.to} className="mt-8 inline-flex items-center gap-1.5 text-[14px] text-white/50 hover:text-white transition-colors">
-            {ch.cta} <span aria-hidden="true">→</span>
-        </Link>
+        {ch.cta && ch.to && (
+            <Link to={ch.to} className="mt-8 inline-flex items-center gap-1.5 text-[14px] text-white/50 hover:text-white transition-colors">
+                {ch.cta} <span aria-hidden="true">→</span>
+            </Link>
+        )}
     </>
 );
 
-// About Us plays out over a pinned screen while the page scrolls past it:
+// About Us grows in as the photo scrolls up:
 //   1. the black card starts growing out of the middle once the photo is
-//      about half on screen, its text already in place and revealed as the
-//      card opens around it;
+//      a little under half on screen, its text already in place and
+//      revealed as the card opens around it;
 //   2. it grows at one steady rate to 3/4 of the frame, the text growing
-//      with it, and the page unpins as soon as it arrives, so it never
-//      sits still under the reader's scroll; the photo still shows around it.
+//      with it, and arrives just before the photo fills the screen, so it
+//      is already full size (and centred) by the time the photo's top meets
+//      the menu bar, even allowing for the card trailing a fast scroll.
+//      There is no pinned stretch, so it never keeps growing under the
+//      reader's scroll once the photo is in full view.
+// REVEAL_HEIGHT above 100 would pin the screen for the extra and spread the
+// growth over it too.
 // The card is a full-size black layer cut down with clip-path, so growing it
 // never re-lays-out the text, and its size eases toward the scroll position
 // every frame rather than jumping with each scroll event.
-const REVEAL_HEIGHT = 150; // vh of scroll the pinned part spans
+const REVEAL_HEIGHT = 100; // vh the section spans; 100 = no pinned stretch
+const GROW_FROM = 0.62; // the photo's top, as a share of the screen height down from the top, when growing starts
+const GROW_TO = 0.12;   // ...and when the card reaches full size
 const REST = 0.75; // the card's final size, as a share of the frame
-const FOLLOW = 0.2; // share of the remaining distance covered each frame
+const FOLLOW = 0.3; // share of the remaining distance covered each frame
 
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
 
@@ -294,17 +302,16 @@ const AboutReveal = ({ chapter }: { chapter: Chapter }) => {
         if (!wrap || !card || !text) return;
         const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-        // 0 when the photo's top is halfway up the screen, 1 when the pinned
-        // stretch ends, so the card is already growing as the photo arrives.
+        // 0 when the photo's top is GROW_FROM of the way down the screen, 1
+        // when it is GROW_TO down (plus any pinned stretch).
         const progress = () => {
             const r = wrap.getBoundingClientRect();
-            const lead = window.innerHeight * 0.5;
-            const span = r.height - window.innerHeight + lead;
-            return clamp01((lead - r.top) / span);
+            const h = window.innerHeight;
+            const span = (GROW_FROM - GROW_TO) * h + (r.height - h);
+            return clamp01((GROW_FROM * h - r.top) / span);
         };
         const sizeAt = (p: number) => {
             // One steady rate from start to 3/4: no easing, no held stretch.
-            // The page unpins the moment it gets there.
             return REST * p;
         };
         const draw = (size: number) => {
@@ -512,10 +519,15 @@ const HomePageNew = () => {
                     {/* Larger than the other headings, centred on the grid's height and
                         flush right so it sits against the figures beside it. */}
                     <div className="md:col-span-4 flex md:items-center md:justify-end">
-                        <h2 className="text-white font-medium tracking-[-0.03em] leading-[1.02] text-[clamp(2.75rem,5.6vw,4.75rem)] md:text-right">
-                            Next Star<br />
-                            <span className="text-white/40">in numbers</span>
-                        </h2>
+                        <div className="md:text-right">
+                            <h2 className="text-white font-medium tracking-[-0.03em] leading-[1.02] text-[clamp(2.75rem,5.6vw,4.75rem)]">
+                                Next Star<br />
+                                <span className="text-white/40">in numbers</span>
+                            </h2>
+                            <Link to="/alumni" className="mt-6 inline-flex items-center gap-1.5 text-[14px] text-white/50 hover:text-white transition-colors">
+                                See where our alumni play <span aria-hidden="true">→</span>
+                            </Link>
+                        </div>
                     </div>
                     <div ref={statsRef} className="md:col-span-8 grid grid-cols-2 sm:grid-cols-3 border-t border-l border-white/[0.08]">
                         {STATS.map((stat) => (
