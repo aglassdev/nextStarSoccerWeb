@@ -2,9 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <!-- Favicon with light/dark mode support -->
-    <link rel="icon" type="image/png" href="/assets/images/NextStarBall.png" media="(prefers-color-scheme: dark)" />
-    <link rel="icon" type="image/png" href="/assets/images/NextStarBallBlack.png" media="(prefers-color-scheme: light)" />
+    <!-- Tab icon: favicon.svg holds both balls and shows the black one on a
+         light browser, the white one on a dark one (Chrome, Edge, Firefox).
+         Chrome ignores media= on icon links, so it can't switch between two
+         files itself. The PNGs are for browsers without SVG icons; their
+         sizes= keeps Chrome on the SVG. -->
+    <link rel="icon" type="image/png" sizes="64x64" href="/favicon-dark.png" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" type="image/png" sizes="64x64" href="/favicon-light.png" media="(prefers-color-scheme: light)" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Professional soccer training and development for players at all levels." />
     <title>Next Star Soccer</title>
