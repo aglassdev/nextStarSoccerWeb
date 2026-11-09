@@ -3,6 +3,7 @@ import Navigation from '../components/layout/Navigation';
 import Footer from '../components/layout/Footer';
 import { useAuth } from '../contexts/AuthContext';
 import { camps, campHasEnded } from '../constants/campsData';
+import { withPageImages } from '../hooks/usePageImages';
 
 const CampDetailPage = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -191,4 +192,7 @@ const Section = ({ label, children }: { label: string; children: React.ReactNode
   </div>
 );
 
-export default CampDetailPage;
+// Loading screen until the camp's photo is in.
+export default withPageImages(CampDetailPage, ({ slug }) => ({
+  first: [camps.find((c) => c.slug === slug)?.image],
+}));

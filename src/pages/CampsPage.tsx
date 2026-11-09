@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import Navigation from '../components/layout/Navigation';
 import Footer from '../components/layout/Footer';
 import { camps } from '../constants/campsData';
+import { withPageImages } from '../hooks/usePageImages';
 
 const CampsPage = () => {
   const navigate = useNavigate();
@@ -106,4 +107,8 @@ const CampsPage = () => {
   );
 };
 
-export default CampsPage;
+// Loading screen until the first camps' photos are in; the rest follow.
+export default withPageImages(CampsPage, () => ({
+  first: camps.slice(0, 2).map((c) => c.image),
+  more: camps.map((c) => c.image),
+}));

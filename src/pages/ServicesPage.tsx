@@ -4,6 +4,8 @@ import { VIDEO_ANALYSIS } from '../constants/videoAnalysis';
 import { Link } from 'react-router-dom';
 import Navigation from '../components/layout/Navigation';
 import Footer from '../components/layout/Footer';
+import { serviceImages } from '../constants/images';
+import { withPageImages } from '../hooks/usePageImages';
 
 type Action = 'request-in-app' | 'calendar' | 'camps' | 'clinics' | 'video-analysis';
 
@@ -30,29 +32,29 @@ const CATEGORIES: Category[] = [
     {
         label: 'Training',
         services: [
-            { id: 'individual', name: 'Individual Session', image: '/assets/images/individual.png', price: '$200', meta: ['60 min', '1 player'], pricing: ['$200 per player'], action: 'request-in-app',
+            { id: 'individual', name: 'Individual Session', image: serviceImages.individual, price: '$200', meta: ['60 min', '1 player'], pricing: ['$200 per player'], action: 'request-in-app',
               description: "Private training offers a bespoke and results-driven approach to achieving your goals. One of our professional coaches will tailor each session to your specific needs, build on your strengths, and improve your weaknesses. Whether your goal is becoming a starter for your club or school, or to reach the collegiate or professional level, our private sessions ensure your development is aligned with the world's best practices and align with your personal objectives. In addition, we provide a comprehensive training plan and regularly evaluate your progress to ensure continuous development." },
-            { id: 'two-person', name: 'Two Person Session', image: '/assets/images/twoPerson.png', price: '$125', meta: ['60 min', '2 players'], pricing: ['$125 per player'], action: 'request-in-app',
+            { id: 'two-person', name: 'Two Person Session', image: serviceImages.twoPerson, price: '$125', meta: ['60 min', '2 players'], pricing: ['$125 per player'], action: 'request-in-app',
               description: 'Just like individual sessions, each player is provided a personalized training program, while the semi-private dynamic fosters a more competitive environment. Players can either request the session with a partner, or we can pair them with one. We typically pair players by their current level and ability, or shared training goals. Semi-private sessions are scheduled by the client.' },
-            { id: 'small-group', name: 'Small Group Session', image: '/assets/images/smallGroup.png', price: '$85', meta: ['60 min', '3–4 players'], pricing: ['$85 per player'], action: 'request-in-app',
+            { id: 'small-group', name: 'Small Group Session', image: serviceImages.smallGroup, price: '$85', meta: ['60 min', '3–4 players'], pricing: ['$85 per player'], action: 'request-in-app',
               description: 'Small groups are still a high-quality training experience, though it is less individualized compared to a fully private session. Sessions provide a competitive environment fostering high-quality training. Just as with Two Person sessions, players can request their partners or we will pair you with a group at a similar caliber. Each session is designed with drills and games that enhance technical ability and simulate in-game scenarios, effectively meeting the needs of each player. Sessions are organized in advance and come at a more accessible price point, allowing athletes to train more frequently.' },
-            { id: 'large-group', name: 'Large Group Session', image: '/assets/images/largeGroup.png', price: '$50', meta: ['120 min', '5+ players'], pricing: ['$50 per player'], action: 'calendar',
+            { id: 'large-group', name: 'Large Group Session', image: serviceImages.largeGroup, price: '$50', meta: ['120 min', '5+ players'], pricing: ['$50 per player'], action: 'calendar',
               description: 'As our most popular service, large group sessions offer quality instruction with high intensity drills and games, but with a more open atmosphere. The one-size-fits-all program allows athletes to focus on personal areas of improvement, while remaining suitable for players of various ages and skill levels. Sessions typically include drills focused on dribbling, receiving and passing, and shooting, followed by small-sided games, and occasionally fitness work. Due to club seasons, it is common for groups to be small, allowing for a more personalized experience. Sessions are held daily, and drop-ins are allowed (for registered players only). The full schedule can be found in the Calendar.' },
-            { id: 'goalkeeping', name: 'Goalkeeping', image: '/assets/images/goalkeeping.webp', price: 'TBC', meta: ['Coming soon'], pricing: ['Pricing to be confirmed'], action: 'request-in-app', isNew: true,
+            { id: 'goalkeeping', name: 'Goalkeeping', image: serviceImages.goalkeeping, price: 'TBC', meta: ['Coming soon'], pricing: ['Pricing to be confirmed'], action: 'request-in-app', isNew: true,
               description: 'Goalkeeping is a position of its own, and our goalkeeper training is built around it. Sessions develop the core of the position: handling, footwork, set position and angles, diving and shot-stopping, crosses, one-on-ones, and distribution with both hands and feet, along with the communication and decision-making that organize the defense in front of them. The program will run as a weekly session, where keepers train together in a focused, competitive environment, and private sessions are available to request for goalkeepers who want one-on-one work tailored to their game. Pricing will be confirmed soon.' },
         ],
     },
     {
         label: 'Guidance & recruiting',
         services: [
-            { id: 'parent-consultation', name: 'Parent Consultation', image: '/assets/images/parentConsultation.png', price: 'From $150', meta: ['60 min', 'In person or phone'], pricing: ['In person — $200', 'By phone — $150'], action: 'request-in-app',
+            { id: 'parent-consultation', name: 'Parent Consultation', image: serviceImages.parentConsultation, price: 'From $150', meta: ['60 min', 'In person or phone'], pricing: ['In person — $200', 'By phone — $150'], action: 'request-in-app',
               description: "For parents seeking additional guidance regarding a player's current skill, fitness levels, progress, academy opportunities, college recruitment process, international exposure, or anything soccer-related, a consultation offers a private setting to address all your questions. This one-on-one consultation provides an in-depth analysis of your child's current state, ensuring that all your concerns are thoroughly answered, while also providing recommendations for the next steps in their development." },
-            { id: 'game-analysis', name: 'Game Analysis', image: '/assets/images/gameAnalysis.webp', imageTop: true, price: `From $${VIDEO_ANALYSIS.pricePerAnalysis}`, meta: ['In person, online or video'], ...(ACCOUNTS_LIVE
+            { id: 'game-analysis', name: 'Game Analysis', image: serviceImages.gameAnalysis, imageTop: true, price: `From $${VIDEO_ANALYSIS.pricePerAnalysis}`, meta: ['In person, online or video'], ...(ACCOUNTS_LIVE
                 ? { pricing: [`Video recording — $${VIDEO_ANALYSIS.pricePerAnalysis} (buy online)`, 'Online meeting — $150', 'In person — $200'], action: 'video-analysis' as Action,
                     description: "A coach breaks down a player's game — as a recorded video review you can buy right here, or over an online meeting or in person (requested in the app) — and walks through what went well, what to work on, and how to carry it into training." }
                 : { pricing: ['In person — $200', 'Online meeting — $150', `Video recording — $${VIDEO_ANALYSIS.pricePerAnalysis}`], action: 'request-in-app' as Action,
                     description: "A coach breaks down a player's game — in person, over an online meeting, or as a recorded video review — and walks through what went well, what to work on, and how to carry it into training." }) },
-            { id: 'player-report', name: 'Player Report', image: '/assets/images/playerReport.png', brightImage: true, imageTop: true, price: '$75', meta: ['After 5+ sessions'], pricing: ['$75 per player'], action: 'request-in-app',
+            { id: 'player-report', name: 'Player Report', image: serviceImages.playerReport, brightImage: true, imageTop: true, price: '$75', meta: ['After 5+ sessions'], pricing: ['$75 per player'], action: 'request-in-app',
               description: "A comprehensive written report on a player's current progress, skill, fitness, and mental state. This detailed evaluation gives you an understanding of your development, highlighting your personal strengths and areas needing improvement. The report shows both physical and technical ability, but also intangibles such as mental focus and work ethic, allowing for a holistic evaluation and helps inform future training plans." },
             { id: 'college-consulting', name: 'College Consulting', price: 'TBC', meta: ['Coming soon'], pricing: ['Pricing to be confirmed'], action: 'request-in-app', isNew: true, description: COMING_SOON },
         ],
@@ -60,13 +62,13 @@ const CATEGORIES: Category[] = [
     {
         label: 'Programs & events',
         services: [
-            { id: 'camps', name: 'Camps', image: '/assets/images/camps.png', price: 'Varies', meta: ['Throughout the year'], pricing: ['Varies by location and duration'], action: 'camps',
+            { id: 'camps', name: 'Camps', image: serviceImages.camps, price: 'Varies', meta: ['Throughout the year'], pricing: ['Varies by location and duration'], action: 'camps',
               description: 'Our specialized soccer camps offer intensive training experiences designed to accelerate player development. Led by professional coaches and former players, camps combine technical training, tactical education, and competitive play in a focused environment. Available throughout the year at various locations, our camps cater to different age groups and skill levels.' },
-            { id: 'team-training', name: 'Team Training', image: '/assets/images/teamTraining.png', price: 'Custom', meta: ['Full teams', 'All levels'], pricing: ['Custom pricing based on team size'], action: 'request-in-app',
+            { id: 'team-training', name: 'Team Training', image: serviceImages.teamTraining, price: 'Custom', meta: ['Full teams', 'All levels'], pricing: ['Custom pricing based on team size'], action: 'request-in-app',
               description: "Our tailored full-team training programs deliver a dynamic and comprehensive approach to enhancing skills, refining tactics, and boosting overall team performance. Designed for teams of all levels, these sessions are fully customized to meet the unique needs of both the collective group and individual players." },
-            { id: 'professional-clinics', name: 'Professional Clinics', image: '/assets/images/professionalClinics.png', price: 'Event', meta: ['Led by current and former pros'], pricing: ['Special event pricing'], action: 'clinics',
+            { id: 'professional-clinics', name: 'Professional Clinics', image: serviceImages.professionalClinics, price: 'Event', meta: ['Led by current and former pros'], pricing: ['Special event pricing'], action: 'clinics',
               description: 'Professional clinics feature current and former professional players who share their expertise and experience. These unique opportunities allow players to learn directly from those who have competed at the highest levels. Clinics cover advanced techniques, professional mentality, and insights into what it takes to succeed in professional soccer.' },
-            { id: 'showcases', name: 'Showcases', image: '/assets/images/showcases.png', price: 'Event', meta: ['College coaches and scouts'], pricing: ['Event-based pricing'], action: 'request-in-app',
+            { id: 'showcases', name: 'Showcases', image: serviceImages.showcases, price: 'Event', meta: ['College coaches and scouts'], pricing: ['Event-based pricing'], action: 'request-in-app',
               description: 'Showcases provide players with opportunities to display their talents in front of college coaches, scouts, and recruiters. These events are carefully organized to maximize exposure and create pathways to the next level of competition. We guide players through the showcase process and help them make the most of these important opportunities.' },
         ],
     },
@@ -318,4 +320,8 @@ const ServicesPage = () => {
     );
 };
 
-export default ServicesPage;
+// Loading screen until the Training row's photos are in; the rest follow.
+export default withPageImages(ServicesPage, () => ({
+    first: CATEGORIES[0].services.map(s => s.image),
+    more: ALL.map(s => s.image),
+}));

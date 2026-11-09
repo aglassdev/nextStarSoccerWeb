@@ -3,32 +3,13 @@ import Navigation from '../components/layout/Navigation';
 import Footer from '../components/layout/Footer';
 import LoadingScreen from '../components/common/LoadingScreen';
 import WorldMap from '../components/WorldMap';
-import { ALUMNI_LOCAL_IMAGES } from '../constants/alumniLocalImages';
-
-const SHEET_ID = "1SnLA2-p6zBPOP4DvgYV4hlaloX6w6FA0kWMMWtcyEk8";
-const API_KEY = "AIzaSyAZPGNU3kwQG9xqrUrm3idVmHhgZz0PfY0";
-const RANGE = "Players!A1:Q150";
+import { loadAlumni, featuredRank, firstScreenAlumniImages, type Player } from '../services/alumniData';
+import { usePageImages } from '../hooks/usePageImages';
 
 const FILTERS = {
   Collegiate: ["D1", "D2", "D3"],
   Professional: ["North America", "Europe", "Oceania"],
 };
-
-// Shown first, in this order, until a sort is picked (names as in the sheet).
-const FEATURED = [
-  "Emily Fox",
-  "Matai Akinmboni",
-  "Kevin Paredes",
-  "Lily Yohannes",
-  "Luka Bentt",
-  "Aaron Heard",
-  "Bryang Kayo",
-  "Donovan Pines",
-  "Gabriel Segal",
-  "Jean-Claude 'J.C.' Ngando",
-  "Hosei Kijima",
-  "Ian Harkes",
-];
 
 const SORT_OPTIONS = [
   "Last Name A-Z",
@@ -37,25 +18,6 @@ const SORT_OPTIONS = [
   "First Name Z-A",
 ];
 
-interface Player {
-  name: string;
-  subtitle: string;
-  image: string | null;
-  subtitleIcon: string | null;
-  hometown?: string;
-  school?: string;
-  youthClub?: string;
-  youthClubIcon?: string | null;
-  youthNationalTeam?: string;
-  youthNationIcon?: string | null;
-  position?: string;
-  club?: string;
-  clubIcon?: string | null;
-  nationalTeam?: string;
-  nationIcon?: string | null;
-  college?: string;
-  collegeIcon?: string | null;
-}
 
 const getDivision = (subtitle: string) => {
   if (!subtitle) return "D1";
@@ -86,33 +48,6 @@ const getRegion = (subtitle: string) => {
   if (europe.some((u) => s.includes(u))) return "Europe";
   if (oceania.some((u) => s.includes(u))) return "Oceania";
   return "North America";
-};
-
-// A Drive file is served from the site when it has been copied there, and from
-// Drive's thumbnail service otherwise.
-const driveAsset = (id: string) =>
-  ALUMNI_LOCAL_IMAGES.has(id)
-    ? `/assets/alumni/${id}.png`
-    : `https://drive.google.com/thumbnail?id=${id}&sz=w400`;
-
-const fromDriveUrl = (url: string): string | null => {
-  if (!url.includes("drive.google.com")) return null;
-  const id = url.match(/\/file\/d\/([a-zA-Z0-9-_]+)/)?.[1] || url.match(/[?&]id=([a-zA-Z0-9-_]+)/)?.[1];
-  return id ? driveAsset(id) : null;
-};
-
-const processSheetAsset = (cellValue: string): string | null => {
-  if (!cellValue || cellValue.trim() === "") return null;
-  const trimmedValue = cellValue.trim();
-  if (trimmedValue.startsWith("=IMAGE(")) {
-    const match = trimmedValue.match(/=IMAGE\("([^"]+)"(?:,[^)]+)?\)/);
-    if (match && match[1]) return fromDriveUrl(match[1]) || match[1];
-  }
-  if (trimmedValue.startsWith("http://") || trimmedValue.startsWith("https://")) {
-    return fromDriveUrl(trimmedValue) || trimmedValue;
-  }
-  if (trimmedValue.startsWith("data:")) return trimmedValue;
-  return null;
 };
 
 // One retry for a photo that fails (Drive often refuses the first request when
@@ -309,33 +244,10 @@ const AlumniPage = () => {
 
   useEffect(() => { fetchAlumniData(); }, []);
 
-  const fetchAlumniData = async () => {
+  const fetchAlumniData = async (refresh = false) => {
     try {
       setLoading(true);
-      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${RANGE}?key=${API_KEY}&valueRenderOption=FORMULA`;
-      const response = await fetch(url);
-      const data = await response.json();
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      if (data.error) throw new Error(`Google Sheets API error: ${data.error.message}`);
-      if (!data.values || data.values.length === 0) { setError("No data found"); return; }
-      const [headers, ...rows] = data.values;
-      const nonEmptyRows = rows.filter((row: any[]) => row.some((cell) => cell && cell.toString().trim() !== ""));
-      if (nonEmptyRows.length === 0) { setError("No data rows found"); return; }
-      const transformedData: Player[] = nonEmptyRows.map((row: any[]) => {
-        const obj: any = {};
-        headers.forEach((header: string, idx: number) => { obj[header] = row[idx] || ""; });
-        return {
-          ...obj,
-          image: processSheetAsset(obj.image),
-          subtitleIcon: processSheetAsset(obj.subtitleIcon),
-          youthClubIcon: processSheetAsset(obj.youthClubIcon),
-          youthNationIcon: processSheetAsset(obj.youthNationIcon),
-          nationIcon: processSheetAsset(obj.nationIcon),
-          clubIcon: processSheetAsset(obj.clubIcon),
-          collegeIcon: processSheetAsset(obj.collegeIcon),
-        };
-      });
-      setAlumni(transformedData);
+      setAlumni(await loadAlumni(refresh));
       setError(null);
     } catch (err) {
       setError("Failed to fetch alumni data: " + (err as Error).message);
@@ -343,6 +255,9 @@ const AlumniPage = () => {
       setLoading(false);
     }
   };
+
+  // Keep the loading screen up until the first cards' photos are in too.
+  const imagesReady = usePageImages(loading ? [] : firstScreenAlumniImages(alumni));
 
   const closeMenus = () => { setFilterOpen(false); setSortOpen(false); };
 
@@ -366,7 +281,7 @@ const AlumniPage = () => {
     });
   };
 
-  if (loading) return <LoadingScreen message="Loading alumni..." />;
+  if (loading || !imagesReady) return <LoadingScreen message="Loading alumni..." />;
 
   if (error) {
     return (
@@ -375,7 +290,7 @@ const AlumniPage = () => {
         <div className="flex items-center justify-center min-h-screen px-4">
           <div className="text-center">
             <p className="text-red-500 text-base mb-6 max-w-md">{error}</p>
-            <button onClick={fetchAlumniData} className="bg-white text-black px-6 py-3 rounded-lg font-bold hover:bg-neutral-200 transition-colors">Retry</button>
+            <button onClick={() => fetchAlumniData(true)} className="bg-white text-black px-6 py-3 rounded-lg font-bold hover:bg-neutral-200 transition-colors">Retry</button>
           </div>
         </div>
       </div>
@@ -391,11 +306,6 @@ const AlumniPage = () => {
     const region = getRegion(alum.subtitle || "");
     return (isUni && selectedFilters[division]) || (!isUni && selectedFilters[region]);
   });
-
-  const featuredRank = (p: Player) => {
-    const i = FEATURED.indexOf((p.name || "").trim());
-    return i === -1 ? Infinity : i;
-  };
 
   const sorted = [...filtered].sort((a, b) => {
     if (sortOption === null) {

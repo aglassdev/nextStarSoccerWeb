@@ -4,7 +4,8 @@ import Navigation from '../components/layout/Navigation';
 import Footer from '../components/layout/Footer';
 import AnimatedCycleText from '../components/common/AnimatedCycleText';
 import AnimatedCounter from '../components/common/AnimatedCounter';
-import { images } from '../constants/images';
+import { images, homeImages } from '../constants/images';
+import { withPageImages } from '../hooks/usePageImages';
 
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -30,10 +31,10 @@ const HERO_POSTER = `/assets/hero-poster.jpg?v=${HERO_VERSION}`;
 
 // Filler media for the three split sections below, until the real photos and
 // video are uploaded. Swap these values to replace them.
-const ABOUT_IMAGE = '/assets/about-us.jpg';
-const TEAM_IMAGE = '/assets/our-team.jpg';
+const ABOUT_IMAGE = homeImages.about;
+const TEAM_IMAGE = homeImages.team;
 const FUNDAMENTALS_VIDEO = '/assets/fundamentals.mp4?v=15hq';
-const FUNDAMENTALS_POSTER = '/assets/fundamentals-poster.jpg';
+const FUNDAMENTALS_POSTER = homeImages.fundamentalsPoster;
 
 const STORY: {
     label: string; title: [string, string?]; body: string; cta?: string; to?: string;
@@ -663,4 +664,8 @@ const HomePageNew = () => {
     );
 };
 
-export default HomePageNew;
+// Loading screen until the hero's poster is in; the photos further down follow.
+export default withPageImages(HomePageNew, () => ({
+    first: [HERO_POSTER],
+    more: [ABOUT_IMAGE, TEAM_IMAGE, FUNDAMENTALS_POSTER, ...INSTAGRAM_IMAGES],
+}));

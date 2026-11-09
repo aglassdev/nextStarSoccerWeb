@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import Navigation from '../components/layout/Navigation';
 import Footer from '../components/layout/Footer';
 import { images } from '../constants/images';
+import { withPageImages } from '../hooks/usePageImages';
 
 const ScholarshipPage = () => {
   const navigate = useNavigate();
@@ -163,4 +164,5 @@ const ScholarshipPage = () => {
   );
 };
 
-export default ScholarshipPage;
+// Loading screen until the first photo is in; the second follows.
+export default withPageImages(ScholarshipPage, () => ({ first: [images.charity1], more: [images.charity2] }));

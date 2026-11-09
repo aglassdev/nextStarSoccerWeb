@@ -3,6 +3,7 @@ import { useRef, useState, useCallback, useEffect } from 'react';
 import Navigation from '../components/layout/Navigation';
 import Footer from '../components/layout/Footer';
 import { coaches } from '../constants/coachesData';
+import { withPageImages } from '../hooks/usePageImages';
 
 // ── Video Player ──────────────────────────────────────────────────────────────
 const VideoPlayer = ({ src, poster }: { src: string; poster?: string }) => {
@@ -426,4 +427,8 @@ const CoachDetailPage = () => {
   );
 };
 
-export default CoachDetailPage;
+// Loading screen until the coach's photo is in; their club logos follow.
+export default withPageImages(CoachDetailPage, ({ slug }) => {
+  const coach = coaches.find((c) => c.slug === slug);
+  return { first: [coach?.avatarUrl], more: (coach?.career ?? []).flatMap((s) => s.entries.map((e) => e.icon)) };
+});

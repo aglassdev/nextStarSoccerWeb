@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import Navigation from '../components/layout/Navigation';
 import Footer from '../components/layout/Footer';
 import { visibleClinics as clinics, isClinicOver } from '../constants/clinicsData';
+import { withPageImages } from '../hooks/usePageImages';
 
 const ClinicsPage = () => {
   const navigate = useNavigate();
@@ -116,4 +117,9 @@ const ClinicsPage = () => {
   );
 };
 
-export default ClinicsPage;
+// Loading screen until the first clinics' photos are in (upcoming ones are
+// listed first); the rest follow.
+export default withPageImages(ClinicsPage, () => {
+  const ordered = [...clinics.filter((c) => !isClinicOver(c)), ...clinics.filter((c) => isClinicOver(c))];
+  return { first: ordered.slice(0, 2).map((c) => c.image), more: ordered.map((c) => c.image) };
+});

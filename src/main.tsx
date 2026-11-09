@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.tsx';
 import ErrorBoundary from './components/ErrorBoundary.tsx';
+import { startSitePreload } from './utils/sitePreload';
 import './index.css';
 import './styles/admin-light.generated.css';
 
@@ -28,3 +29,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     </ErrorBoundary>
   </React.StrictMode>,
 );
+
+// The other pages' photos load in the background once this one is up.
+startSitePreload();

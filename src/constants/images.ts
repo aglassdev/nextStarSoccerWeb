@@ -23,11 +23,11 @@ export const images = {
   collage9: '/assets/images/collage9.png',
   collage10: '/assets/images/collage10.png',
 
-  summerCampWhitman: '/assets/images/summerCampWhitman.png',
-  summerCampSomerset: '/assets/images/summerCampSomerset.png',
-  summerCampLewinsville: '/assets/images/summerCampLewinsville.png',
-  summerCampSofive: '/assets/images/summerCampSofive.png',
-  summerCampHoward: '/assets/images/summerCampHoward.png',
+  summerCampWhitman: '/assets/images/summerCampWhitman.webp',
+  summerCampSomerset: '/assets/images/summerCampSomerset.webp',
+  summerCampLewinsville: '/assets/images/summerCampLewinsville.webp',
+  summerCampSofive: '/assets/images/summerCampSofive.webp',
+  summerCampHoward: '/assets/images/summerCampHoward.webp',
   fallCamp: '/assets/images/fallCamp.webp',
 
 
@@ -37,19 +37,43 @@ export const images = {
   instagram4: '/assets/images/instagram4.jpg',
   instagram5: '/assets/images/instagram5.jpg',
 
-  coach1: '/assets/images/coach1.png',
-  coach2: '/assets/images/coach2.png',
-  coach3: '/assets/images/coach3.png',
-  coach4: '/assets/images/coach4.png',
-  coach5: '/assets/images/coach5.png',
-  coach6: '/assets/images/coach6.png',
-  coach7: '/assets/images/coach7.png',
-  coach8: '/assets/images/coach8.png',
-  coach9: '/assets/images/coach9.png',
-  coach10: '/assets/images/coach10.png',
+  coach1: '/assets/images/coach1.webp',
+  coach2: '/assets/images/coach2.webp',
+  coach3: '/assets/images/coach3.webp',
+  coach4: '/assets/images/coach4.webp',
+  coach5: '/assets/images/coach5.webp',
+  coach6: '/assets/images/coach6.webp',
+  coach7: '/assets/images/coach7.webp',
+  coach8: '/assets/images/coach8.webp',
+  coach9: '/assets/images/coach9.webp',
+  coach10: '/assets/images/coach10.webp',
 
-  charity1: '/assets/images/charity1.png',
-  charity2: '/assets/images/charity2.png',
+  charity1: '/assets/images/charity1.webp',
+  charity2: '/assets/images/charity2.webp',
+};
+
+// Service card photos (Services page). The first five are the Training row
+// on the first screen.
+export const serviceImages = {
+  individual: '/assets/images/individual.webp',
+  twoPerson: '/assets/images/twoPerson.webp',
+  smallGroup: '/assets/images/smallGroup.webp',
+  largeGroup: '/assets/images/largeGroup.webp',
+  goalkeeping: '/assets/images/goalkeeping.webp',
+  parentConsultation: '/assets/images/parentConsultation.webp',
+  gameAnalysis: '/assets/images/gameAnalysis.webp',
+  playerReport: '/assets/images/playerReport.png',
+  camps: '/assets/images/camps.webp',
+  teamTraining: '/assets/images/teamTraining.webp',
+  professionalClinics: '/assets/images/professionalClinics.webp',
+  showcases: '/assets/images/showcases.webp',
+};
+
+// Home page photos below the hero.
+export const homeImages = {
+  about: '/assets/about-us.webp',
+  team: '/assets/our-team.jpg',
+  fundamentalsPoster: '/assets/fundamentals-poster.jpg',
 };
 
 export const icons = {

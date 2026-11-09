@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import Navigation from '../components/layout/Navigation';
 import Footer from '../components/layout/Footer';
 import { coaches } from '../constants/coachesData';
+import { withPageImages } from '../hooks/usePageImages';
 
 const CoachesPage = () => {
   const navigate = useNavigate();
@@ -134,4 +135,8 @@ const CoachesPage = () => {
   );
 };
 
-export default CoachesPage;
+// Loading screen until the coaches' photos are in; their club logos follow.
+export default withPageImages(CoachesPage, () => ({
+  first: coaches.map((c) => c.avatarUrl),
+  more: coaches.flatMap((c) => (c.career ?? []).flatMap((s) => s.entries).slice(0, 6).map((e) => e.icon)),
+}));
