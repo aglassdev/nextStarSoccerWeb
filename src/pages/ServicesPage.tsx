@@ -11,7 +11,8 @@ interface Service {
     id: string;
     name: string;
     image?: string;           // no image yet → placeholder tile
-    containImage?: boolean;   // a document, not a photo — shown whole in the detail
+    brightImage?: boolean;    // a bright document, not a photo — the card needs a heavier shade for its text
+    imageTop?: boolean;       // crop from the top rather than the middle, so the top of the picture shows
     price: string;
     meta: string[];
     pricing: string[];
@@ -46,12 +47,12 @@ const CATEGORIES: Category[] = [
         services: [
             { id: 'parent-consultation', name: 'Parent Consultation', image: '/assets/images/parentConsultation.png', price: 'From $150', meta: ['60 min', 'In person or phone'], pricing: ['In person — $200', 'By phone — $150'], action: 'request-in-app',
               description: "For parents seeking additional guidance regarding a player's current skill, fitness levels, progress, academy opportunities, college recruitment process, international exposure, or anything soccer-related, a consultation offers a private setting to address all your questions. This one-on-one consultation provides an in-depth analysis of your child's current state, ensuring that all your concerns are thoroughly answered, while also providing recommendations for the next steps in their development." },
-            { id: 'game-analysis', name: 'Game Analysis', image: '/assets/images/gameAnalysis.png', price: `From $${VIDEO_ANALYSIS.pricePerAnalysis}`, meta: ['In person, online or video'], ...(ACCOUNTS_LIVE
+            { id: 'game-analysis', name: 'Game Analysis', image: '/assets/images/gameAnalysis.webp', imageTop: true, price: `From $${VIDEO_ANALYSIS.pricePerAnalysis}`, meta: ['In person, online or video'], ...(ACCOUNTS_LIVE
                 ? { pricing: [`Video recording — $${VIDEO_ANALYSIS.pricePerAnalysis} (buy online)`, 'Online meeting — $150', 'In person — $200'], action: 'video-analysis' as Action,
                     description: "A coach breaks down a player's game — as a recorded video review you can buy right here, or over an online meeting or in person (requested in the app) — and walks through what went well, what to work on, and how to carry it into training." }
                 : { pricing: ['In person — $200', 'Online meeting — $150', `Video recording — $${VIDEO_ANALYSIS.pricePerAnalysis}`], action: 'request-in-app' as Action,
                     description: "A coach breaks down a player's game — in person, over an online meeting, or as a recorded video review — and walks through what went well, what to work on, and how to carry it into training." }) },
-            { id: 'player-report', name: 'Player Report', image: '/assets/images/playerReport.png', containImage: true, price: '$75', meta: ['After 5+ sessions'], pricing: ['$75 per player'], action: 'request-in-app',
+            { id: 'player-report', name: 'Player Report', image: '/assets/images/playerReport.png', brightImage: true, imageTop: true, price: '$75', meta: ['After 5+ sessions'], pricing: ['$75 per player'], action: 'request-in-app',
               description: "A comprehensive written report on a player's current progress, skill, fitness, and mental state. This detailed evaluation gives you an understanding of your development, highlighting your personal strengths and areas needing improvement. The report shows both physical and technical ability, but also intangibles such as mental focus and work ethic, allowing for a holistic evaluation and helps inform future training plans." },
             { id: 'college-consulting', name: 'College Consulting', price: 'TBC', meta: ['Coming soon'], pricing: ['Pricing to be confirmed'], action: 'request-in-app', isNew: true, description: COMING_SOON },
         ],
@@ -83,12 +84,12 @@ const NewBadge = () => (
 );
 
 // A photo, or for a service that has none yet, a quiet placeholder.
-const CardImage = ({ s, className = '', fit = 'cover' }: { s: Service; className?: string; fit?: 'cover' | 'contain' }) =>
+const CardImage = ({ s, className = '' }: { s: Service; className?: string }) =>
     s.image ? (
         <img
             src={s.image}
             alt={s.name}
-            className={`${className} ${fit === 'contain' ? 'object-contain bg-neutral-900 p-6' : 'object-cover'}`}
+            className={`${className} object-cover ${s.imageTop ? 'object-top' : ''}`}
             loading="lazy"
             decoding="async"
         />
@@ -154,7 +155,7 @@ const ServiceModal = ({ s, onClose }: { s: Service; onClose: () => void }) => (
     <div className="fixed inset-0 z-[100] bg-black/75 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
         <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-[#0e0e0e] border border-white/10 rounded-2xl" onClick={e => e.stopPropagation()}>
             <div className="relative aspect-[16/9]">
-                <CardImage s={s} className="absolute inset-0 w-full h-full" fit={s.containImage ? 'contain' : 'cover'} />
+                <CardImage s={s} className="absolute inset-0 w-full h-full" />
                 <button onClick={onClose} aria-label="Close" className="absolute top-4 right-4 w-9 h-9 rounded-full bg-black/60 text-white/80 hover:text-white flex items-center justify-center">✕</button>
             </div>
             <div className="p-6 md:p-8">
@@ -229,7 +230,7 @@ const LayoutBento = ({ open }: { open: (s: Service) => void }) => (
                     >
                         <CardImage s={s} className="absolute inset-0 w-full h-full transition-transform duration-500 group-hover:scale-[1.03]" />
                         {/* A bright document needs a heavier shade than a photo for the text to read. */}
-                        <div className={`absolute inset-0 bg-gradient-to-t ${s.containImage ? 'from-black via-black/75 to-black/30' : 'from-black/85 via-black/10 to-transparent'}`} />
+                        <div className={`absolute inset-0 bg-gradient-to-t ${s.brightImage ? 'from-black via-black/75 to-black/30' : 'from-black/85 via-black/10 to-transparent'}`} />
                         <div className="absolute top-4 left-4">
                             {s.isNew ? <NewBadge /> : <span className="rounded-full bg-black/45 backdrop-blur-sm text-white/75 text-[10px] uppercase tracking-wider px-2.5 py-1">{s.category}</span>}
                         </div>
