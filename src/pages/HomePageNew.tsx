@@ -62,6 +62,16 @@ const STORY: {
     },
 ];
 
+// Partners, in the white bar under About us. Each logo has its own height so
+// they read as the same size: the wide Dunkin' wordmark and the heavy Uber
+// letters sit a little lower than the swoosh.
+// w/h are the files' pixel sizes, so each logo's space is held before it loads.
+const PARTNERS: { name: string; href: string; logo: string; w: number; h: number; height: string }[] = [
+    { name: 'Nike',    href: 'https://www.nike.com/',          logo: '/assets/partners/nike.webp',  w: 720, h: 257, height: 'clamp(20px, 3.4vw, 46px)' },
+    { name: 'Uber',    href: 'https://www.uber.com/',          logo: '/assets/partners/uber.webp',  w: 720, h: 250, height: 'clamp(16px, 2.6vw, 34px)' },
+    { name: "Dunkin'", href: 'https://www.dunkindonuts.com/', logo: '/assets/partners/dunkin.png', w: 969, h: 188, height: 'clamp(14px, 2.3vw, 30px)' },
+];
+
 const CLUB_ICONS = [
   '568289-removebg-preview.png','Annapolis_Blues_FC_Logo.png','Chattanooga_FC_logo.svg.png',
   'Club_Deportivo_Águila_logo.svg.png','Dukla_bb.png','H4.png','New_York_Red_Bulls_logo.svg.png',
@@ -533,6 +543,37 @@ const HomePageNew = () => {
 
             {/* ═══════════════════════ ABOUT US — scroll reveal (phones: photo and text) ═══════════════════════ */}
             {isMobile ? <StorySplit chapter={STORY[0]} mediaLeft={false} /> : <AboutReveal chapter={STORY[0]} />}
+
+            {/* ═══════════════════════ PARTNERS — short white bar ═══════════════════════ */}
+            <section aria-labelledby="partners-heading" className="bg-white h-[20vh] min-h-[120px]">
+                <Container className="h-full flex items-center gap-4 md:gap-12">
+                    <h2 id="partners-heading" className="shrink-0 text-black font-medium tracking-[-0.025em] leading-[1.05] text-[clamp(1.15rem,2.4vw,2rem)]">
+                        Our<br className="md:hidden" /> <span className="text-black/40">partners</span>
+                    </h2>
+                    <div className="shrink-0 w-px self-stretch my-[5vh] bg-black/10" aria-hidden="true" />
+                    {/* On the narrowest phones the logos shrink to fit rather than spill off the edge. */}
+                    <ul className="flex-1 min-w-0 flex items-center justify-evenly gap-3 md:gap-4">
+                        {PARTNERS.map(p => (
+                            <li key={p.name} className="min-w-0">
+                                <a
+                                    href={p.href}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    aria-label={p.name}
+                                    className="block max-w-full transition-transform duration-300 ease-out hover:scale-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-black rounded"
+                                >
+                                    <img
+                                        src={p.logo} alt={p.name} width={p.w} height={p.h}
+                                        style={{ height: p.height }}
+                                        className="block w-auto max-w-full object-contain"
+                                        loading="lazy" decoding="async"
+                                    />
+                                </a>
+                            </li>
+                        ))}
+                    </ul>
+                </Container>
+            </section>
 
             {/* ═══════════════════════ FUNDAMENTALS + TEAM — half and half ═══════════════════════ */}
             {STORY.slice(1).map(ch => <StorySplit key={ch.label} chapter={ch} mediaLeft={!!ch.video} />)}
