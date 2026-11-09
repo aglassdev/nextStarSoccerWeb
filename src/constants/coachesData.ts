@@ -111,71 +111,6 @@ export const coaches: Coach[] = [
     ],
   },
   {
-    id: 3,
-    name: 'Ryan Machado',
-    title: 'Pro Coach',
-    handle: 'coach3',
-    slug: 'ryan-machado',
-    status: 'Available',
-    avatarUrl: images.coach4,
-    bio: [
-      "Ryan Machado is a dynamic soccer player and coach from the Washington, D.C. area who brings professional-level experience and a deep passion for player development to Next Star Soccer. Machado developed his skills through the D.C. United Academy, one of the top youth development programs in Major League Soccer, where he trained alongside some of the most talented young players in the country and gained invaluable experience in a high-performance environment.",
-      "Machado went on to play collegiate soccer at Radford University, where he continued to develop his game and compete at a high level in the Big South Conference. His time at Radford sharpened his tactical awareness, technical ability, and leadership qualities both on and off the field.",
-      "After college, Machado took his talents to the professional level, signing with the Maryland Bobcats FC. Competing in the National Independent Soccer Association, he gained valuable experience playing against top-tier competition and further refined his understanding of the professional game. His time with the Bobcats strengthened his versatility, composure under pressure, and ability to perform in demanding match environments.",
-      "Machado brings his wealth of playing experience to the Next Star Soccer coaching staff, where he works with players of all ages and skill levels. His ability to connect with young athletes, break down complex concepts, and demonstrate techniques at a high level makes him an invaluable member of the team.",
-    ],
-    career: [
-      {
-        label: 'Youth',
-        entries: [
-          { icon: `${ICONS}dcUnited.png`, name: 'D.C. United Academy' },
-        ],
-      },
-      {
-        label: 'College',
-        entries: [
-          { icon: `${ICONS}radford.png`, name: 'Radford University' },
-        ],
-      },
-      {
-        label: 'Professional',
-        entries: [
-          { icon: `${ICONS}marylandBobcats.png`, name: 'Maryland Bobcats FC' },
-        ],
-      },
-    ],
-  },
-  {
-    id: 4,
-    name: 'Gonzalo Carrasco',
-    title: 'Pro Coach',
-    handle: 'coach4',
-    slug: 'gonzalo-carrasco',
-    status: 'Available',
-    avatarUrl: images.coach3,
-    bio: [
-      "Gonzalo Carrasco is an experienced soccer player and coach originally from Spain who brings an international perspective and deep technical knowledge to Next Star Soccer. Carrasco's soccer journey took him from Spain to the United States, where he pursued both his academic and athletic careers at the collegiate level.",
-      "Carrasco played collegiate soccer at Mississippi College, competing as a Choctaw in the Gulf South Conference. He then transferred to Longwood University, where he continued to develop as a player and competed in the Big South Conference. His time across two collegiate programs gave him a well-rounded understanding of different playing styles, coaching philosophies, and tactical systems.",
-      "After his collegiate career, Carrasco transitioned to the professional level, signing with the Little Rock Rangers. His professional experience further sharpened his competitive edge, tactical awareness, and ability to perform under pressure. Carrasco returned to play for Louisiana Krewe FC, continuing to compete at a high level while bringing his on-field experience directly into his coaching.",
-      "Carrasco brings a unique international perspective to the Next Star Soccer coaching staff. Having grown up in the Spanish soccer system and competed at multiple levels in the United States, he offers players insight into different styles of play and approaches to the game. His technical background rooted in Spanish football, combined with his experience in American collegiate and professional soccer, allows him to connect with players and help them develop a well-rounded skill set.",
-    ],
-    career: [
-      {
-        label: 'College',
-        entries: [
-          { icon: `${ICONS}longwood.png`, name: 'Longwood University' },
-        ],
-      },
-      {
-        label: 'Professional',
-        entries: [
-          { icon: `${ICONS}littleRockRangers.png`, name: 'Little Rock Rangers' },
-          { icon: `${ICONS}louisianaKrewe.png`, name: 'Louisiana Krewe FC' },
-        ],
-      },
-    ],
-  },
-  {
     id: 5,
     name: 'Patrick Mullins',
     title: 'Pro Coach',
@@ -260,49 +195,6 @@ export const coaches: Coach[] = [
     ],
   },
   {
-    id: 7,
-    name: 'Steve Birnbaum',
-    title: 'Pro Coach',
-    handle: 'coach7',
-    slug: 'steve-birnbaum',
-    status: 'Available',
-    avatarUrl: images.coach6,
-    bio: [
-      "Steve Birnbaum, born on January 23, 1991, in Newport Beach, California, is a former professional soccer player, U.S. Men's National Team veteran, and long-time captain of D.C. United. Renowned for his defensive prowess, leadership, and aerial dominance, Birnbaum rose through the ranks of American soccer to become one of Major League Soccer's most respected players. His journey began in Southern California, where he excelled in youth soccer before attending the University of California, Berkeley.",
-      "At Cal, he earned All-American honors and established himself as one of the top defensive prospects in the country. Birnbaum's professional career took off in 2014 when he was selected as the second overall pick in the MLS SuperDraft by D.C. United. He quickly became a key figure in their backline, earning praise for his physicality, tactical awareness, and reliability. Known for his dominance in the air and ability to score from set pieces, Birnbaum was instrumental in D.C. United's success and was named team captain in 2017.",
-      "Internationally, Birnbaum represented the United States Men's National Team, earning multiple caps and contributing crucial moments, including a game-winning goal in a 2016 friendly. He participated in World Cup qualifiers and friendlies, showcasing his abilities at the international level and further establishing his reputation as a dependable and versatile defender. After 11 seasons with D.C. United, Birnbaum retired in 2024, leaving a legacy as one of the club's most influential players.",
-      "At the time of his retirement, he ranked third in all-time appearances for D.C. United, a testament to his durability and dedication throughout his career. He transitioned to coaching, joining the team at Next Star Soccer. He now uses his extensive experience to mentor young athletes, emphasizing technical skill development, mental resilience, and perseverance.",
-    ],
-    career: [
-      {
-        label: 'Youth',
-        entries: [
-          { icon: `${ICONS}pateadoressc.png`, name: 'Pateadores SC' },
-        ],
-      },
-      {
-        label: 'College',
-        entries: [
-          { icon: `${ICONS}ucberkeley.png`, name: 'UC Berkeley' },
-        ],
-      },
-      {
-        label: 'Professional',
-        entries: [
-          { icon: `${ICONS}dcUnited.png`, name: 'D.C. United' },
-          { icon: `${ICONS}richmondkickers.png`, name: 'Richmond Kickers' },
-          { icon: `${ICONS}orangeCountyBlueStar.png`, name: 'Orange County Blue Star' },
-        ],
-      },
-      {
-        label: 'National Team',
-        entries: [
-          { icon: `${ICONS}usa.png`, name: 'US Men\'s National Team' },
-        ],
-      },
-    ],
-  },
-  {
     id: 8,
     name: 'Chris Pontius',
     title: 'Pro Coach',
@@ -346,30 +238,109 @@ export const coaches: Coach[] = [
     ],
   },
   {
-    id: 9,
-    name: 'Noah Satriano',
-    title: 'Collegiate Coach',
-    handle: 'coach9',
-    slug: 'noah-satriano',
+    id: 3,
+    name: 'Ryan Machado',
+    title: 'Pro Coach',
+    handle: 'coach3',
+    slug: 'ryan-machado',
     status: 'Available',
-    avatarUrl: images.coach9,
+    avatarUrl: images.coach4,
     bio: [
-      "Noah Satriano is a talented young soccer player and coach from the Washington, D.C. area who brings a unique combination of competitive playing experience and natural coaching ability to Next Star Soccer. A standout defender and midfielder, Satriano developed his skills through the Baltimore Armour, one of the most respected youth development programs in the Mid-Atlantic region, where he competed at a high level and gained invaluable experience against top-tier competition.",
-      "Satriano currently plays collegiate soccer at Georgetown University, one of the premier programs in the Big East Conference, where he is in his sophomore year. Competing as a Hoya, he continues to develop his tactical understanding of the game against some of the best college players in the country, sharpening his defensive awareness, positioning, and ability to read the game at an advanced level.",
-      "During the off-season, Satriano plays for the Annapolis Blues, adding competitive club experience alongside his collegiate career and deepening his understanding of the game at a high level. His versatility and defensive intelligence make him a valuable asset on the pitch.",
-      "For the past year, Satriano has been an integral part of the Next Star Soccer coaching staff, working extensively with group training sessions and summer camp programs. He has quickly established himself as one of the most effective coaches with younger players, bringing an infectious energy, patience, and ability to break down complex concepts into simple, actionable lessons.",
+      "Ryan Machado is a dynamic soccer player and coach from the Washington, D.C. area who brings professional-level experience and a deep passion for player development to Next Star Soccer. Machado developed his skills through the D.C. United Academy, one of the top youth development programs in Major League Soccer, where he trained alongside some of the most talented young players in the country and gained invaluable experience in a high-performance environment.",
+      "Machado went on to play collegiate soccer at Radford University, where he continued to develop his game and compete at a high level in the Big South Conference. His time at Radford sharpened his tactical awareness, technical ability, and leadership qualities both on and off the field.",
+      "After college, Machado took his talents to the professional level, signing with the Maryland Bobcats FC. Competing in the National Independent Soccer Association, he gained valuable experience playing against top-tier competition and further refined his understanding of the professional game. His time with the Bobcats strengthened his versatility, composure under pressure, and ability to perform in demanding match environments.",
+      "Machado brings his wealth of playing experience to the Next Star Soccer coaching staff, where he works with players of all ages and skill levels. His ability to connect with young athletes, break down complex concepts, and demonstrate techniques at a high level makes him an invaluable member of the team.",
     ],
     career: [
       {
+        label: 'Youth',
+        entries: [
+          { icon: `${ICONS}dcUnited.png`, name: 'D.C. United Academy' },
+        ],
+      },
+      {
         label: 'College',
         entries: [
-          { icon: `${ICONS}georgetown.png`, name: 'Georgetown University' },
+          { icon: `${ICONS}radford.png`, name: 'Radford University' },
         ],
       },
       {
         label: 'Professional',
         entries: [
-          { icon: `${ICONS}annapolisBlues.png`, name: 'Annapolis Blues' },
+          { icon: `${ICONS}marylandBobcats.png`, name: 'Maryland Bobcats FC' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 4,
+    name: 'Gonzalo Carrasco',
+    title: 'Pro Coach',
+    handle: 'coach4',
+    slug: 'gonzalo-carrasco',
+    status: 'Available',
+    avatarUrl: images.coach3,
+    bio: [
+      "Gonzalo Carrasco is an experienced soccer player and coach originally from Spain who brings an international perspective and deep technical knowledge to Next Star Soccer. Carrasco's soccer journey took him from Spain to the United States, where he pursued both his academic and athletic careers at the collegiate level.",
+      "Carrasco played collegiate soccer at Mississippi College, competing as a Choctaw in the Gulf South Conference. He then transferred to Longwood University, where he continued to develop as a player and competed in the Big South Conference. His time across two collegiate programs gave him a well-rounded understanding of different playing styles, coaching philosophies, and tactical systems.",
+      "After his collegiate career, Carrasco transitioned to the professional level, signing with the Little Rock Rangers. His professional experience further sharpened his competitive edge, tactical awareness, and ability to perform under pressure. Carrasco returned to play for Louisiana Krewe FC, continuing to compete at a high level while bringing his on-field experience directly into his coaching.",
+      "Carrasco brings a unique international perspective to the Next Star Soccer coaching staff. Having grown up in the Spanish soccer system and competed at multiple levels in the United States, he offers players insight into different styles of play and approaches to the game. His technical background rooted in Spanish football, combined with his experience in American collegiate and professional soccer, allows him to connect with players and help them develop a well-rounded skill set.",
+    ],
+    career: [
+      {
+        label: 'College',
+        entries: [
+          { icon: `${ICONS}longwood.png`, name: 'Longwood University' },
+        ],
+      },
+      {
+        label: 'Professional',
+        entries: [
+          { icon: `${ICONS}littleRockRangers.png`, name: 'Little Rock Rangers' },
+          { icon: `${ICONS}louisianaKrewe.png`, name: 'Louisiana Krewe FC' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 7,
+    name: 'Steve Birnbaum',
+    title: 'Pro Coach',
+    handle: 'coach7',
+    slug: 'steve-birnbaum',
+    status: 'Available',
+    avatarUrl: images.coach6,
+    bio: [
+      "Steve Birnbaum, born on January 23, 1991, in Newport Beach, California, is a former professional soccer player, U.S. Men's National Team veteran, and long-time captain of D.C. United. Renowned for his defensive prowess, leadership, and aerial dominance, Birnbaum rose through the ranks of American soccer to become one of Major League Soccer's most respected players. His journey began in Southern California, where he excelled in youth soccer before attending the University of California, Berkeley.",
+      "At Cal, he earned All-American honors and established himself as one of the top defensive prospects in the country. Birnbaum's professional career took off in 2014 when he was selected as the second overall pick in the MLS SuperDraft by D.C. United. He quickly became a key figure in their backline, earning praise for his physicality, tactical awareness, and reliability. Known for his dominance in the air and ability to score from set pieces, Birnbaum was instrumental in D.C. United's success and was named team captain in 2017.",
+      "Internationally, Birnbaum represented the United States Men's National Team, earning multiple caps and contributing crucial moments, including a game-winning goal in a 2016 friendly. He participated in World Cup qualifiers and friendlies, showcasing his abilities at the international level and further establishing his reputation as a dependable and versatile defender. After 11 seasons with D.C. United, Birnbaum retired in 2024, leaving a legacy as one of the club's most influential players.",
+      "At the time of his retirement, he ranked third in all-time appearances for D.C. United, a testament to his durability and dedication throughout his career. He transitioned to coaching, joining the team at Next Star Soccer. He now uses his extensive experience to mentor young athletes, emphasizing technical skill development, mental resilience, and perseverance.",
+    ],
+    career: [
+      {
+        label: 'Youth',
+        entries: [
+          { icon: `${ICONS}pateadoressc.png`, name: 'Pateadores SC' },
+        ],
+      },
+      {
+        label: 'College',
+        entries: [
+          { icon: `${ICONS}ucberkeley.png`, name: 'UC Berkeley' },
+        ],
+      },
+      {
+        label: 'Professional',
+        entries: [
+          { icon: `${ICONS}dcUnited.png`, name: 'D.C. United' },
+          { icon: `${ICONS}richmondkickers.png`, name: 'Richmond Kickers' },
+          { icon: `${ICONS}orangeCountyBlueStar.png`, name: 'Orange County Blue Star' },
+        ],
+      },
+      {
+        label: 'National Team',
+        entries: [
+          { icon: `${ICONS}usa.png`, name: 'US Men\'s National Team' },
         ],
       },
     ],
@@ -408,6 +379,35 @@ export const coaches: Coach[] = [
           { icon: `${ICONS}nycfcii.png`, name: 'New York City FC' },
           { icon: `${ICONS}dynamo.png`, name: 'Houston Dynamo FC' },
           { icon: `${ICONS}dcUnited.png`, name: 'D.C. United' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 9,
+    name: 'Noah Satriano',
+    title: 'Collegiate Coach',
+    handle: 'coach9',
+    slug: 'noah-satriano',
+    status: 'Available',
+    avatarUrl: images.coach9,
+    bio: [
+      "Noah Satriano is a talented young soccer player and coach from the Washington, D.C. area who brings a unique combination of competitive playing experience and natural coaching ability to Next Star Soccer. A standout defender and midfielder, Satriano developed his skills through the Baltimore Armour, one of the most respected youth development programs in the Mid-Atlantic region, where he competed at a high level and gained invaluable experience against top-tier competition.",
+      "Satriano currently plays collegiate soccer at Georgetown University, one of the premier programs in the Big East Conference, where he is in his sophomore year. Competing as a Hoya, he continues to develop his tactical understanding of the game against some of the best college players in the country, sharpening his defensive awareness, positioning, and ability to read the game at an advanced level.",
+      "During the off-season, Satriano plays for the Annapolis Blues, adding competitive club experience alongside his collegiate career and deepening his understanding of the game at a high level. His versatility and defensive intelligence make him a valuable asset on the pitch.",
+      "For the past year, Satriano has been an integral part of the Next Star Soccer coaching staff, working extensively with group training sessions and summer camp programs. He has quickly established himself as one of the most effective coaches with younger players, bringing an infectious energy, patience, and ability to break down complex concepts into simple, actionable lessons.",
+    ],
+    career: [
+      {
+        label: 'College',
+        entries: [
+          { icon: `${ICONS}georgetown.png`, name: 'Georgetown University' },
+        ],
+      },
+      {
+        label: 'Professional',
+        entries: [
+          { icon: `${ICONS}annapolisBlues.png`, name: 'Annapolis Blues' },
         ],
       },
     ],
