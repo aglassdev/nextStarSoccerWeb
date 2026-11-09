@@ -32,6 +32,7 @@ import ClinicDetailPage from './pages/ClinicDetailPage';
 import ClinicCheckoutPage from './pages/ClinicCheckoutPage';
 import VideoAnalysisPage from './pages/VideoAnalysisPage';
 import VideoAnalysisCheckoutPage from './pages/VideoAnalysisCheckoutPage';
+import CampCheckoutPage from './pages/CampCheckoutPage';
 import Layout from './components/layout/Layout';
 import LoadingScreen from './components/common/LoadingScreen';
 import AdminLoginPage from './pages/admin/AdminLoginPage';
@@ -145,6 +146,19 @@ function AppRoutes() {
             </UserProtectedRoute>
           ) : (
             <Navigate to="/services" replace />
+          )
+        }
+      />
+      {/* Camps sold on the website: an account is required too (no guest checkout). */}
+      <Route
+        path="/checkout/camp/:campId"
+        element={
+          ACCOUNTS_LIVE ? (
+            <UserProtectedRoute>
+              <CampCheckoutPage />
+            </UserProtectedRoute>
+          ) : (
+            <Navigate to="/services/camps" replace />
           )
         }
       />

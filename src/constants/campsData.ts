@@ -3,6 +3,8 @@ import { images } from './images';
 export interface CampSession {
   label: string;
   time: string;
+  /** For camps sold on the website: the group the player signs up to. */
+  key?: 'youth' | 'college';
 }
 
 export interface CampWeek {
@@ -16,6 +18,8 @@ export interface Camp {
   name: string;
   isNike: boolean;
   image: string;
+  /** CSS object-position for the detail page's wide hero crop (default center). */
+  heroPosition?: string;
   heroDateRange: string;
   location: {
     name: string;
@@ -28,11 +32,49 @@ export interface Camp {
   pricingNote: string;
   description: string;
   itemsToBring: string;
-  registerType: 'in-app' | 'nike';
+  /** 'web': registered and paid for on the website (account required). */
+  registerType: 'in-app' | 'nike' | 'web';
   nikeUrl?: string;
+  /** registerType 'web': the camp id the checkout and register-clinic know it by. */
+  checkoutId?: string;
+  /** Last camp day (YYYY-MM-DD, Eastern); registration closes after it. */
+  endDate?: string;
+  /** Week shown in checkout, e.g. "November 23 – 27, 2026". */
+  weekLabel?: string;
 }
 
 export const camps: Camp[] = [
+  {
+    // Same camp as the app's FallCampScreen. Prices, days and the calendar
+    // events it signs players up to live in the register-clinic function.
+    id: 'fall',
+    slug: 'fall',
+    name: 'Next Star Fall Camp',
+    isNike: false,
+    image: images.fallCamp,
+    heroPosition: 'center 30%',
+    heroDateRange: 'November 23 – 27, 2026',
+    location: {
+      name: 'Lewinsville Park',
+      address: '1659 Chain Bridge Rd, McLean, VA 22101',
+      city: 'McLean, VA',
+    },
+    weeks: [{ label: 'Week', dates: 'November 23 – November 27' }],
+    sessions: [
+      { label: 'Youth Group', time: '10:00 AM – 12:00 PM', key: 'youth' },
+      { label: 'Pro/College Group', time: '9:00 AM – 11:00 AM', key: 'college' },
+    ],
+    pricing: 'Full Week: $250\nIndividual Day: $60 / day (drop-in)\nCancellation and rebooking available',
+    pricingNote: 'Ages 6-21 · Coed · All skill levels',
+    description:
+      "Join us for our Fall Camp at Lewinsville Park in McLean, VA. Under Howard Men's Soccer Coach Phillip Gyau and Next Star Soccer Director Paul Torres, campers will get to learn, practice, improve, and have fun. Our curriculum is simple but proven, allowing every camper, no matter their age or skill level, to learn and continue to progress. We look forward to seeing you!",
+    itemsToBring:
+      'Athletic clothing, soccer cleats (no metal studs), soccer ball, shin guards (optional), water bottle, sunblock, gym bag or backpack.',
+    registerType: 'web',
+    checkoutId: 'fall-camp-2026',
+    endDate: '2026-11-27',
+    weekLabel: 'November 23 – 27, 2026',
+  },
   {
     id: 'lewinsville',
     slug: 'lewinsville',
@@ -181,3 +223,7 @@ export const camps: Camp[] = [
     registerType: 'in-app',
   },
 ];
+
+/** True once a camp's last day has passed (Eastern time). */
+export const campHasEnded = (camp: Camp) =>
+  !!camp.endDate && new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' }) > camp.endDate;

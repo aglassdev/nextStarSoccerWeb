@@ -16,9 +16,9 @@ const CampsPage = () => {
           {/* Header */}
           <div className="mb-10">
             <p className="text-white/40 text-xs tracking-[0.2em] uppercase mb-3">Next Star 2026 Selection</p>
-            <h1 className="text-white text-4xl font-bold leading-tight">Summer Camps</h1>
+            <h1 className="text-white text-4xl font-bold leading-tight">Camps</h1>
             <p className="text-white/50 mt-3 text-base leading-relaxed">
-              Five locations across the DMV. All ages, all skill levels. Led by Howard Men's Soccer Coach Phillip Gyau and Next Star Soccer Director Paul Torres.
+              Camps across the DMV through the year. All ages, all skill levels. Led by Howard Men's Soccer Coach Phillip Gyau and Next Star Soccer Director Paul Torres.
             </p>
           </div>
 

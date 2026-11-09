@@ -1,11 +1,13 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import Navigation from '../components/layout/Navigation';
 import Footer from '../components/layout/Footer';
-import { camps } from '../constants/campsData';
+import { useAuth } from '../contexts/AuthContext';
+import { camps, campHasEnded } from '../constants/campsData';
 
 const CampDetailPage = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const camp = camps.find(c => c.slug === slug);
 
   if (!camp) {
@@ -30,6 +32,7 @@ const CampDetailPage = () => {
           src={camp.image}
           alt={camp.name}
           className="absolute inset-0 w-full h-full object-cover"
+          style={camp.heroPosition ? { objectPosition: camp.heroPosition } : undefined}
         />
         {/* Gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/20 to-black" />
@@ -93,12 +96,25 @@ const CampDetailPage = () => {
             >
               Register on Nike Soccer Camps ↗
             </a>
+          ) : camp.registerType === 'web' && !campHasEnded(camp) ? (
+            <div>
+              {/* An account is required (no guest checkout): signed-out visitors sign in first, then land in checkout. */}
+              <button
+                onClick={() => navigate(`/checkout/camp/${camp.checkoutId}`)}
+                className="block w-full bg-white text-black text-center py-4 rounded-xl font-semibold text-[15px] hover:bg-white/90 transition-colors"
+              >
+                Register
+              </button>
+              <p className="text-white/35 text-xs text-center mt-3">
+                {user ? 'Pay online, or register in the Next Star app.' : "You'll sign in to your Next Star account to register."}
+              </p>
+            </div>
           ) : (
             <button
               disabled
               className="w-full bg-white/10 text-white/35 py-4 rounded-xl font-medium text-[15px] cursor-not-allowed"
             >
-              Register In App
+              {camp.registerType === 'web' ? 'Registration closed' : 'Register In App'}
             </button>
           )}
 

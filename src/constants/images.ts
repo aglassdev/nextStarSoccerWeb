@@ -28,6 +28,7 @@ export const images = {
   summerCampLewinsville: '/assets/images/summerCampLewinsville.png',
   summerCampSofive: '/assets/images/summerCampSofive.png',
   summerCampHoward: '/assets/images/summerCampHoward.png',
+  fallCamp: '/assets/images/fallCamp.webp',
 
 
   instagram1: '/assets/images/instagram1.jpg',
