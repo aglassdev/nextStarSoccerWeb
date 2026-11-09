@@ -19,8 +19,8 @@ import { PAYMENTS_PATH, SIGN_IN_PATH } from '../constants/features';
 // Camp checkout (website). The app's FallCampScreen → CheckoutScreen flow:
 // parents pick which of their players are coming, everyone picks the group
 // (Youth or Pro/College), and it's the week price per player (the day rate
-// for the days left once camp has started), scholarships and coupons applied,
-// plus the 3% processing fee. An account is required, so this page sits behind
+// for the days left once camp has started), coupons applied, plus the 3%
+// processing fee. An account is required, so this page sits behind
 // sign-in like video analysis; there's no guest checkout. The register-clinic
 // function quotes the price and, after payment, verifies it and writes the
 // signups, so the website and the server can't disagree on the amount.
@@ -480,9 +480,6 @@ const CheckoutForm = ({ camp, onDone }: { camp: Camp; onDone: (r: DoneResult) =>
                     </span>
                     <span className="text-gray-900">{formatCents(quote.subtotal)}</span>
                   </div>
-                  {quote.players.some((p) => p.scholarship === 'tier1' || p.scholarship === 'tier2') && (
-                    <p className="text-gray-500 text-xs mt-1">Scholarship pricing applied.</p>
-                  )}
                   {quote.discount > 0 && (
                     <div className="flex justify-between text-sm mt-2">
                       <span className="text-gray-500">Discount ({quote.couponCode})</span>
@@ -518,7 +515,7 @@ const CheckoutForm = ({ camp, onDone }: { camp: Camp; onDone: (r: DoneResult) =>
 
       {freeOrder && (
         <div className="p-4 bg-black/5 border border-black/10 rounded-lg text-gray-700 text-sm">
-          Your scholarship covers this camp, so there's nothing to pay. Contact us and we'll register you, or register in the Next Star app.
+          This order comes to $0, so there's nothing to charge. Contact us and we'll register you.
         </div>
       )}
 

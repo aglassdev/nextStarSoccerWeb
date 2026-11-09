@@ -12,7 +12,6 @@ export type CampGroup = 'youth' | 'college';
 
 export interface CampQuotePlayer extends ClinicPlayerRef {
   name: string;
-  scholarship: string;
   priceCents: number;
   /** Why this player can't be registered (overdue balance, already registered), or ''. */
   blocked: string;

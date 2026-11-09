@@ -69,7 +69,7 @@ export const camps: Camp[] = [
     description:
       "Join us for our Fall Camp at Lewinsville Park in McLean, VA. Under Howard Men's Soccer Coach Phillip Gyau and Next Star Soccer Director Paul Torres, campers will get to learn, practice, improve, and have fun. Our curriculum is simple but proven, allowing every camper, no matter their age or skill level, to learn and continue to progress. We look forward to seeing you!",
     itemsToBring:
-      'Athletic clothing, soccer cleats (no metal studs), soccer ball, shin guards (optional), water bottle, sunblock, gym bag or backpack.',
+      'Soccer ball, soccer cleats, water bottle.',
     registerType: 'web',
     checkoutId: 'fall-camp-2026',
     endDate: '2026-11-27',
