@@ -209,7 +209,14 @@ const RegisterCard = ({ camp }: { camp: Camp }) => {
 
   let action: React.ReactNode;
   let note: string | null = null;
-  if (camp.registerType === 'web' && !campHasEnded(camp)) {
+  if (campHasEnded(camp)) {
+    action = (
+      <span className="inline-block bg-white/10 text-white/40 text-[13px] font-semibold uppercase tracking-[0.08em] px-7 py-3.5 rounded-[4px]">
+        Registration closed
+      </span>
+    );
+    note = 'This camp has finished.';
+  } else if (camp.registerType === 'web') {
     // An account is required (no guest checkout): signed-out visitors sign in first, then land in checkout.
     action = (
       <button type="button" onClick={() => navigate(`/checkout/camp/${camp.checkoutId}`)} className={button}>
@@ -217,12 +224,6 @@ const RegisterCard = ({ camp }: { camp: Camp }) => {
       </button>
     );
     note = user ? 'Pay online, or register in the Next Star app.' : "You'll sign in to your Next Star account to register.";
-  } else if (camp.registerType === 'web') {
-    action = (
-      <span className="inline-block bg-white/10 text-white/40 text-[13px] font-semibold uppercase tracking-[0.08em] px-7 py-3.5 rounded-[4px]">
-        Registration closed
-      </span>
-    );
   } else if (camp.registerType === 'nike') {
     action = (
       <a href={camp.nikeUrl} target="_blank" rel="noopener noreferrer" className={button}>

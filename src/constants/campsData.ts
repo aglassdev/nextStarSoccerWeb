@@ -107,6 +107,7 @@ export const camps: Camp[] = [
     itemsToBring:
       'Athletic clothing, soccer cleats (no metal studs), soccer ball, shin guards (optional), water bottle, sunblock, gym bag or backpack.',
     registerType: 'in-app',
+    endDate: '2026-06-19',
   },
   {
     id: 'howard',
@@ -137,6 +138,7 @@ export const camps: Camp[] = [
     itemsToBring:
       'Athletic clothing, soccer cleats (no metal studs), soccer ball, shin guards (optional), water bottle, sunblock, gym bag or backpack. All campers receive a Nike Soccer Camps t-shirt! Nike Soccer Camp Balls can be purchased during registration.',
     registerType: 'nike',
+    endDate: '2026-07-10',
     nikeUrl:
       'https://www.ussportscamps.com/soccer/nike/nike-soccer-camp-next-star-howard-university-washington-dc',
   },
@@ -169,6 +171,7 @@ export const camps: Camp[] = [
     itemsToBring:
       'Athletic clothing, soccer cleats (no metal studs), soccer ball, shin guards (optional), water bottle, sunblock, gym bag or backpack.',
     registerType: 'in-app',
+    endDate: '2026-08-14',
   },
   {
     id: 'sofive',
@@ -198,6 +201,7 @@ export const camps: Camp[] = [
     itemsToBring:
       'Athletic clothing, soccer cleats (no metal studs), soccer ball, shin guards (optional), water bottle, sunblock, gym bag or backpack. All campers receive a Nike Soccer Camps t-shirt! Nike Soccer Camp Balls can be purchased during registration.',
     registerType: 'nike',
+    endDate: '2026-07-31',
     nikeUrl: 'https://www.ussportscamps.com/soccer/nike/nike-soccer-camp-sofive-rockville',
   },
   {
@@ -229,6 +233,60 @@ export const camps: Camp[] = [
     itemsToBring:
       'Athletic clothing, soccer cleats (no metal studs), soccer ball, shin guards (optional), water bottle, sunblock, gym bag or backpack.',
     registerType: 'in-app',
+    endDate: '2026-09-04',
+  },
+  {
+    // The app's SpringCampScreen (dates as its checkout and camps list have them).
+    id: 'spring',
+    slug: 'spring',
+    name: 'Next Star Spring Camp',
+    isNike: false,
+    photos: [collage(9), collage(7), collage(3)],
+    heroDateRange: 'March 30 – April 3, 2026',
+    location: {
+      name: 'Walt Whitman High School',
+      address: '7100 Whittier Blvd, Bethesda, MD 20817',
+      city: 'Bethesda, MD',
+    },
+    weeks: [{ label: 'Week', dates: 'March 30 – April 3' }],
+    sessions: [{ label: 'All levels', time: '8:00 AM – 11:00 AM' }],
+    priceSummary: '$50 / day',
+    pricing: 'Individual Day: $50 / day\nCancellation and rebooking available',
+    pricingNote: 'All ages · Coed · All skill levels',
+    description:
+      "Join us over spring break for Soccer Camp at Walt Whitman HS in Bethesda, MD. Under Howard Men's Soccer Coach Phillip Gyau and Next Star Soccer Director Paul Torres, campers will get to learn, practice, improve, and have fun. Our curriculum is simple but proven, allowing every camper, no matter their age or skill level, to learn and continue to progress. We look forward to seeing you!",
+    itemsToBring:
+      'Athletic clothing, soccer cleats (no metal studs), soccer ball, shin guards (optional), water bottle, sunblock, gym bag or backpack.',
+    registerType: 'in-app',
+    endDate: '2026-04-03',
+  },
+  {
+    // The app's WinterCampScreen.
+    id: 'winter',
+    slug: 'winter',
+    name: 'Next Star Winter Camp',
+    isNike: false,
+    photos: [collage(8), collage(2), collage(10)],
+    heroDateRange: 'December 22, 2025 – January 2, 2026',
+    location: {
+      name: 'Lewinsville Park',
+      address: '1659 Chain Bridge Rd, McLean, VA 22101',
+      city: 'McLean, VA',
+    },
+    weeks: [
+      { label: 'Week 1', dates: 'December 22 – December 26' },
+      { label: 'Week 2', dates: 'December 29 – January 2' },
+    ],
+    sessions: [{ label: 'All levels', time: '10:00 AM – 12:00 PM' }],
+    priceSummary: '$50 / day',
+    pricing: 'Individual Day: $50 / day\nCancellation and rebooking available',
+    pricingNote: 'Ages 6-21 · Coed · All skill levels',
+    description:
+      "Brave the cold and join us at our Winter Camp at Lewinsville Park in McLean, VA. Under Howard Men's Soccer Coach Phillip Gyau and Next Star Soccer Director Paul Torres, campers will get to learn, practice, improve, and have fun. Our curriculum is simple but proven, allowing every camper, no matter their age or skill level, to learn and continue to progress. We look forward to seeing you!",
+    itemsToBring:
+      'Athletic clothing, soccer cleats (no metal studs), soccer ball, shin guards (optional), water bottle, sunblock, gym bag or backpack.',
+    registerType: 'in-app',
+    endDate: '2026-01-02',
   },
 ];
 
