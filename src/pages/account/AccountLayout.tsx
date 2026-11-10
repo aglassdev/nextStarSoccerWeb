@@ -1,29 +1,29 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { images } from '../../constants/images';
+import Navigation from '../../components/layout/Navigation';
 import { AccountMenuButton, AccountSideMenu } from '../../components/layout/AccountSideMenu';
 import { AccountProvider } from './AccountContext';
 
 // The website's account pages (My Schedule, Payment Center, Video Analysis,
 // Inbox, Profile, My Family, Settings), opened from the person icon in the
 // site navigation. Each mirrors its screen in the app, laid out for a wide
-// screen. There's no top bar here: the logo (back to the site) sits top
-// left and the account pages are listed down the right side. An opened
-// video analysis uses the full width, so the film fills the screen.
+// screen. The site's top bar stays, and the account pages are listed down
+// the right side (behind a menu button on narrow screens). An opened video
+// analysis uses the full width, so the film fills the screen.
 
 const AccountLayout = () => {
   const wide = /^\/account\/video-analysis\/[^/]+/.test(useLocation().pathname);
   return (
     <AccountProvider>
       <div className="min-h-screen bg-black">
-        <div className={`${wide ? 'max-w-[1840px] px-4 md:px-6' : 'max-w-[1640px] px-4 md:px-8'} mx-auto`}>
-          <header className="flex items-center justify-between h-20">
-            <Link to="/" aria-label="Next Star Soccer home" className="opacity-90 hover:opacity-100 transition-opacity">
-              <img src={images.logo} alt="Next Star Soccer" style={{ height: 24, width: Math.round(24 * (2974 / 634)) }} />
-            </Link>
+        <Navigation />
+        <div className={`${wide ? 'max-w-[1840px] px-4 md:px-6' : 'max-w-[1640px] px-4 md:px-8'} mx-auto pt-16`}>
+          {/* Narrow screens: the account pages' menu, under the site's bar. */}
+          <div className="lg:hidden flex items-center justify-between h-14">
+            <span className="text-white/40 text-xs tracking-[0.18em] uppercase">My account</span>
             <AccountMenuButton />
-          </header>
+          </div>
           <div className={`flex ${wide ? 'gap-8' : 'gap-12'}`}>
-            <main className="flex-1 min-w-0 pt-2 pb-16">
+            <main className="flex-1 min-w-0 pt-2 lg:pt-6 pb-16">
               <Outlet />
             </main>
             <AccountSideMenu />

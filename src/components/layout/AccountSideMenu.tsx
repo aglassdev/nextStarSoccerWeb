@@ -67,8 +67,8 @@ const MenuList = () => {
 
 /** Wide screens: a column on the right that stays put as the page scrolls. */
 export const AccountSideMenu = () => (
-  <aside className="hidden lg:block w-48 flex-shrink-0">
-    <div className="sticky top-10 pt-1">
+  <aside className="hidden lg:block w-48 flex-shrink-0 pt-6">
+    <div className="sticky top-24 pt-1">
       <MenuList />
     </div>
   </aside>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ACCOUNTS_LIVE } from '../constants/features';
 import { VIDEO_ANALYSIS } from '../constants/videoAnalysis';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Navigation from '../components/layout/Navigation';
 import Footer from '../components/layout/Footer';
 import { serviceImages } from '../constants/images';
@@ -266,11 +266,14 @@ const LayoutBento = ({ open }: { open: (s: Service) => void }) => (
 );
 
 const ServicesPage = () => {
+    const navigate = useNavigate();
     // A link to /services#individual opens that service straight away.
     const [openService, setOpenService] = useState<Service | null>(() => {
         const id = window.location.hash.slice(1);
-        return ALL.find(s => s.id === id) ?? null;
+        return ALL.find(s => s.id === id && s.action !== 'camps') ?? null;
     });
+    // Camps has its own listing, so its card goes straight there.
+    const open = (s: Service) => (s.action === 'camps' ? navigate('/services/camps') : setOpenService(s));
 
     useEffect(() => {
         const url = openService ? `#${openService.id}` : window.location.pathname;
@@ -294,7 +297,7 @@ const ServicesPage = () => {
             {/* ═══════════════════════ CARDS ═══════════════════════ */}
             <section className="pb-20 md:pb-28 border-b border-white/[0.08] px-6 md:px-10 lg:px-14">
                 <div className="max-w-[1560px] mx-auto">
-                    <LayoutBento open={setOpenService} />
+                    <LayoutBento open={open} />
                 </div>
             </section>
 
