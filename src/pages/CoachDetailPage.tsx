@@ -2,7 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useRef, useState, useCallback, useEffect } from 'react';
 import Navigation from '../components/layout/Navigation';
 import Footer from '../components/layout/Footer';
-import { coaches } from '../constants/coachesData';
+import { coaches, type Coach, type CareerEntry, type CareerSection } from '../constants/coachesData';
 import { withPageImages } from '../hooks/usePageImages';
 
 // ── Video Player ──────────────────────────────────────────────────────────────
@@ -262,6 +262,74 @@ const COACH_VIDEOS: Record<string, { src: string; poster: string }[]> = Object.f
   }),
 );
 
+// ── The app's coach cards ─────────────────────────────────────────────────────
+// The profile card (photo, name, role, flag) and the teams card, styled as in
+// the app's coach screens.
+
+const cardBox = 'bg-[#111] border border-[#222] rounded-[14px] overflow-hidden';
+
+const ProfileCard = ({ coach }: { coach: Coach }) => {
+  const [first, ...rest] = coach.name.split(' ');
+  return (
+    <div className={cardBox}>
+      <div className="aspect-[4/5] bg-[#161616]">
+        <img src={coach.cardPhoto ?? coach.avatarUrl} alt={coach.name} className="w-full h-full object-cover" />
+      </div>
+      <div className="px-5 pt-4 pb-5 flex items-end justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-[#F4F2EE] text-[22px] leading-tight">{first}</p>
+          <p className="text-[#F4F2EE] text-[28px] font-bold leading-tight -mt-0.5">{rest.join(' ')}</p>
+          <p className="text-[#999] text-xs font-medium uppercase tracking-[2px] mt-1">{coach.title}</p>
+        </div>
+        {coach.flag && (
+          <img src={coach.flag.src} alt={coach.flag.country} title={coach.flag.country} className="w-8 h-[22px] object-contain mb-1.5 shrink-0" />
+        )}
+      </div>
+    </div>
+  );
+};
+
+const Team = ({ entry, className = '' }: { entry: CareerEntry; className?: string }) => (
+  <div className={`flex items-center gap-[5px] text-[#F4F2EE] text-xs ${className}`}>
+    {entry.icon && (
+      <img
+        src={entry.icon}
+        alt=""
+        className="w-3.5 h-3.5 object-contain shrink-0"
+        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+      />
+    )}
+    <span>{entry.name}</span>
+  </div>
+);
+
+// A section on its own spans the card, its teams two across; beside another,
+// its teams are listed down the middle of its half.
+const TeamsCell = ({ section, alone }: { section: CareerSection; alone: boolean }) => (
+  <div className="py-3.5 px-4 flex flex-col items-center">
+    <p className="text-[#888] text-xs mb-2">{section.label}</p>
+    {alone && section.entries.length > 1 ? (
+      <div className="grid grid-cols-2 gap-x-1.5 gap-y-1 w-[92%]">
+        {section.entries.map((e) => <Team key={e.name} entry={e} />)}
+      </div>
+    ) : (
+      <div className="flex flex-col items-center gap-1">
+        {section.entries.map((e) => <Team key={e.name} entry={e} className="justify-center text-center" />)}
+      </div>
+    )}
+  </div>
+);
+
+const CareerCard = ({ rows }: { rows: CareerSection[][] }) => (
+  <div className={`${cardBox} mt-4 divide-y divide-[#333]`}>
+    {rows.map((row) => (
+      <div key={row.map((s) => s.label).join('|')} className={row.length > 1 ? 'grid grid-cols-2 divide-x divide-[#333]' : ''}>
+        {row.map((section) => <TeamsCell key={section.label} section={section} alone={row.length === 1} />)}
+      </div>
+    ))}
+  </div>
+);
+
 const CoachDetailPage = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
@@ -307,61 +375,10 @@ const CoachDetailPage = () => {
           {/* Main layout */}
           <div className="flex flex-col lg:flex-row gap-14 xl:gap-20 items-start">
 
-            {/* ── LEFT: portrait + career ── */}
-            <div className="w-full lg:w-[340px] xl:w-[380px] flex-shrink-0">
-              {/* Portrait — no rounded corners, raw image */}
-              <div className="overflow-hidden aspect-[3/4] bg-[#111]">
-                <img
-                  src={coach.avatarUrl}
-                  alt={coach.name}
-                  className="w-full h-full object-cover object-top"
-                />
-              </div>
-
-              {/* Career history */}
-              {coach.career && coach.career.length > 0 && (
-                <div className="mt-10 space-y-7">
-                  {coach.career.map((section) => (
-                    <div key={section.label}>
-                      {/* Section label */}
-                      <div className="flex items-center gap-3 mb-4">
-                        <span className="text-white/25 uppercase tracking-[0.25em]" style={{ fontSize: '9px' }}>
-                          {section.label}
-                        </span>
-                        <div className="h-px flex-1 bg-white/8" />
-                      </div>
-                      {/* Club rows */}
-                      <div className="space-y-2.5">
-                        {section.entries.map((entry, i) => (
-                          <div key={i} className="flex items-center gap-3 group/club">
-                            <div className="w-6 h-6 flex-shrink-0 flex items-center justify-center">
-                              <img
-                                src={entry.icon}
-                                alt={entry.name}
-                                className="max-w-full max-h-full object-contain opacity-70 group-hover/club:opacity-100 transition-opacity"
-                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                              />
-                            </div>
-                            <span className="text-white/55 text-[13px] group-hover/club:text-white/80 transition-colors">
-                              {entry.name}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Mobile contact */}
-              <div className="mt-10 lg:hidden">
-                <button
-                  onClick={() => navigate('/contact')}
-                  className="w-full bg-white text-black font-semibold py-3 rounded-full hover:bg-white/85 transition-colors text-sm"
-                >
-                  Get in Touch
-                </button>
-              </div>
+            {/* ── LEFT: the coach's cards, as in the app ── */}
+            <div className="w-full max-w-[420px] lg:max-w-none lg:w-[340px] xl:w-[380px] flex-shrink-0">
+              <ProfileCard coach={coach} />
+              {coach.career && coach.career.length > 0 && <CareerCard rows={coach.career} />}
             </div>
 
             {/* ── RIGHT: name + bio ── */}
@@ -390,16 +407,6 @@ const CoachDetailPage = () => {
               ) : (
                 <p className="text-white/30 text-sm">Bio coming soon.</p>
               )}
-
-              {/* Desktop contact */}
-              <div className="mt-12 hidden lg:block">
-                <button
-                  onClick={() => navigate('/contact')}
-                  className="bg-white text-black font-semibold px-8 py-3 rounded-full hover:bg-white/85 transition-colors text-sm"
-                >
-                  Get in Touch
-                </button>
-              </div>
             </div>
           </div>
 
@@ -427,8 +434,11 @@ const CoachDetailPage = () => {
   );
 };
 
-// Loading screen until the coach's photo is in; their club logos follow.
+// Loading screen until the coach's card photo is in; their flag and club logos follow.
 export default withPageImages(CoachDetailPage, ({ slug }) => {
   const coach = coaches.find((c) => c.slug === slug);
-  return { first: [coach?.avatarUrl], more: (coach?.career ?? []).flatMap((s) => s.entries.map((e) => e.icon)) };
+  return {
+    first: [coach?.cardPhoto ?? coach?.avatarUrl],
+    more: [coach?.flag?.src, ...(coach?.career ?? []).flat().flatMap((s) => s.entries.map((e) => e.icon))],
+  };
 });

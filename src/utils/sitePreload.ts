@@ -31,6 +31,7 @@ const FIRST_SCREENS = [
 /** Everything further down those pages, and the detail pages' photos. */
 const FURTHER_DOWN = [
   ...Object.values(serviceImages),
+  ...coaches.map((c) => c.cardPhoto),
   homeImages.about, homeImages.team, homeImages.fundamentalsPoster,
   ...camps.flatMap((c) => c.photos),
   ...clinicsInOrder.map((c) => c.image),

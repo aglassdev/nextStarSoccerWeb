@@ -1,7 +1,7 @@
 import { images } from './images';
 
 export interface CareerEntry {
-  icon: string; // path relative to /public/assets/icons/
+  icon?: string; // /assets/icons/…; a few clubs have no logo yet
   name: string;
 }
 
@@ -19,7 +19,11 @@ export interface Coach {
   status: string;
   avatarUrl: string;
   bio?: string[];
-  career?: CareerSection[];
+  /** The photo on the coach's card, on their page (the app's profile photo). */
+  cardPhoto?: string;
+  flag?: { src: string; country: string };
+  /** The teams as the app's coach card shows them: rows of one or two sections. */
+  career?: CareerSection[][];
 }
 
 const ICONS = '/assets/icons/';
@@ -39,33 +43,40 @@ export const coaches: Coach[] = [
       "Following his outdoor career, Gyau became a central figure in U.S. beach soccer, spending nine years with the U.S. National Beach Soccer Team and serving as captain from 1997 onward. He then transitioned into coaching, serving as head coach of the U.S. National Beach Soccer Team from 1998 to 2002. He subsequently coached at Bullis School, St. John's College High School, and the Olney Pumas before becoming head coach of the Howard University men's soccer program in 2014.",
       "At Next Star Soccer, Gyau brings decades of experience at every level of the game—collegiate, professional, national team, and coaching—to help develop the next generation of elite players. His philosophy centers on technical excellence, positional intelligence, and the competitive mindset required to succeed at the highest levels. His son, Joe Gyau, followed in his footsteps by playing professionally and representing the U.S. Men's National Team.",
     ],
+    cardPhoto: '/assets/images/coach-cards/phillip-gyau.webp',
+    flag: { src: '/assets/images/flags/usa.png', country: 'United States' },
+    // As the app's card: rows of one or two sections.
     career: [
-      {
-        label: 'College',
-        entries: [
-          { icon: `${ICONS}howard.png`, name: 'Howard University' },
-        ],
-      },
-      {
-        label: 'National Team',
-        entries: [
-          { icon: `${ICONS}usa.png`, name: 'US Men\'s National Team' },
-        ],
-      },
-      {
-        label: 'Professional',
-        entries: [
-          { icon: `${ICONS}washingtonDiplomats.png`, name: 'Washington Diplomats' },
-          { icon: `${ICONS}marylandBays.png`, name: 'Maryland Bays' },
-          { icon: `${ICONS}tampaBayRowdies.png`, name: 'Tampa Bay Rowdies' },
-          { icon: `${ICONS}coloradoFoxes.png`, name: 'Colorado Foxes' },
-          { icon: `${ICONS}losAngelesSalsa.png`, name: 'Los Angeles Salsa' },
-          { icon: `${ICONS}montreal.png`, name: 'Montreal Impact' },
-          { icon: `${ICONS}baltimoreBlast.png`, name: 'Baltimore Blast' },
-          { icon: `${ICONS}krcgenk.png`, name: 'KRC Genk' },
-          { icon: `${ICONS}washingtonWarthogs.png`, name: 'Washington Warthogs' },
-        ],
-      },
+      [
+        {
+          label: 'College',
+          entries: [
+            { icon: `${ICONS}howard.png`, name: 'Howard University' },
+          ],
+        },
+        {
+          label: 'National Team',
+          entries: [
+            { icon: `${ICONS}usa.png`, name: 'United States' },
+          ],
+        },
+      ],
+      [
+        {
+          label: 'Professional',
+          entries: [
+            { icon: `${ICONS}marylandBays.png`, name: 'Maryland Bays' },
+            { icon: `${ICONS}coloradoFoxes.png`, name: 'Colorado Foxes' },
+            { icon: `${ICONS}washingtonWarthogs.png`, name: 'Washington Warthogs' },
+            { icon: `${ICONS}tampaBayRowdies.png`, name: 'Tampa Bay Rowdies' },
+            { icon: `${ICONS}baltimoreBlast.png`, name: 'Baltimore Blast' },
+            { icon: `${ICONS}krcgenk.png`, name: 'KRC Genk' },
+            { icon: `${ICONS}montreal.png`, name: 'CF Montreal' },
+            { icon: `${ICONS}washingtonDiplomats.png`, name: 'Wash. Diplomats' },
+            { icon: `${ICONS}losAngelesSalsa.png`, name: 'Los Angeles Salsa' },
+          ],
+        },
+      ],
     ],
   },
   {
@@ -82,32 +93,38 @@ export const coaches: Coach[] = [
       "After retiring from professional soccer, Torres transitioned into coaching and youth development, founding Next Star Soccer, a premier academy dedicated to nurturing young talent. The academy focuses on developing players' technical skills, tactical awareness, and mental preparation, ensuring they are well-equipped to advance in the game. Under Torres' leadership, Next Star Soccer has built a strong reputation for personalized training programs, including camps, clinics, and one-on-one coaching.",
       "Many of its graduates have gone on to play for college programs, elite academies, and professional teams. Torres is passionate about mentoring aspiring athletes and fostering a love for the game. Through his work at Next Star Soccer, he aims to shape the future of American soccer by creating well-rounded, multidimensional players who can compete on the international stage.",
     ],
+    cardPhoto: '/assets/images/coach-cards/paul-torres.webp',
+    flag: { src: '/assets/images/flags/venezuela.png', country: 'Venezuela' },
+    // As the app's card: rows of one or two sections.
     career: [
-      {
-        label: 'Youth',
-        entries: [
-          { icon: `${ICONS}bethesda.png`, name: 'Bethesda Roadrunners' },
-          { icon: `${ICONS}dcUnited.png`, name: 'D.C. United Academy' },
-          { icon: `${ICONS}usa.png`, name: 'US Youth National Team' },
-        ],
-      },
-      {
-        label: 'College',
-        entries: [
-          { icon: `${ICONS}maryland.png`, name: 'University of Maryland' },
-        ],
-      },
-      {
-        label: 'Professional',
-        entries: [
-          { icon: `${ICONS}syrianskafc.png`, name: 'Syrianska FC' },
-          { icon: `${ICONS}assyriskaff.png`, name: 'Assyriska FF' },
-          { icon: `${ICONS}ikSirius.png`, name: 'IK Sirius' },
-          { icon: `${ICONS}sandnesUlf.png`, name: 'Sandnes Ulf' },
-          { icon: `${ICONS}landskronaBolS.png`, name: 'Landskrona BoIS' },
-          { icon: `${ICONS}nykopingsBIS.png`, name: "Nyköping's BIS" },
-        ],
-      },
+      [
+        {
+          label: 'Youth',
+          entries: [
+            { icon: `${ICONS}bethesda.png`, name: 'Bethesda Roadrunners' },
+            { icon: `${ICONS}dcUnited.png`, name: 'D.C. United Academy' },
+          ],
+        },
+        {
+          label: 'College',
+          entries: [
+            { icon: `${ICONS}maryland.png`, name: 'University of Maryland' },
+          ],
+        },
+      ],
+      [
+        {
+          label: 'Professional',
+          entries: [
+            { icon: `${ICONS}syrianskafc.png`, name: 'Syrianska FC' },
+            { icon: `${ICONS}ikSirius.png`, name: 'IK Sirius' },
+            { icon: `${ICONS}assyriskaff.png`, name: 'Assyriska FF' },
+            { icon: `${ICONS}sandnesUlf.png`, name: 'Sandnes Ulf' },
+            { icon: `${ICONS}landskronaBolS.png`, name: 'Landskrona BoIS' },
+            { icon: `${ICONS}nykopingsBIS.png`, name: 'Nykoping\'s BIS' },
+          ],
+        },
+      ],
     ],
   },
   {
@@ -124,30 +141,37 @@ export const coaches: Coach[] = [
       "Known for his clinical finishing, intelligent positioning, and tireless work rate, Mullins quickly gained recognition as a reliable and dynamic forward. After his stint with New England, Mullins went on to play for several MLS clubs, including New York City FC, D.C. United, Columbus Crew SC, and Toronto FC. His most memorable performances came during his time with D.C. United, particularly in the 2017 season when he scored 13 goals, including a remarkable four-goal game against the San Jose Earthquakes.",
       "Mullins' career was defined not only by his talent but also by his resilience and professionalism. Known for his strong work ethic and leadership, he was respected by teammates and coaches for his ability to motivate those around him and mentor younger players. Since retiring from professional soccer, Mullins has remained deeply involved in the sport, dedicating his time to mentoring young players and contributing to the development of youth soccer.",
     ],
+    cardPhoto: '/assets/images/coach-cards/patrick-mullins.webp',
+    flag: { src: '/assets/images/flags/usa.png', country: 'United States' },
+    // As the app's card: rows of one or two sections.
     career: [
-      {
-        label: 'Youth',
-        entries: [
-          { icon: `${ICONS}louisianafirejuniors.png`, name: 'Chicago Fire Juniors' },
-          { icon: `${ICONS}batonrougecapitals.png`, name: 'Baton Rouge Capitals' },
-        ],
-      },
-      {
-        label: 'College',
-        entries: [
-          { icon: `${ICONS}maryland.png`, name: 'University of Maryland' },
-        ],
-      },
-      {
-        label: 'Professional',
-        entries: [
-          { icon: `${ICONS}newEnglandRevolution.png`, name: 'New England Revolution' },
-          { icon: `${ICONS}newyorkcityfc.png`, name: 'New York City FC' },
-          { icon: `${ICONS}dcUnited.png`, name: 'D.C. United' },
-          { icon: `${ICONS}columbusCrew.png`, name: 'Columbus Crew' },
-          { icon: `${ICONS}torontofc.png`, name: 'Toronto FC' },
-        ],
-      },
+      [
+        {
+          label: 'Youth',
+          entries: [
+            { icon: `${ICONS}louisianafirejuniors.png`, name: 'Chicago Fire Juniors' },
+            { icon: `${ICONS}batonrougecapitals.png`, name: 'Baton Rouge Capitals' },
+          ],
+        },
+        {
+          label: 'College',
+          entries: [
+            { icon: `${ICONS}maryland.png`, name: 'University of Maryland' },
+          ],
+        },
+      ],
+      [
+        {
+          label: 'Professional',
+          entries: [
+            { icon: `${ICONS}newEnglandRevolution.png`, name: 'NE Revolution' },
+            { icon: `${ICONS}columbusCrew.png`, name: 'Columbus Crew' },
+            { icon: `${ICONS}newyorkcityfc.png`, name: 'New York City FC' },
+            { icon: `${ICONS}torontofc.png`, name: 'Toronto FC' },
+            { icon: `${ICONS}dcUnited.png`, name: 'D.C. United' },
+          ],
+        },
+      ],
     ],
   },
   {
@@ -164,34 +188,40 @@ export const coaches: Coach[] = [
       "In 1996, Etcheverry brought his brilliance to Major League Soccer as a foundational player for D.C. United during the league's inaugural season. As the team's attacking midfielder and captain, he became the heart and soul of the squad. Under his leadership, D.C. United achieved unparalleled success, winning three MLS Cup championships (1996, 1997, 1999) and four Eastern Conference titles. Known for his pinpoint passing, decisive goals, and ability to create chances, Etcheverry quickly became a fan favorite and a league icon.",
       "Etcheverry's on-field brilliance earned him numerous accolades, including the MLS MVP award in 1998. He was a consistent presence in the MLS Best XI and was later named to the MLS All-Time Best XI. Recognized as one of the league's greatest-ever players, he was also honored as one of the top 25 players in MLS history. After retiring, Etcheverry transitioned into coaching, including a role at D.C. United Academy with their U-15s, before joining Next Star Soccer.",
     ],
+    cardPhoto: '/assets/images/coach-cards/marco-etcheverry.webp',
+    flag: { src: '/assets/images/flags/bolivia.png', country: 'Bolivia' },
+    // As the app's card: rows of one or two sections.
     career: [
-      {
-        label: 'Youth',
-        entries: [
-          { icon: `${ICONS}tahuichiacademy.png`, name: 'Tahuichi Academy' },
-          { icon: `${ICONS}bolivia.png`, name: 'Bolivia Youth NT' },
-        ],
-      },
-      {
-        label: 'Professional',
-        entries: [
-          { icon: `${ICONS}cdOrientePetrolero.png`, name: 'CD Oriente Petrolero' },
-          { icon: `${ICONS}csEmelec.png`, name: 'CS Emelec' },
-          { icon: `${ICONS}barcelonasc.png`, name: 'Barcelona SC' },
-          { icon: `${ICONS}dcUnited.png`, name: 'D.C. United' },
-          { icon: `${ICONS}cdAmericadeCali.png`, name: 'CD América de Cali' },
-          { icon: `${ICONS}bolivarlapaz.png`, name: 'Bolívar La Paz' },
-          { icon: `${ICONS}cdsColoColo.png`, name: 'CDS Colo-Colo' },
-          { icon: `${ICONS}albaceteBalompie.png`, name: 'Albacete Balompié' },
-          { icon: `${ICONS}clubDestroyers.png`, name: 'Club Destroyers' },
-        ],
-      },
-      {
-        label: 'National Team',
-        entries: [
-          { icon: `${ICONS}bolivia.png`, name: 'Bolivia National Team' },
-        ],
-      },
+      [
+        {
+          label: 'Youth',
+          entries: [
+            { icon: `${ICONS}tahuichiacademy.png`, name: 'Tahuichi Academy' },
+          ],
+        },
+        {
+          label: 'National Team',
+          entries: [
+            { icon: `${ICONS}bolivia.png`, name: 'Bolivia' },
+          ],
+        },
+      ],
+      [
+        {
+          label: 'Professional',
+          entries: [
+            { icon: `${ICONS}bolivarlapaz.png`, name: 'Bolivar La Paz' },
+            { icon: `${ICONS}barcelonasc.png`, name: 'Barcelona SC' },
+            { icon: `${ICONS}cdOrientePetrolero.png`, name: 'Oriente Petrolero' },
+            { icon: `${ICONS}cdAmericadeCali.png`, name: 'America de Cali' },
+            { icon: `${ICONS}cdsColoColo.png`, name: 'CDS Colo-Colo' },
+            { icon: `${ICONS}dcUnited.png`, name: 'D.C. United' },
+            { icon: `${ICONS}albaceteBalompie.png`, name: 'Albacete Balompie' },
+            { icon: `${ICONS}clubDestroyers.png`, name: 'Club Destroyers' },
+            { icon: `${ICONS}csEmelec.png`, name: 'CS Emelec' },
+          ],
+        },
+      ],
     ],
   },
   {
@@ -208,33 +238,40 @@ export const coaches: Coach[] = [
       "In 2009, Pontius was selected seventh overall by D.C. United in the MLS SuperDraft. Known for his ability to play both as a midfielder and forward, Pontius showcased his versatility and knack for scoring crucial goals. He earned MLS All-Star honors in 2012 after a stellar season in which he scored 12 goals and provided four assists. After six successful seasons with D.C. United, Pontius joined the Philadelphia Union in 2016, enjoying one of the best years of his career by scoring 12 goals and earning his second MLS Comeback Player of the Year award.",
       "Pontius later played for the LA Galaxy, contributing his experience and leadership to the team before retiring from professional soccer in 2019. Over his 11-year MLS career, Pontius amassed over 300 appearances, scoring 52 goals and providing 35 assists. Following his retirement, Pontius transitioned into coaching and mentorship at Next Star, working with players of all levels and focusing on building technical skills, tactical awareness, and mental resilience.",
     ],
+    cardPhoto: '/assets/images/coach-cards/chris-pontius.webp',
+    flag: { src: '/assets/images/flags/usa.png', country: 'United States' },
+    // As the app's card: rows of one or two sections.
     career: [
-      {
-        label: 'Youth',
-        entries: [
-          { icon: `${ICONS}strikersfcirvine.png`, name: 'Strikers FC Irvine' },
-        ],
-      },
-      {
-        label: 'College',
-        entries: [
-          { icon: `${ICONS}ucsb.png`, name: 'UC Santa Barbara' },
-        ],
-      },
-      {
-        label: 'Professional',
-        entries: [
-          { icon: `${ICONS}dcUnited.png`, name: 'D.C. United' },
-          { icon: `${ICONS}philadelphiaunion.png`, name: 'Philadelphia Union' },
-          { icon: `${ICONS}lagalaxy.png`, name: 'LA Galaxy' },
-        ],
-      },
-      {
-        label: 'National Team',
-        entries: [
-          { icon: `${ICONS}usa.png`, name: 'US Men\'s National Team' },
-        ],
-      },
+      [
+        {
+          label: 'Youth',
+          entries: [
+            { icon: `${ICONS}strikersfcirvine.png`, name: 'Strikers FC Irvine' },
+          ],
+        },
+        {
+          label: 'College',
+          entries: [
+            { icon: `${ICONS}ucsb.png`, name: 'UC Santa Barbara' },
+          ],
+        },
+      ],
+      [
+        {
+          label: 'Professional',
+          entries: [
+            { icon: `${ICONS}dcUnited.png`, name: 'D.C. United' },
+            { icon: `${ICONS}philadelphiaunion.png`, name: 'Philadelphia Union' },
+            { icon: `${ICONS}lagalaxy.png`, name: 'LA Galaxy' },
+          ],
+        },
+        {
+          label: 'National Team',
+          entries: [
+            { icon: `${ICONS}usa.png`, name: 'United States' },
+          ],
+        },
+      ],
     ],
   },
   {
@@ -251,25 +288,32 @@ export const coaches: Coach[] = [
       "After college, Machado took his talents to the professional level, signing with the Maryland Bobcats FC. Competing in the National Independent Soccer Association, he gained valuable experience playing against top-tier competition and further refined his understanding of the professional game. His time with the Bobcats strengthened his versatility, composure under pressure, and ability to perform in demanding match environments.",
       "Machado brings his wealth of playing experience to the Next Star Soccer coaching staff, where he works with players of all ages and skill levels. His ability to connect with young athletes, break down complex concepts, and demonstrate techniques at a high level makes him an invaluable member of the team.",
     ],
+    cardPhoto: '/assets/images/coach-cards/ryan-machado.webp',
+    flag: { src: '/assets/images/flags/usa.png', country: 'United States' },
+    // As the app's card: rows of one or two sections.
     career: [
-      {
-        label: 'Youth',
-        entries: [
-          { icon: `${ICONS}dcUnited.png`, name: 'D.C. United Academy' },
-        ],
-      },
-      {
-        label: 'College',
-        entries: [
-          { icon: `${ICONS}radford.png`, name: 'Radford University' },
-        ],
-      },
-      {
-        label: 'Professional',
-        entries: [
-          { icon: `${ICONS}marylandBobcats.png`, name: 'Maryland Bobcats FC' },
-        ],
-      },
+      [
+        {
+          label: 'Youth',
+          entries: [
+            { icon: `${ICONS}dcUnited.png`, name: 'D.C. United Academy' },
+          ],
+        },
+        {
+          label: 'College',
+          entries: [
+            { icon: `${ICONS}radford.png`, name: 'Radford University' },
+          ],
+        },
+      ],
+      [
+        {
+          label: 'Professional',
+          entries: [
+            { icon: `${ICONS}marylandBobcats.png`, name: 'Maryland Bobcats' },
+          ],
+        },
+      ],
     ],
   },
   {
@@ -286,20 +330,28 @@ export const coaches: Coach[] = [
       "After his collegiate career, Carrasco transitioned to the professional level, signing with the Little Rock Rangers. His professional experience further sharpened his competitive edge, tactical awareness, and ability to perform under pressure. Carrasco returned to play for Louisiana Krewe FC, continuing to compete at a high level while bringing his on-field experience directly into his coaching.",
       "Carrasco brings a unique international perspective to the Next Star Soccer coaching staff. Having grown up in the Spanish soccer system and competed at multiple levels in the United States, he offers players insight into different styles of play and approaches to the game. His technical background rooted in Spanish football, combined with his experience in American collegiate and professional soccer, allows him to connect with players and help them develop a well-rounded skill set.",
     ],
+    cardPhoto: '/assets/images/coach-cards/gonzalo-carrasco.webp',
+    flag: { src: '/assets/images/flags/spain.png', country: 'Spain' },
+    // As the app's card: rows of one or two sections.
     career: [
-      {
-        label: 'College',
-        entries: [
-          { icon: `${ICONS}longwood.png`, name: 'Longwood University' },
-        ],
-      },
-      {
-        label: 'Professional',
-        entries: [
-          { icon: `${ICONS}littleRockRangers.png`, name: 'Little Rock Rangers' },
-          { icon: `${ICONS}louisianaKrewe.png`, name: 'Louisiana Krewe FC' },
-        ],
-      },
+      [
+        {
+          label: 'College',
+          entries: [
+            { icon: `${ICONS}mississippi.png`, name: 'Mississippi College' },
+            { icon: `${ICONS}longwood.png`, name: 'Longwood University' },
+          ],
+        },
+      ],
+      [
+        {
+          label: 'Professional',
+          entries: [
+            { icon: `${ICONS}littleRockRangers.png`, name: 'Little Rock Rangers' },
+            { icon: `${ICONS}louisianaKrewe.png`, name: 'Louisiana Krewe FC' },
+          ],
+        },
+      ],
     ],
   },
   {
@@ -316,33 +368,40 @@ export const coaches: Coach[] = [
       "Internationally, Birnbaum represented the United States Men's National Team, earning multiple caps and contributing crucial moments, including a game-winning goal in a 2016 friendly. He participated in World Cup qualifiers and friendlies, showcasing his abilities at the international level and further establishing his reputation as a dependable and versatile defender. After 11 seasons with D.C. United, Birnbaum retired in 2024, leaving a legacy as one of the club's most influential players.",
       "At the time of his retirement, he ranked third in all-time appearances for D.C. United, a testament to his durability and dedication throughout his career. He transitioned to coaching, joining the team at Next Star Soccer. He now uses his extensive experience to mentor young athletes, emphasizing technical skill development, mental resilience, and perseverance.",
     ],
+    cardPhoto: '/assets/images/coach-cards/steve-birnbaum.webp',
+    flag: { src: '/assets/images/flags/usa.png', country: 'United States' },
+    // As the app's card: rows of one or two sections.
     career: [
-      {
-        label: 'Youth',
-        entries: [
-          { icon: `${ICONS}pateadoressc.png`, name: 'Pateadores SC' },
-        ],
-      },
-      {
-        label: 'College',
-        entries: [
-          { icon: `${ICONS}ucberkeley.png`, name: 'UC Berkeley' },
-        ],
-      },
-      {
-        label: 'Professional',
-        entries: [
-          { icon: `${ICONS}dcUnited.png`, name: 'D.C. United' },
-          { icon: `${ICONS}richmondkickers.png`, name: 'Richmond Kickers' },
-          { icon: `${ICONS}orangeCountyBlueStar.png`, name: 'Orange County Blue Star' },
-        ],
-      },
-      {
-        label: 'National Team',
-        entries: [
-          { icon: `${ICONS}usa.png`, name: 'US Men\'s National Team' },
-        ],
-      },
+      [
+        {
+          label: 'Youth',
+          entries: [
+            { icon: `${ICONS}pateadoressc.png`, name: 'Pateadores SC' },
+          ],
+        },
+        {
+          label: 'College',
+          entries: [
+            { icon: `${ICONS}ucberkeley.png`, name: 'UC Berkeley' },
+          ],
+        },
+      ],
+      [
+        {
+          label: 'Professional',
+          entries: [
+            { icon: `${ICONS}dcUnited.png`, name: 'D.C. United' },
+            { icon: `${ICONS}richmondkickers.png`, name: 'Richmond Kickers' },
+            { icon: `${ICONS}orangeCountyBlueStar.png`, name: 'OC Blue Star' },
+          ],
+        },
+        {
+          label: 'National Team',
+          entries: [
+            { icon: `${ICONS}usa.png`, name: 'United States' },
+          ],
+        },
+      ],
     ],
   },
   {
@@ -359,28 +418,36 @@ export const coaches: Coach[] = [
       "Segal's professional journey began when he signed with Loudoun United FC in the USL Championship in 2019. After Stanford, he moved to Germany to play for 1. FC Köln II in the Regionalliga West before returning stateside to join New York City FC in MLS in 2023. A loan spell to Hapoel Tel Aviv broadened his international experience before he signed with Houston Dynamo FC, where he scored 4 goals in 24 MLS appearances, along with a prolific 10 goals in 11 matches for Houston Dynamo 2.",
       "In 2026, Segal returned home to the nation's capital, signing with D.C. United and fulfilling a lifelong dream of playing for his hometown club. Beyond his professional career, Segal has joined the coaching staff at Next Star Soccer, bringing his wealth of experience from youth national teams, top-level college soccer, and professional leagues across three continents.",
     ],
+    cardPhoto: '/assets/images/coach-cards/gabe-segal.webp',
+    flag: { src: '/assets/images/flags/usa.png', country: 'United States' },
+    // As the app's card: rows of one or two sections.
     career: [
-      {
-        label: 'Youth',
-        entries: [
-          { icon: `${ICONS}bethesda.png`, name: 'Bethesda SC' },
-        ],
-      },
-      {
-        label: 'College',
-        entries: [
-          { icon: `${ICONS}Stanford_Cardinal_logo.svg.png`, name: 'Stanford University' },
-        ],
-      },
-      {
-        label: 'Professional',
-        entries: [
-          { icon: `${ICONS}loudoun.png`, name: 'Loudoun United FC' },
-          { icon: `${ICONS}nycfcii.png`, name: 'New York City FC' },
-          { icon: `${ICONS}dynamo.png`, name: 'Houston Dynamo FC' },
-          { icon: `${ICONS}dcUnited.png`, name: 'D.C. United' },
-        ],
-      },
+      [
+        {
+          label: 'Youth',
+          entries: [
+            { icon: `${ICONS}bethesda.png`, name: 'Bethesda SC' },
+          ],
+        },
+        {
+          label: 'College',
+          entries: [
+            { name: 'Stanford University' },
+          ],
+        },
+      ],
+      [
+        {
+          label: 'Professional',
+          entries: [
+            { icon: `${ICONS}dcUnited.png`, name: 'D.C. United' },
+            { icon: `${ICONS}newyorkcityfc.png`, name: 'New York City FC' },
+            { name: 'Houston Dynamo FC' },
+            { name: '1. FC Koln II' },
+            { name: 'Loudoun United FC' },
+          ],
+        },
+      ],
     ],
   },
   {
@@ -397,19 +464,32 @@ export const coaches: Coach[] = [
       "During the off-season, Satriano plays for the Annapolis Blues, adding competitive club experience alongside his collegiate career and deepening his understanding of the game at a high level. His versatility and defensive intelligence make him a valuable asset on the pitch.",
       "For the past year, Satriano has been an integral part of the Next Star Soccer coaching staff, working extensively with group training sessions and summer camp programs. He has quickly established himself as one of the most effective coaches with younger players, bringing an infectious energy, patience, and ability to break down complex concepts into simple, actionable lessons.",
     ],
+    cardPhoto: '/assets/images/coach-cards/noah-satriano.webp',
+    flag: { src: '/assets/images/flags/usa.png', country: 'United States' },
+    // As the app's card: rows of one or two sections.
     career: [
-      {
-        label: 'College',
-        entries: [
-          { icon: `${ICONS}georgetown.png`, name: 'Georgetown University' },
-        ],
-      },
-      {
-        label: 'Professional',
-        entries: [
-          { icon: `${ICONS}annapolisBlues.png`, name: 'Annapolis Blues' },
-        ],
-      },
+      [
+        {
+          label: 'Youth',
+          entries: [
+            { name: 'Baltimore Armour' },
+          ],
+        },
+        {
+          label: 'College',
+          entries: [
+            { icon: `${ICONS}georgetown.png`, name: 'Georgetown University' },
+          ],
+        },
+      ],
+      [
+        {
+          label: 'Professional',
+          entries: [
+            { icon: `${ICONS}annapolisBlues.png`, name: 'Annapolis Blues' },
+          ],
+        },
+      ],
     ],
   },
 ];
