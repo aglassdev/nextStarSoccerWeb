@@ -23,7 +23,7 @@ const FIRST_SCREENS = [
   serviceImages.individual, serviceImages.twoPerson, serviceImages.smallGroup,
   serviceImages.largeGroup, serviceImages.goalkeeping,
   ...coaches.map((c) => c.avatarUrl),
-  ...camps.slice(0, 2).map((c) => c.image),
+  ...camps.slice(0, 4).map((c) => c.photos[0]),
   ...clinicsInOrder.slice(0, 2).map((c) => c.image),
   images.charity1,
 ];
@@ -32,7 +32,7 @@ const FIRST_SCREENS = [
 const FURTHER_DOWN = [
   ...Object.values(serviceImages),
   homeImages.about, homeImages.team, homeImages.fundamentalsPoster,
-  ...camps.map((c) => c.image),
+  ...camps.flatMap((c) => c.photos),
   ...clinicsInOrder.map((c) => c.image),
   ...clinicsInOrder.map((c) => c.heroImage),
   images.charity2,

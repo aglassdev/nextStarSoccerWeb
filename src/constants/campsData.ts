@@ -1,4 +1,6 @@
-import { images } from './images';
+// For now every camp uses the higher-res photos from the old home page
+// collage, three each; swap in the camp's own photos here.
+const collage = (n: number) => `/assets/images/collage${n}.webp`;
 
 export interface CampSession {
   label: string;
@@ -17,9 +19,8 @@ export interface Camp {
   slug: string;
   name: string;
   isNike: boolean;
-  image: string;
-  /** CSS object-position for the detail page's wide hero crop (default center). */
-  heroPosition?: string;
+  /** The card's photo (the first) and the three across the top of the camp's page. */
+  photos: string[];
   heroDateRange: string;
   location: {
     name: string;
@@ -28,6 +29,8 @@ export interface Camp {
   };
   weeks: CampWeek[];
   sessions: CampSession[];
+  /** The short price shown on the card and in the camp's details. */
+  priceSummary: string;
   pricing: string;
   pricingNote: string;
   description: string;
@@ -51,8 +54,7 @@ export const camps: Camp[] = [
     slug: 'fall',
     name: 'Next Star Fall Camp',
     isNike: false,
-    image: images.fallCamp,
-    heroPosition: 'center 30%',
+    photos: [collage(10), collage(2), collage(8)],
     heroDateRange: 'November 23 – 27, 2026',
     location: {
       name: 'Lewinsville Park',
@@ -64,6 +66,7 @@ export const camps: Camp[] = [
       { label: 'Youth Group', time: '10:00 AM – 12:00 PM', key: 'youth' },
       { label: 'Pro/College Group', time: '9:00 AM – 11:00 AM', key: 'college' },
     ],
+    priceSummary: '$250 / week · $60 / day',
     pricing: 'Full Week: $250\nIndividual Day: $60 / day (drop-in)\nCancellation and rebooking available',
     pricingNote: 'Ages 6-21 · Coed · All skill levels',
     description:
@@ -80,7 +83,7 @@ export const camps: Camp[] = [
     slug: 'lewinsville',
     name: 'Next Star Summer Camp Session 1',
     isNike: false,
-    image: images.summerCampLewinsville,
+    photos: [collage(6), collage(3), collage(7)],
     heroDateRange: 'June 1 – June 19, 2026',
     location: {
       name: 'Lewinsville Park',
@@ -96,6 +99,7 @@ export const camps: Camp[] = [
       { label: 'Youth Group', time: '10:00 AM – 12:00 PM' },
       { label: 'Pro/College Group', time: '10:00 AM – 12:00 PM' },
     ],
+    priceSummary: '$250 / week · $60 / day',
     pricing: 'Individual Day: $60 / day\nFull Week: $50 / day ($250)',
     pricingNote: 'All ages · Coed · All skill levels',
     description:
@@ -109,7 +113,7 @@ export const camps: Camp[] = [
     slug: 'howard',
     name: 'Next Star × Nike Summer Camp',
     isNike: true,
-    image: images.summerCampHoward,
+    photos: [collage(1), collage(9), collage(4)],
     heroDateRange: 'June 22 – July 10, 2026',
     location: {
       name: 'Howard University – Greene Stadium',
@@ -125,6 +129,7 @@ export const camps: Camp[] = [
       { label: 'Half-Day', time: '9:00 AM – 12:00 PM' },
       { label: 'Full-Day', time: '9:00 AM – 3:00 PM' },
     ],
+    priceSummary: 'From $299 / week',
     pricing: 'Half-Day: $299 / week | $80 / day\nFull-Day: $429 / week | $115 / day',
     pricingNote: 'Ages 6-18 · Coed · All skill levels',
     description:
@@ -140,7 +145,7 @@ export const camps: Camp[] = [
     slug: 'whitman',
     name: 'Next Star Summer Camp Session 2',
     isNike: false,
-    image: images.summerCampWhitman,
+    photos: [collage(5), collage(7), collage(2)],
     heroDateRange: 'July 13 – August 14, 2026',
     location: {
       name: 'Walt Whitman High School',
@@ -156,6 +161,7 @@ export const camps: Camp[] = [
       { label: 'Youth Group', time: '8:00 AM – 11:00 AM' },
       { label: 'Pro/College Group', time: '8:00 AM – 11:00 AM' },
     ],
+    priceSummary: '$250 / week · $60 / day',
     pricing: 'Individual Day: $60 / day\nFull Week: $50 / day ($250)',
     pricingNote: 'Ages 6-21 · Coed · All skill levels',
     description:
@@ -169,7 +175,7 @@ export const camps: Camp[] = [
     slug: 'sofive',
     name: 'Next Star × Nike Summer Camp',
     isNike: true,
-    image: images.summerCampSofive,
+    photos: [collage(4), collage(6), collage(9)],
     heroDateRange: 'July 20 – July 31, 2026',
     location: {
       name: 'Sofive Rockville',
@@ -184,6 +190,7 @@ export const camps: Camp[] = [
       { label: 'Half-Day', time: '9:00 AM – 12:00 PM' },
       { label: 'Full-Day', time: '9:00 AM – 3:00 PM' },
     ],
+    priceSummary: 'From $309 / week',
     pricing: 'Half-Day: $309 / week\nFull-Day: $439 / week',
     pricingNote: 'Ages 6-18 · Coed · All skill levels',
     description:
@@ -198,7 +205,7 @@ export const camps: Camp[] = [
     slug: 'somerset',
     name: 'Next Star Summer Camp Session 3',
     isNike: false,
-    image: images.summerCampSomerset,
+    photos: [collage(3), collage(5), collage(1)],
     heroDateRange: 'August 17 – September 4, 2026',
     location: {
       name: 'Somerset Elementary School',
@@ -214,6 +221,7 @@ export const camps: Camp[] = [
       { label: 'Youth Group', time: '8:00 AM – 11:00 AM' },
       { label: 'Pro/College Group', time: '8:00 AM – 11:00 AM' },
     ],
+    priceSummary: '$250 / week · $60 / day',
     pricing: 'Individual Day: $60 / day\nFull Week: $50 / day ($250)',
     pricingNote: 'Ages 6-21 · Coed · All skill levels',
     description:
