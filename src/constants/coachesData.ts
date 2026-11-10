@@ -1,7 +1,7 @@
 import { images } from './images';
 
 export interface CareerEntry {
-  icon?: string; // /assets/icons/…; a few clubs have no logo yet
+  icon?: string; // under /assets/icons/; 1. FC Köln II has no logo yet
   name: string;
 }
 
@@ -22,8 +22,8 @@ export interface Coach {
   /** The photo on the coach's card, on their page (the app's profile photo). */
   cardPhoto?: string;
   flag?: { src: string; country: string };
-  /** The teams as the app's coach card shows them: rows of one or two sections. */
-  career?: CareerSection[][];
+  /** The teams, by section (shown in one column in the coach's card). */
+  career?: CareerSection[];
 }
 
 const ICONS = '/assets/icons/';
@@ -45,38 +45,33 @@ export const coaches: Coach[] = [
     ],
     cardPhoto: '/assets/images/coach-cards/phillip-gyau.webp',
     flag: { src: '/assets/images/flags/usa.png', country: 'United States' },
-    // As the app's card: rows of one or two sections.
     career: [
-      [
-        {
-          label: 'College',
-          entries: [
-            { icon: `${ICONS}howard.png`, name: 'Howard University' },
-          ],
-        },
-        {
-          label: 'National Team',
-          entries: [
-            { icon: `${ICONS}usa.png`, name: 'United States' },
-          ],
-        },
-      ],
-      [
-        {
-          label: 'Professional',
-          entries: [
-            { icon: `${ICONS}marylandBays.png`, name: 'Maryland Bays' },
-            { icon: `${ICONS}coloradoFoxes.png`, name: 'Colorado Foxes' },
-            { icon: `${ICONS}washingtonWarthogs.png`, name: 'Washington Warthogs' },
-            { icon: `${ICONS}tampaBayRowdies.png`, name: 'Tampa Bay Rowdies' },
-            { icon: `${ICONS}baltimoreBlast.png`, name: 'Baltimore Blast' },
-            { icon: `${ICONS}krcgenk.png`, name: 'KRC Genk' },
-            { icon: `${ICONS}montreal.png`, name: 'CF Montreal' },
-            { icon: `${ICONS}washingtonDiplomats.png`, name: 'Wash. Diplomats' },
-            { icon: `${ICONS}losAngelesSalsa.png`, name: 'Los Angeles Salsa' },
-          ],
-        },
-      ],
+      {
+        label: 'College',
+        entries: [
+          { icon: `${ICONS}howard.png`, name: 'Howard University' },
+        ],
+      },
+      {
+        label: 'National Team',
+        entries: [
+          { icon: `${ICONS}usa.png`, name: 'US Men\'s National Team' },
+        ],
+      },
+      {
+        label: 'Professional',
+        entries: [
+          { icon: `${ICONS}marylandBays.png`, name: 'Maryland Bays' },
+          { icon: `${ICONS}coloradoFoxes.png`, name: 'Colorado Foxes' },
+          { icon: `${ICONS}washingtonWarthogs.png`, name: 'Washington Warthogs' },
+          { icon: `${ICONS}tampaBayRowdies.png`, name: 'Tampa Bay Rowdies' },
+          { icon: `${ICONS}baltimoreBlast.png`, name: 'Baltimore Blast' },
+          { icon: `${ICONS}krcgenk.png`, name: 'KRC Genk' },
+          { icon: `${ICONS}montreal.png`, name: 'CF Montreal' },
+          { icon: `${ICONS}washingtonDiplomats.png`, name: 'Washington Diplomats' },
+          { icon: `${ICONS}losAngelesSalsa.png`, name: 'Los Angeles Salsa' },
+        ],
+      },
     ],
   },
   {
@@ -95,36 +90,32 @@ export const coaches: Coach[] = [
     ],
     cardPhoto: '/assets/images/coach-cards/paul-torres.webp',
     flag: { src: '/assets/images/flags/venezuela.png', country: 'Venezuela' },
-    // As the app's card: rows of one or two sections.
     career: [
-      [
-        {
-          label: 'Youth',
-          entries: [
-            { icon: `${ICONS}bethesda.png`, name: 'Bethesda Roadrunners' },
-            { icon: `${ICONS}dcUnited.png`, name: 'D.C. United Academy' },
-          ],
-        },
-        {
-          label: 'College',
-          entries: [
-            { icon: `${ICONS}maryland.png`, name: 'University of Maryland' },
-          ],
-        },
-      ],
-      [
-        {
-          label: 'Professional',
-          entries: [
-            { icon: `${ICONS}syrianskafc.png`, name: 'Syrianska FC' },
-            { icon: `${ICONS}ikSirius.png`, name: 'IK Sirius' },
-            { icon: `${ICONS}assyriskaff.png`, name: 'Assyriska FF' },
-            { icon: `${ICONS}sandnesUlf.png`, name: 'Sandnes Ulf' },
-            { icon: `${ICONS}landskronaBolS.png`, name: 'Landskrona BoIS' },
-            { icon: `${ICONS}nykopingsBIS.png`, name: 'Nykoping\'s BIS' },
-          ],
-        },
-      ],
+      {
+        label: 'Youth',
+        entries: [
+          { icon: `${ICONS}bethesda.png`, name: 'Bethesda Roadrunners' },
+          { icon: `${ICONS}dcUnited.png`, name: 'D.C. United Academy' },
+          { icon: `${ICONS}usa.png`, name: 'US Youth National Team' },
+        ],
+      },
+      {
+        label: 'College',
+        entries: [
+          { icon: `${ICONS}maryland.png`, name: 'University of Maryland' },
+        ],
+      },
+      {
+        label: 'Professional',
+        entries: [
+          { icon: `${ICONS}syrianskafc.png`, name: 'Syrianska FC' },
+          { icon: `${ICONS}ikSirius.png`, name: 'IK Sirius' },
+          { icon: `${ICONS}assyriskaff.png`, name: 'Assyriska FF' },
+          { icon: `${ICONS}sandnesUlf.png`, name: 'Sandnes Ulf' },
+          { icon: `${ICONS}landskronaBolS.png`, name: 'Landskrona BoIS' },
+          { icon: `${ICONS}nykopingsBIS.png`, name: "Nyköping's BIS" },
+        ],
+      },
     ],
   },
   {
@@ -143,35 +134,30 @@ export const coaches: Coach[] = [
     ],
     cardPhoto: '/assets/images/coach-cards/patrick-mullins.webp',
     flag: { src: '/assets/images/flags/usa.png', country: 'United States' },
-    // As the app's card: rows of one or two sections.
     career: [
-      [
-        {
-          label: 'Youth',
-          entries: [
-            { icon: `${ICONS}louisianafirejuniors.png`, name: 'Chicago Fire Juniors' },
-            { icon: `${ICONS}batonrougecapitals.png`, name: 'Baton Rouge Capitals' },
-          ],
-        },
-        {
-          label: 'College',
-          entries: [
-            { icon: `${ICONS}maryland.png`, name: 'University of Maryland' },
-          ],
-        },
-      ],
-      [
-        {
-          label: 'Professional',
-          entries: [
-            { icon: `${ICONS}newEnglandRevolution.png`, name: 'NE Revolution' },
-            { icon: `${ICONS}columbusCrew.png`, name: 'Columbus Crew' },
-            { icon: `${ICONS}newyorkcityfc.png`, name: 'New York City FC' },
-            { icon: `${ICONS}torontofc.png`, name: 'Toronto FC' },
-            { icon: `${ICONS}dcUnited.png`, name: 'D.C. United' },
-          ],
-        },
-      ],
+      {
+        label: 'Youth',
+        entries: [
+          { icon: `${ICONS}louisianafirejuniors.png`, name: 'Chicago Fire Juniors' },
+          { icon: `${ICONS}batonrougecapitals.png`, name: 'Baton Rouge Capitals' },
+        ],
+      },
+      {
+        label: 'College',
+        entries: [
+          { icon: `${ICONS}maryland.png`, name: 'University of Maryland' },
+        ],
+      },
+      {
+        label: 'Professional',
+        entries: [
+          { icon: `${ICONS}newEnglandRevolution.png`, name: 'New England Revolution' },
+          { icon: `${ICONS}columbusCrew.png`, name: 'Columbus Crew' },
+          { icon: `${ICONS}newyorkcityfc.png`, name: 'New York City FC' },
+          { icon: `${ICONS}torontofc.png`, name: 'Toronto FC' },
+          { icon: `${ICONS}dcUnited.png`, name: 'D.C. United' },
+        ],
+      },
     ],
   },
   {
@@ -190,38 +176,33 @@ export const coaches: Coach[] = [
     ],
     cardPhoto: '/assets/images/coach-cards/marco-etcheverry.webp',
     flag: { src: '/assets/images/flags/bolivia.png', country: 'Bolivia' },
-    // As the app's card: rows of one or two sections.
     career: [
-      [
-        {
-          label: 'Youth',
-          entries: [
-            { icon: `${ICONS}tahuichiacademy.png`, name: 'Tahuichi Academy' },
-          ],
-        },
-        {
-          label: 'National Team',
-          entries: [
-            { icon: `${ICONS}bolivia.png`, name: 'Bolivia' },
-          ],
-        },
-      ],
-      [
-        {
-          label: 'Professional',
-          entries: [
-            { icon: `${ICONS}bolivarlapaz.png`, name: 'Bolivar La Paz' },
-            { icon: `${ICONS}barcelonasc.png`, name: 'Barcelona SC' },
-            { icon: `${ICONS}cdOrientePetrolero.png`, name: 'Oriente Petrolero' },
-            { icon: `${ICONS}cdAmericadeCali.png`, name: 'America de Cali' },
-            { icon: `${ICONS}cdsColoColo.png`, name: 'CDS Colo-Colo' },
-            { icon: `${ICONS}dcUnited.png`, name: 'D.C. United' },
-            { icon: `${ICONS}albaceteBalompie.png`, name: 'Albacete Balompie' },
-            { icon: `${ICONS}clubDestroyers.png`, name: 'Club Destroyers' },
-            { icon: `${ICONS}csEmelec.png`, name: 'CS Emelec' },
-          ],
-        },
-      ],
+      {
+        label: 'Youth',
+        entries: [
+          { icon: `${ICONS}tahuichiacademy.png`, name: 'Tahuichi Academy' },
+        ],
+      },
+      {
+        label: 'National Team',
+        entries: [
+          { icon: `${ICONS}bolivia.png`, name: 'Bolivia National Team' },
+        ],
+      },
+      {
+        label: 'Professional',
+        entries: [
+          { icon: `${ICONS}bolivarlapaz.png`, name: 'Bolívar La Paz' },
+          { icon: `${ICONS}barcelonasc.png`, name: 'Barcelona SC' },
+          { icon: `${ICONS}cdOrientePetrolero.png`, name: 'CD Oriente Petrolero' },
+          { icon: `${ICONS}cdAmericadeCali.png`, name: 'CD América de Cali' },
+          { icon: `${ICONS}cdsColoColo.png`, name: 'CDS Colo-Colo' },
+          { icon: `${ICONS}dcUnited.png`, name: 'D.C. United' },
+          { icon: `${ICONS}albaceteBalompie.png`, name: 'Albacete Balompié' },
+          { icon: `${ICONS}clubDestroyers.png`, name: 'Club Destroyers' },
+          { icon: `${ICONS}csEmelec.png`, name: 'CS Emelec' },
+        ],
+      },
     ],
   },
   {
@@ -240,38 +221,33 @@ export const coaches: Coach[] = [
     ],
     cardPhoto: '/assets/images/coach-cards/chris-pontius.webp',
     flag: { src: '/assets/images/flags/usa.png', country: 'United States' },
-    // As the app's card: rows of one or two sections.
     career: [
-      [
-        {
-          label: 'Youth',
-          entries: [
-            { icon: `${ICONS}strikersfcirvine.png`, name: 'Strikers FC Irvine' },
-          ],
-        },
-        {
-          label: 'College',
-          entries: [
-            { icon: `${ICONS}ucsb.png`, name: 'UC Santa Barbara' },
-          ],
-        },
-      ],
-      [
-        {
-          label: 'Professional',
-          entries: [
-            { icon: `${ICONS}dcUnited.png`, name: 'D.C. United' },
-            { icon: `${ICONS}philadelphiaunion.png`, name: 'Philadelphia Union' },
-            { icon: `${ICONS}lagalaxy.png`, name: 'LA Galaxy' },
-          ],
-        },
-        {
-          label: 'National Team',
-          entries: [
-            { icon: `${ICONS}usa.png`, name: 'United States' },
-          ],
-        },
-      ],
+      {
+        label: 'Youth',
+        entries: [
+          { icon: `${ICONS}strikersfcirvine.png`, name: 'Strikers FC Irvine' },
+        ],
+      },
+      {
+        label: 'College',
+        entries: [
+          { icon: `${ICONS}ucsb.png`, name: 'UC Santa Barbara' },
+        ],
+      },
+      {
+        label: 'Professional',
+        entries: [
+          { icon: `${ICONS}dcUnited.png`, name: 'D.C. United' },
+          { icon: `${ICONS}philadelphiaunion.png`, name: 'Philadelphia Union' },
+          { icon: `${ICONS}lagalaxy.png`, name: 'LA Galaxy' },
+        ],
+      },
+      {
+        label: 'National Team',
+        entries: [
+          { icon: `${ICONS}usa.png`, name: 'US Men\'s National Team' },
+        ],
+      },
     ],
   },
   {
@@ -290,30 +266,25 @@ export const coaches: Coach[] = [
     ],
     cardPhoto: '/assets/images/coach-cards/ryan-machado.webp',
     flag: { src: '/assets/images/flags/usa.png', country: 'United States' },
-    // As the app's card: rows of one or two sections.
     career: [
-      [
-        {
-          label: 'Youth',
-          entries: [
-            { icon: `${ICONS}dcUnited.png`, name: 'D.C. United Academy' },
-          ],
-        },
-        {
-          label: 'College',
-          entries: [
-            { icon: `${ICONS}radford.png`, name: 'Radford University' },
-          ],
-        },
-      ],
-      [
-        {
-          label: 'Professional',
-          entries: [
-            { icon: `${ICONS}marylandBobcats.png`, name: 'Maryland Bobcats' },
-          ],
-        },
-      ],
+      {
+        label: 'Youth',
+        entries: [
+          { icon: `${ICONS}dcUnited.png`, name: 'D.C. United Academy' },
+        ],
+      },
+      {
+        label: 'College',
+        entries: [
+          { icon: `${ICONS}radford.png`, name: 'Radford University' },
+        ],
+      },
+      {
+        label: 'Professional',
+        entries: [
+          { icon: `${ICONS}marylandBobcats.png`, name: 'Maryland Bobcats FC' },
+        ],
+      },
     ],
   },
   {
@@ -332,26 +303,21 @@ export const coaches: Coach[] = [
     ],
     cardPhoto: '/assets/images/coach-cards/gonzalo-carrasco.webp',
     flag: { src: '/assets/images/flags/spain.png', country: 'Spain' },
-    // As the app's card: rows of one or two sections.
     career: [
-      [
-        {
-          label: 'College',
-          entries: [
-            { icon: `${ICONS}mississippi.png`, name: 'Mississippi College' },
-            { icon: `${ICONS}longwood.png`, name: 'Longwood University' },
-          ],
-        },
-      ],
-      [
-        {
-          label: 'Professional',
-          entries: [
-            { icon: `${ICONS}littleRockRangers.png`, name: 'Little Rock Rangers' },
-            { icon: `${ICONS}louisianaKrewe.png`, name: 'Louisiana Krewe FC' },
-          ],
-        },
-      ],
+      {
+        label: 'College',
+        entries: [
+          { icon: `${ICONS}mississippi.png`, name: 'Mississippi College' },
+          { icon: `${ICONS}longwood.png`, name: 'Longwood University' },
+        ],
+      },
+      {
+        label: 'Professional',
+        entries: [
+          { icon: `${ICONS}littleRockRangers.png`, name: 'Little Rock Rangers' },
+          { icon: `${ICONS}louisianaKrewe.png`, name: 'Louisiana Krewe FC' },
+        ],
+      },
     ],
   },
   {
@@ -370,38 +336,33 @@ export const coaches: Coach[] = [
     ],
     cardPhoto: '/assets/images/coach-cards/steve-birnbaum.webp',
     flag: { src: '/assets/images/flags/usa.png', country: 'United States' },
-    // As the app's card: rows of one or two sections.
     career: [
-      [
-        {
-          label: 'Youth',
-          entries: [
-            { icon: `${ICONS}pateadoressc.png`, name: 'Pateadores SC' },
-          ],
-        },
-        {
-          label: 'College',
-          entries: [
-            { icon: `${ICONS}ucberkeley.png`, name: 'UC Berkeley' },
-          ],
-        },
-      ],
-      [
-        {
-          label: 'Professional',
-          entries: [
-            { icon: `${ICONS}dcUnited.png`, name: 'D.C. United' },
-            { icon: `${ICONS}richmondkickers.png`, name: 'Richmond Kickers' },
-            { icon: `${ICONS}orangeCountyBlueStar.png`, name: 'OC Blue Star' },
-          ],
-        },
-        {
-          label: 'National Team',
-          entries: [
-            { icon: `${ICONS}usa.png`, name: 'United States' },
-          ],
-        },
-      ],
+      {
+        label: 'Youth',
+        entries: [
+          { icon: `${ICONS}pateadoressc.png`, name: 'Pateadores SC' },
+        ],
+      },
+      {
+        label: 'College',
+        entries: [
+          { icon: `${ICONS}ucberkeley.png`, name: 'UC Berkeley' },
+        ],
+      },
+      {
+        label: 'Professional',
+        entries: [
+          { icon: `${ICONS}dcUnited.png`, name: 'D.C. United' },
+          { icon: `${ICONS}richmondkickers.png`, name: 'Richmond Kickers' },
+          { icon: `${ICONS}orangeCountyBlueStar.png`, name: 'Orange County Blue Star' },
+        ],
+      },
+      {
+        label: 'National Team',
+        entries: [
+          { icon: `${ICONS}usa.png`, name: 'US Men\'s National Team' },
+        ],
+      },
     ],
   },
   {
@@ -420,34 +381,29 @@ export const coaches: Coach[] = [
     ],
     cardPhoto: '/assets/images/coach-cards/gabe-segal.webp',
     flag: { src: '/assets/images/flags/usa.png', country: 'United States' },
-    // As the app's card: rows of one or two sections.
     career: [
-      [
-        {
-          label: 'Youth',
-          entries: [
-            { icon: `${ICONS}bethesda.png`, name: 'Bethesda SC' },
-          ],
-        },
-        {
-          label: 'College',
-          entries: [
-            { name: 'Stanford University' },
-          ],
-        },
-      ],
-      [
-        {
-          label: 'Professional',
-          entries: [
-            { icon: `${ICONS}dcUnited.png`, name: 'D.C. United' },
-            { icon: `${ICONS}newyorkcityfc.png`, name: 'New York City FC' },
-            { name: 'Houston Dynamo FC' },
-            { name: '1. FC Koln II' },
-            { name: 'Loudoun United FC' },
-          ],
-        },
-      ],
+      {
+        label: 'Youth',
+        entries: [
+          { icon: `${ICONS}bethesda.png`, name: 'Bethesda SC' },
+        ],
+      },
+      {
+        label: 'College',
+        entries: [
+          { icon: `${ICONS}colleges/Stanford_Cardinal_logo.svg.png`, name: 'Stanford University' },
+        ],
+      },
+      {
+        label: 'Professional',
+        entries: [
+          { icon: `${ICONS}dcUnited.png`, name: 'D.C. United' },
+          { icon: `${ICONS}newyorkcityfc.png`, name: 'New York City FC' },
+          { icon: `${ICONS}clubs/dynamo.png`, name: 'Houston Dynamo FC' },
+          { name: '1. FC Köln II' },
+          { icon: `${ICONS}clubs/loudoun.png`, name: 'Loudoun United FC' },
+        ],
+      },
     ],
   },
   {
@@ -466,30 +422,25 @@ export const coaches: Coach[] = [
     ],
     cardPhoto: '/assets/images/coach-cards/noah-satriano.webp',
     flag: { src: '/assets/images/flags/usa.png', country: 'United States' },
-    // As the app's card: rows of one or two sections.
     career: [
-      [
-        {
-          label: 'Youth',
-          entries: [
-            { name: 'Baltimore Armour' },
-          ],
-        },
-        {
-          label: 'College',
-          entries: [
-            { icon: `${ICONS}georgetown.png`, name: 'Georgetown University' },
-          ],
-        },
-      ],
-      [
-        {
-          label: 'Professional',
-          entries: [
-            { icon: `${ICONS}annapolisBlues.png`, name: 'Annapolis Blues' },
-          ],
-        },
-      ],
+      {
+        label: 'Youth',
+        entries: [
+          { icon: `${ICONS}baltimoreArmour.png`, name: 'Baltimore Armour' },
+        ],
+      },
+      {
+        label: 'College',
+        entries: [
+          { icon: `${ICONS}georgetown.png`, name: 'Georgetown University' },
+        ],
+      },
+      {
+        label: 'Professional',
+        entries: [
+          { icon: `${ICONS}annapolisBlues.png`, name: 'Annapolis Blues' },
+        ],
+      },
     ],
   },
 ];

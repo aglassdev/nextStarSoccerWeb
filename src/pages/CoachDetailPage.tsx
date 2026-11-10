@@ -289,44 +289,34 @@ const ProfileCard = ({ coach }: { coach: Coach }) => {
   );
 };
 
-const Team = ({ entry, className = '' }: { entry: CareerEntry; className?: string }) => (
-  <div className={`flex items-center gap-[5px] text-[#F4F2EE] text-xs ${className}`}>
-    {entry.icon && (
-      <img
-        src={entry.icon}
-        alt=""
-        className="w-3.5 h-3.5 object-contain shrink-0"
-        onError={(e) => { e.currentTarget.style.display = 'none'; }}
-      />
-    )}
-    <span>{entry.name}</span>
-  </div>
-);
-
-// A section on its own spans the card, its teams two across; beside another,
-// its teams are listed down the middle of its half.
-const TeamsCell = ({ section, alone }: { section: CareerSection; alone: boolean }) => (
-  <div className="py-3.5 px-4 flex flex-col items-center">
-    <p className="text-[#888] text-xs mb-2">{section.label}</p>
-    {alone && section.entries.length > 1 ? (
-      <div className="grid grid-cols-2 gap-x-1.5 gap-y-1 w-[92%]">
-        {section.entries.map((e) => <Team key={e.name} entry={e} />)}
-      </div>
-    ) : (
-      <div className="flex flex-col items-center gap-1">
-        {section.entries.map((e) => <Team key={e.name} entry={e} className="justify-center text-center" />)}
-      </div>
-    )}
-  </div>
-);
-
-const CareerCard = ({ rows }: { rows: CareerSection[][] }) => (
+// The teams in one column, as the page had them before the cards: each
+// section's label, then its clubs one per line, with a rule between sections.
+const CareerCard = ({ sections }: { sections: CareerSection[] }) => (
   <div className={`${cardBox} mt-4 divide-y divide-[#333]`}>
-    {rows.map((row) => (
-      <div key={row.map((s) => s.label).join('|')} className={row.length > 1 ? 'grid grid-cols-2 divide-x divide-[#333]' : ''}>
-        {row.map((section) => <TeamsCell key={section.label} section={section} alone={row.length === 1} />)}
+    {sections.map((section) => (
+      <div key={section.label} className="px-5 py-4">
+        <p className="text-white/40 uppercase tracking-[0.25em] text-[10px] mb-3">{section.label}</p>
+        <div className="space-y-2.5">
+          {section.entries.map((entry) => <Team key={entry.name} entry={entry} />)}
+        </div>
       </div>
     ))}
+  </div>
+);
+
+const Team = ({ entry }: { entry: CareerEntry }) => (
+  <div className="flex items-center gap-3 group/club">
+    <div className="w-6 h-6 flex-shrink-0 flex items-center justify-center">
+      {entry.icon && (
+        <img
+          src={entry.icon}
+          alt=""
+          className="max-w-full max-h-full object-contain opacity-80 group-hover/club:opacity-100 transition-opacity"
+          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+        />
+      )}
+    </div>
+    <span className="text-white/70 text-[13px] group-hover/club:text-white transition-colors">{entry.name}</span>
   </div>
 );
 
@@ -378,7 +368,7 @@ const CoachDetailPage = () => {
             {/* ── LEFT: the coach's cards, as in the app ── */}
             <div className="w-full max-w-[420px] lg:max-w-none lg:w-[340px] xl:w-[380px] flex-shrink-0">
               <ProfileCard coach={coach} />
-              {coach.career && coach.career.length > 0 && <CareerCard rows={coach.career} />}
+              {coach.career && coach.career.length > 0 && <CareerCard sections={coach.career} />}
             </div>
 
             {/* ── RIGHT: name + bio ── */}
@@ -439,6 +429,6 @@ export default withPageImages(CoachDetailPage, ({ slug }) => {
   const coach = coaches.find((c) => c.slug === slug);
   return {
     first: [coach?.cardPhoto ?? coach?.avatarUrl],
-    more: [coach?.flag?.src, ...(coach?.career ?? []).flat().flatMap((s) => s.entries.map((e) => e.icon))],
+    more: [coach?.flag?.src, ...(coach?.career ?? []).flatMap((s) => s.entries.map((e) => e.icon))],
   };
 });

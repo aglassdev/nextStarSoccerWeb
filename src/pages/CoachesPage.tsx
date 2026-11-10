@@ -95,7 +95,6 @@ const CoachesPage = () => {
                       style={{ transitionDelay: '60ms' }}
                     >
                       {coach.career
-                        .flat()
                         .flatMap((s) => s.entries)
                         .filter((e) => e.icon)
                         .slice(0, 6)
@@ -140,5 +139,5 @@ const CoachesPage = () => {
 // Loading screen until the coaches' photos are in; their club logos follow.
 export default withPageImages(CoachesPage, () => ({
   first: coaches.map((c) => c.avatarUrl),
-  more: coaches.flatMap((c) => (c.career ?? []).flat().flatMap((s) => s.entries).filter((e) => e.icon).slice(0, 6).map((e) => e.icon)),
+  more: coaches.flatMap((c) => (c.career ?? []).flatMap((s) => s.entries).filter((e) => e.icon).slice(0, 6).map((e) => e.icon)),
 }));
