@@ -42,8 +42,8 @@ const STORY: {
 }[] = [
     {
         label: 'About us',
-        title: ['Founded in 2018,', 'built in the DC area'],
-        body: 'Founded in 2018, Next Star started with a simple goal: give young players the coaching, guidance and opportunities to reach their potential. Today it trains players of every age across the DC area, with alumni competing in college and professional soccer around the world.',
+        title: ['Founded in 2016,', 'built in the DC area'],
+        body: 'Founded in 2016, Next Star started with a simple goal: give young players the coaching, guidance and opportunities to reach their potential. Today it trains players of every age across the DC area, with alumni competing in college and professional soccer around the world.',
         image: ABOUT_IMAGE, alt: 'Next Star players training',
     },
     {
@@ -365,19 +365,19 @@ const AboutReveal = ({ chapter }: { chapter: Chapter }) => {
 };
 
 // Photo or video beside the text (stacked on phones: text, then the media at
-// its own shape so nothing is cropped). On phones About uses this too, in
-// place of the pinned reveal, which would squeeze its wide photo into a tall
-// frame and its card into a strip.
-const StorySplit = ({ chapter: ch, mediaLeft }: { chapter: Chapter; mediaLeft: boolean }) => (
+// its own shape so nothing is cropped; `mediaFirst` puts the media on top).
+// On phones About uses this too, photo first, in place of the pinned reveal,
+// which would squeeze its wide photo into a tall frame and its card into a strip.
+const StorySplit = ({ chapter: ch, mediaLeft, mediaFirst = false }: { chapter: Chapter; mediaLeft: boolean; mediaFirst?: boolean }) => (
     <section className="border-b border-white/[0.08] grid md:grid-cols-2">
-        <div className={`relative ${ch.video ? 'aspect-video' : 'aspect-[4/3]'} md:aspect-auto md:min-h-[600px] bg-neutral-900 order-2 ${mediaLeft ? 'md:order-1' : 'md:order-2'}`}>
+        <div className={`relative ${ch.video ? 'aspect-video' : 'aspect-[4/3]'} md:aspect-auto md:min-h-[600px] bg-neutral-900 ${mediaFirst ? 'order-1' : 'order-2'} ${mediaLeft ? 'md:order-1' : 'md:order-2'}`}>
             {ch.video ? (
                 <video src={ch.video} poster={ch.poster} autoPlay loop muted playsInline preload="metadata" className="absolute inset-0 w-full h-full object-cover" />
             ) : (
                 <img src={ch.image} alt={ch.alt} className="absolute inset-0 w-full h-full object-cover" loading="lazy" decoding="async" />
             )}
         </div>
-        <div className={`flex items-center px-6 lg:px-8 py-14 md:py-24 order-1 ${mediaLeft ? 'md:order-2' : 'md:order-1'}`}>
+        <div className={`flex items-center px-6 lg:px-8 py-14 md:py-24 ${mediaFirst ? 'order-2' : 'order-1'} ${mediaLeft ? 'md:order-2' : 'md:order-1'}`}>
             <div className={`max-w-xl ${mediaLeft ? 'md:mr-auto md:ml-12 lg:ml-16' : 'md:ml-auto md:mr-12 lg:mr-16'}`}>
                 <StoryText chapter={ch} />
             </div>
@@ -555,7 +555,7 @@ const HomePageNew = () => {
             </section>
 
             {/* ═══════════════════════ ABOUT US — scroll reveal (phones: photo and text) ═══════════════════════ */}
-            {isMobile ? <StorySplit chapter={STORY[0]} mediaLeft={false} /> : <AboutReveal chapter={STORY[0]} />}
+            {isMobile ? <StorySplit chapter={STORY[0]} mediaLeft={false} mediaFirst /> : <AboutReveal chapter={STORY[0]} />}
 
             {/* ═══════════════════════ PARTNERS — short white bar ═══════════════════════ */}
             <section aria-labelledby="partners-heading" className="bg-white h-[20vh] min-h-[120px]">
