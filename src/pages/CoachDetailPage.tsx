@@ -277,8 +277,11 @@ const ProfileCard = ({ coach }: { coach: Coach }) => {
       </div>
       <div className="px-5 pt-4 pb-5 flex items-end justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-[#F4F2EE] text-[22px] leading-tight">{first}</p>
-          <p className="text-[#F4F2EE] text-[28px] font-bold leading-tight -mt-0.5">{rest.join(' ')}</p>
+          {/* The page's heading: the name is only here. */}
+          <h1 className="text-[#F4F2EE]">
+            <span className="block text-[22px] leading-tight">{first}</span>{' '}
+            <span className="block text-[28px] font-bold leading-tight -mt-0.5">{rest.join(' ')}</span>
+          </h1>
           <p className="text-[#999] text-xs font-medium uppercase tracking-[2px] mt-1">{coach.title}</p>
         </div>
         {coach.flag && (
@@ -371,20 +374,8 @@ const CoachDetailPage = () => {
               {coach.career && coach.career.length > 0 && <CareerCard sections={coach.career} />}
             </div>
 
-            {/* ── RIGHT: name + bio ── */}
+            {/* ── RIGHT: bio (the name and title are on the card) ── */}
             <div className="flex-1 min-w-0">
-              <span className="text-white/30 uppercase tracking-[0.25em]" style={{ fontSize: '10px' }}>
-                {coach.title}
-              </span>
-              <h1
-                className="text-white font-bold leading-none mt-3 mb-8"
-                style={{ fontSize: 'clamp(2.8rem, 5.5vw, 5rem)' }}
-              >
-                {coach.name}
-              </h1>
-
-              <div className="h-px bg-white/8 mb-10" />
-
               {/* Bio */}
               {coach.bio && coach.bio.length > 0 ? (
                 <div className="space-y-5">
