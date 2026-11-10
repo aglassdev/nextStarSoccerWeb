@@ -22,7 +22,7 @@ const useDialog = (onClose: () => void, locked = false) => {
   }, [onClose, locked]);
 };
 
-const Overlay = ({ onClose, dim = 'bg-black/70', children, locked }: { onClose: () => void; dim?: string; children: React.ReactNode; locked?: boolean }) => {
+export const Overlay = ({ onClose, dim = 'bg-black/70', children, locked }: { onClose: () => void; dim?: string; children: React.ReactNode; locked?: boolean }) => {
   useDialog(onClose, locked);
   return (
     <div className={`fixed inset-0 z-[60] flex items-center justify-center px-6 ${dim}`} onClick={locked ? undefined : onClose}>
@@ -106,11 +106,11 @@ export const ChildSelectionModal = ({
   );
 };
 
-/** The app's Alert.alert("Error", …). */
-export const ErrorModal = ({ message, onClose }: { message: string; onClose: () => void }) => (
+/** The app's Alert.alert("Error", …); `title` for other alerts. */
+export const ErrorModal = ({ message, onClose, title = 'Error' }: { message: string; onClose: () => void; title?: string }) => (
   <Overlay onClose={onClose}>
     <div className="w-full max-w-sm bg-[#1e1e1e] rounded-2xl p-6 text-center">
-      <p className="text-white text-lg font-bold mb-2">Error</p>
+      <p className="text-white text-lg font-bold mb-2">{title}</p>
       <p className="text-[#aaa] text-base mb-6">{message}</p>
       <button type="button" onClick={onClose} className="w-full py-3 rounded-lg text-white text-base font-medium hover:bg-white/5">
         OK

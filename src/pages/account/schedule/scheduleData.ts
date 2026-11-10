@@ -31,7 +31,8 @@ export interface ScheduleData {
   childSignupIds: Record<string, string[]>;
 }
 
-interface Row {
+/** A signup or check-in row (the coach dashboard reads the same shape). */
+export interface Row {
   $id: string;
   $createdAt?: string;
   eventID: string;
@@ -115,7 +116,7 @@ export const formatDateWithOrdinal = (e: CalendarEvent) => {
 /** "Paul Torres Field, 123 Main St, ..." → "Paul Torres Field". */
 export const locationName = (location?: string | null) => (location ? location.split(',')[0].trim() : null);
 
-const byStart = (a: CalendarEvent, b: CalendarEvent) => toInstant(a.startDateTime).getTime() - toInstant(b.startDateTime).getTime();
+export const byStart = (a: CalendarEvent, b: CalendarEvent) => toInstant(a.startDateTime).getTime() - toInstant(b.startDateTime).getTime();
 
 // ---------------------------------------------------------------- calendar + streak
 
@@ -248,7 +249,7 @@ const transformCalendarEvent = (raw: any): CalendarEvent => {
 };
 
 /** One event by id through the shared calendar function, as the app's googleCalendarService.getEventById. */
-async function getEventById(eventId: string, calendarSource?: string): Promise<CalendarEvent | null> {
+export async function getEventById(eventId: string, calendarSource?: string): Promise<CalendarEvent | null> {
   try {
     const calendarType = calendarSource === 'public' || calendarSource === 'private' ? calendarSource : undefined;
     const res = await functions.createExecution(
@@ -279,9 +280,11 @@ async function eachLimited<T>(items: T[], limit: number, fn: (item: T) => Promis
  * or private events — is looked up by id, so a long history loads quickly and
  * stays under the function's rate limit.
  */
-async function resolveEvents(rows: Row[]): Promise<Map<string, CalendarEvent>> {
+type EventRef = Pick<Row, 'eventID' | 'eventDate' | 'calendarSource'>;
+
+export async function resolveEvents(rows: EventRef[]): Promise<Map<string, CalendarEvent>> {
   const found = new Map<string, CalendarEvent>();
-  const fillMonths = async (subset: Row[], calendar: 'public' | 'private') => {
+  const fillMonths = async (subset: EventRef[], calendar: 'public' | 'private') => {
     const months = [...new Set(subset.map((r) => dayKeyOf(r.eventDate).slice(0, 7)).filter((m) => m.length === 7))];
     const lists = await Promise.all(
       months.map((ym) => {

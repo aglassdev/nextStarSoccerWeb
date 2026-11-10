@@ -6,7 +6,7 @@ import AnalysisQueue from '../../../components/analysis/AnalysisQueue';
 const VideoAnalysisSection = () => (
   <div className="p-6 space-y-5">
     <div className="flex justify-end">
-      <Link to="/coach" className="text-white text-xs opacity-50 hover:opacity-100 transition-opacity">Open coach dashboard →</Link>
+      <Link to="/coach/video-analysis" className="text-white text-xs opacity-50 hover:opacity-100 transition-opacity">Open coach dashboard →</Link>
     </div>
     <AnalysisQueue admin />
   </div>

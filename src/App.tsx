@@ -55,10 +55,11 @@ import AccountPlayerCenterPage from './pages/account/playerCenter/AccountPlayerC
 import AccountTrainingProgramPage from './pages/account/playerCenter/AccountTrainingProgramPage';
 import AccountJournalPage from './pages/account/playerCenter/AccountJournalPage';
 import CoachLayout from './pages/coach/CoachLayout';
-import CoachHomePage from './pages/coach/CoachHomePage';
+import CoachDashboardPage from './pages/coach/CoachDashboardPage';
+import CoachSessionPage from './pages/coach/CoachSessionPage';
+import CoachInboxPage from './pages/coach/CoachInboxPage';
+import CoachVideoAnalysisPage from './pages/coach/CoachVideoAnalysisPage';
 import CoachAnalysisWorkspacePage from './pages/coach/CoachAnalysisWorkspacePage';
-import CoachSessionsPage from './pages/coach/CoachSessionsPage';
-import CoachRequestsPage from './pages/coach/CoachRequestsPage';
 import PaymentPortalPage from './pages/user/PaymentPortalPage';
 import CheckoutPage from './pages/user/CheckoutPage';
 import StatusPage from './pages/StatusPage';
@@ -252,10 +253,15 @@ function AppRoutes() {
           </UserProtectedRoute>
         }
       >
-        <Route index element={<CoachHomePage />} />
+        {/* Dashboard (sessions, calendar, stats), Inbox and Video Analysis, in the right-side menu */}
+        <Route index element={<CoachDashboardPage />} />
+        <Route path="session/:eventId" element={<CoachSessionPage />} />
+        <Route path="inbox" element={<CoachInboxPage />} />
+        <Route path="video-analysis" element={<CoachVideoAnalysisPage />} />
         <Route path="analysis/:id" element={<CoachAnalysisWorkspacePage />} />
-        <Route path="sessions" element={<CoachSessionsPage />} />
-        <Route path="requests" element={<CoachRequestsPage />} />
+        {/* Old addresses */}
+        <Route path="sessions" element={<Navigate to="/coach" replace />} />
+        <Route path="requests" element={<Navigate to="/coach/inbox" replace />} />
       </Route>
       {/* Bill checkout keeps its own full-page layout */}
       {['/account/payments/checkout', '/user/payments/checkout'].map((path) => (

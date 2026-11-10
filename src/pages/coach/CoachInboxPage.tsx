@@ -3,9 +3,12 @@ import { ID, Query } from 'appwrite';
 import { useAuth } from '../../contexts/AuthContext';
 import { databases, databaseId, collections } from '../../services/appwrite';
 import { useAccount } from '../account/AccountContext';
+import { AccountPageHeader } from '../account/AccountLayout';
+import { formatInboxDate, previewText } from '../account/inbox/chatService';
 
-// Session requests, as in the app's coach inbox: conversations routed to this
-// coach (messages stamped with their coachId). A request card can be
+// Coach Dashboard → Inbox, as the app's CoachInboxScreen: session requests
+// and chats routed to this coach (messages stamped with their coachId), with
+// All / Unread / Read, and the chat beside the list on a wide screen. A request card can be
 // accepted, changed or declined, with the same message writes as the app's
 // chat. Requests never carry a location, so accepting sends the confirmed
 // details back as a proposal; the session is booked on the calendar when the
@@ -72,7 +75,9 @@ const fmtDate = (iso: string) => {
 
 const inputClass = 'w-full px-3 py-2 bg-[#1a1a1a] border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-white/20 [color-scheme:dark]';
 
-const CoachRequestsPage = () => {
+type Filter = 'all' | 'unread' | 'read';
+
+const CoachInboxPage = () => {
   const { user } = useAuth();
   const { profile } = useAccount();
   const first = (profile?.firstName || user?.name?.split(' ')[0] || '').trim();
@@ -84,6 +89,7 @@ const CoachRequestsPage = () => {
   const [form, setForm] = useState<{ msg: Msg; mode: 'confirm' | 'alter'; type: string; date: string; start: string; end: string; location: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [filter, setFilter] = useState<Filter>('all');
   const threadRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
@@ -217,32 +223,71 @@ const CoachRequestsPage = () => {
     });
   };
 
+  const header = <AccountPageHeader title="Inbox" />;
+
   if (messages === null) {
     return (
-      <div className="flex items-center justify-center h-48">
-        <div className="w-8 h-8 border-2 border-white/40 border-t-transparent rounded-full animate-spin" />
+      <div>
+        {header}
+        <div className="flex items-center justify-center h-48">
+          <div className="w-8 h-8 border-2 border-white/40 border-t-transparent rounded-full animate-spin" />
+        </div>
       </div>
     );
   }
 
+  const shown = threads.filter((t) => (filter === 'unread' ? t.unread > 0 : filter === 'read' ? t.unread === 0 : true));
+  const preview = (m: Msg) =>
+    m.eventType && m.eventStatus
+      ? m.eventStatus === 'altered' ? 'Sent an altered event proposal' : 'Sent an event proposal'
+      : previewText(m.message || '');
+
   return (
-    <div className="grid md:grid-cols-[300px_1fr] gap-4 md:h-[calc(100vh-13rem)] min-h-[480px]">
-      {/* Threads */}
+    <div>
+    {header}
+    <div className="grid md:grid-cols-[340px_1fr] gap-4 md:h-[calc(100vh-15rem)] min-h-[480px]">
+      {/* Conversations */}
       <aside className={`bg-[#0b0b0b] border border-white/10 rounded-2xl overflow-hidden flex flex-col ${thread ? 'hidden md:flex' : 'flex'}`}>
-        <div className="px-4 py-3 border-b border-white/10">
-          <p className="text-white text-sm font-semibold">Requests & messages</p>
+        <div role="tablist" aria-label="Show" className="px-3 py-3 border-b border-white/10 flex gap-1.5">
+          {(['all', 'unread', 'read'] as Filter[]).map((f) => (
+            <button
+              key={f}
+              role="tab"
+              aria-selected={filter === f}
+              onClick={() => setFilter(f)}
+              className={`h-8 px-3.5 rounded-full text-[13px] capitalize border transition-colors ${
+                filter === f ? 'bg-white text-black border-white font-semibold' : 'border-white/15 text-white/60 hover:text-white hover:border-white/35'
+              }`}
+            >
+              {f}
+            </button>
+          ))}
         </div>
         <div className="flex-1 overflow-y-auto">
-          {threads.length === 0 ? (
-            <p className="text-gray-500 text-sm text-center py-10 px-4">No requests yet. Session requests that name you arrive here.</p>
-          ) : threads.map((t) => (
+          {shown.length === 0 ? (
+            <p className="text-gray-500 text-sm text-center py-10 px-4">
+              {filter === 'unread' ? 'No unread chats' : filter === 'read' ? 'No read chats' : 'No chats yet. Session requests that name you arrive here.'}
+            </p>
+          ) : shown.map((t) => (
             <button key={t.id} onClick={() => { setOpenId(t.id); setForm(null); }}
-              className={`w-full text-left px-4 py-3 border-b border-white/[0.06] hover:bg-white/[0.04] ${openId === t.id ? 'bg-white/[0.06]' : ''}`}>
-              <div className="flex items-center justify-between gap-2">
-                <p className={`text-sm truncate ${t.unread ? 'text-white font-semibold' : 'text-white/85'}`}>{t.name}</p>
-                {t.pending.length > 0 && <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-yellow-500/20 text-yellow-300 flex-shrink-0">Request</span>}
-              </div>
-              <p className="text-gray-500 text-xs truncate mt-0.5">{t.last.eventType && t.last.eventStatus ? `${t.last.eventType} · ${t.last.eventStatus}` : t.last.message}</p>
+              className={`w-full text-left px-4 py-3.5 border-b border-white/[0.06] hover:bg-white/[0.04] flex items-start gap-3 ${openId === t.id ? 'bg-white/[0.06]' : ''}`}>
+              <span className="w-10 h-10 rounded-full bg-white/10 text-white font-semibold flex items-center justify-center flex-shrink-0">
+                {t.name[0]?.toUpperCase() || '?'}
+              </span>
+              <span className="flex-1 min-w-0">
+                <span className="flex items-center justify-between gap-2">
+                  <span className={`text-[15px] truncate ${t.unread ? 'text-white font-semibold' : 'text-white/85'}`}>{t.name}</span>
+                  <span className="text-[#777] text-xs flex-shrink-0">{formatInboxDate(t.last.timestamp || t.last.$createdAt)}</span>
+                </span>
+                <span className="flex items-center justify-between gap-2 mt-0.5">
+                  <span className="text-gray-500 text-[13px] truncate">{preview(t.last)}</span>
+                  {t.unread > 0 ? (
+                    <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-white text-black text-[11px] font-bold flex items-center justify-center flex-shrink-0">{t.unread}</span>
+                  ) : t.pending.length > 0 ? (
+                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-yellow-500/20 text-yellow-300 flex-shrink-0">Request</span>
+                  ) : null}
+                </span>
+              </span>
             </button>
           ))}
         </div>
@@ -339,7 +384,8 @@ const CoachRequestsPage = () => {
         )}
       </section>
     </div>
+    </div>
   );
 };
 
-export default CoachRequestsPage;
+export default CoachInboxPage;

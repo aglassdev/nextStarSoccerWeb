@@ -3,8 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { LockIcon, MenuItem, useAccountMenuItems } from './AccountMenu';
 
-// The account pages' menu, down the right side in place of the site's top
-// bar: "– Page" for each account page, dimmed except the one you're on. On
+// The account pages' menu (and the coach dashboard's), down the right side: "– Page" for each account page, dimmed except the one you're on. On
 // hover an item pops out a little (bigger, brighter). Locked pages stay
 // dim with a lock and can't be clicked. Below lg it slides in from the right.
 
@@ -41,17 +40,21 @@ const Item = ({ m, active }: { m: MenuItem; active: boolean }) => {
   );
 };
 
-const MenuList = () => {
+type Menu = { items: MenuItem[]; staff: MenuItem[]; isActive?: (pathname: string, to: string) => boolean };
+
+const MenuList = ({ menu }: { menu?: Menu }) => {
   const { pathname } = useLocation();
   const { logout } = useAuth();
   const navigate = useNavigate();
-  const { items, staff } = useAccountMenuItems();
+  const account = useAccountMenuItems();
+  const { items, staff } = menu ?? account;
+  const active = menu?.isActive ?? isActive;
   return (
     <nav aria-label="Account" className="flex flex-col">
-      {items.map((m) => <Item key={m.to} m={m} active={isActive(pathname, m.to)} />)}
+      {items.map((m) => <Item key={m.to} m={m} active={active(pathname, m.to)} />)}
       {staff.length > 0 && (
         <div className="mt-6 flex flex-col">
-          {staff.map((m) => <Item key={m.to} m={m} active={isActive(pathname, m.to)} />)}
+          {staff.map((m) => <Item key={m.to} m={m} active={active(pathname, m.to)} />)}
         </div>
       )}
       <button
@@ -65,17 +68,20 @@ const MenuList = () => {
   );
 };
 
-/** Wide screens: a column on the right that stays put as the page scrolls. */
-export const AccountSideMenu = () => (
+/**
+ * Wide screens: a column on the right that stays put as the page scrolls.
+ * The account pages by default; the coach dashboard passes its own `menu`.
+ */
+export const AccountSideMenu = ({ menu }: { menu?: Menu }) => (
   <aside className="hidden lg:block w-48 flex-shrink-0 pt-6">
     <div className="sticky top-24 pt-1">
-      <MenuList />
+      <MenuList menu={menu} />
     </div>
   </aside>
 );
 
 /** Narrow screens: a button that slides the same menu in from the right. */
-export const AccountMenuButton = () => {
+export const AccountMenuButton = ({ menu }: { menu?: Menu }) => {
   const [open, setOpen] = useState(false);
   const { pathname } = useLocation();
   useEffect(() => setOpen(false), [pathname]);
@@ -113,7 +119,7 @@ export const AccountMenuButton = () => {
         <button onClick={() => setOpen(false)} aria-label="Close" className="absolute top-5 right-5 text-white/60 hover:text-white">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
         </button>
-        {open && <MenuList />}
+        {open && <MenuList menu={menu} />}
       </div>
     </div>
   );

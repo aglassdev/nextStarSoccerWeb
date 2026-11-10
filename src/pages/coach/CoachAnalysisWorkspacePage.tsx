@@ -115,7 +115,7 @@ const CoachAnalysisWorkspacePage = () => {
     try {
       await saving.current;
       await completeAnalysis(a.$id);
-      navigate('/coach');
+      navigate('/coach/video-analysis');
     } catch (e: any) {
       setError(e?.message || 'Could not complete the analysis.');
       setCompleting(false);
@@ -125,7 +125,7 @@ const CoachAnalysisWorkspacePage = () => {
   if (error && !a) {
     return (
       <div className="space-y-4">
-        <Link to="/coach" className="text-gray-400 hover:text-white text-sm">← Video Analysis</Link>
+        <Link to="/coach/video-analysis" className="text-gray-400 hover:text-white text-sm">← Video Analysis</Link>
         <p className="text-gray-400 text-sm">{error}</p>
       </div>
     );
@@ -150,7 +150,7 @@ const CoachAnalysisWorkspacePage = () => {
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <Link to="/coach" className="text-gray-500 hover:text-white text-xs">← Video Analysis</Link>
+          <Link to="/coach/video-analysis" className="text-gray-500 hover:text-white text-xs">← Video Analysis</Link>
           <h2 className="text-xl md:text-2xl font-bold text-white mt-1 truncate">{a.playerName}</h2>
           <p className="text-gray-500 text-sm mt-0.5">
             {a.purchaserName && a.purchaserName !== a.playerName ? `${a.purchaserName} · ` : ''}
