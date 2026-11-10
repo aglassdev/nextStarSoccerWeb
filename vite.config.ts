@@ -15,6 +15,10 @@ export default defineConfig({
       webp: { lossless: false, quality: 80 },
       // Also process images copied from /public
       includePublic: true,
+      // Leave the tab icons alone: the SVG optimizer drops favicon.svg's
+      // white ball (hidden until dark mode), which left dark browsers with
+      // no icon. They're a few KB anyway.
+      exclude: /favicon/,
     }),
   ],
   resolve: {
