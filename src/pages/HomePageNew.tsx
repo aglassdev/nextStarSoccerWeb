@@ -591,17 +591,17 @@ const HomePageNew = () => {
             {/* ═══════════════════════ FUNDAMENTALS + TEAM — half and half ═══════════════════════ */}
             {STORY.slice(1).map(ch => <StorySplit key={ch.label} chapter={ch} mediaLeft={!!ch.video} />)}
 
-            {/* ═══════════════════════ SOCIAL (unchanged) ═══════════════════════ */}
+            {/* ═══════════════════════ SOCIAL — white, black text ═══════════════════════ */}
             <section
                 ref={socialSectionRef}
-                className={`bg-black border-b border-white/[0.08] flex flex-col justify-center overflow-hidden ${isMobile ? 'py-16' : 'py-24 md:py-32'}`}
+                className={`bg-white flex flex-col justify-center overflow-hidden ${isMobile ? 'py-16' : 'py-24 md:py-32'}`}
                 data-section="instagram"
             >
                 <div className="text-center mb-10 md:mb-12 relative z-10 pointer-events-none select-none">
-                    <h2 className={`font-black leading-none text-white uppercase font-lt-wave ${isMobile ? 'text-[clamp(36px,5.5vw,88px)]' : 'text-[clamp(44px,6.5vw,88px)]'}`}>
+                    <h2 className={`font-black leading-none text-black uppercase font-lt-wave ${isMobile ? 'text-[clamp(36px,5.5vw,88px)]' : 'text-[clamp(44px,6.5vw,88px)]'}`}>
                         WHAT'S UP
                     </h2>
-                    <p className={`font-black text-white uppercase leading-tight font-lt-wave ${isMobile ? 'text-[clamp(28px,4.5vw,72px)]' : 'text-[clamp(36px,5.5vw,72px)]'}`}>
+                    <p className={`font-black text-black uppercase leading-tight font-lt-wave ${isMobile ? 'text-[clamp(28px,4.5vw,72px)]' : 'text-[clamp(36px,5.5vw,72px)]'}`}>
                         ON SOCIALS
                     </p>
                 </div>
@@ -633,13 +633,13 @@ const HomePageNew = () => {
                 </div>
 
                 <div className={`flex justify-center items-center gap-10 relative z-10 ${isMobile ? 'mt-8' : 'mt-10'}`}>
-                    <span className="text-white/30 text-[10px] uppercase tracking-[0.25em] font-lt-wave">Follow</span>
+                    <span className="text-black/40 text-[10px] uppercase tracking-[0.25em] font-lt-wave">Follow</span>
                     <a href="https://www.instagram.com/nextstarsoccer/" target="_blank" rel="noopener noreferrer"
-                        className="text-white text-base md:text-lg font-light lowercase tracking-wide hover:opacity-40 transition-opacity duration-300 font-lt-wave">
+                        className="text-black text-base md:text-lg font-light lowercase tracking-wide hover:opacity-40 transition-opacity duration-300 font-lt-wave">
                         instagram
                     </a>
                     <a href="https://www.facebook.com/nextstarsoccer/" target="_blank" rel="noopener noreferrer"
-                        className="text-white text-base md:text-lg font-light lowercase tracking-wide hover:opacity-40 transition-opacity duration-300 font-lt-wave">
+                        className="text-black text-base md:text-lg font-light lowercase tracking-wide hover:opacity-40 transition-opacity duration-300 font-lt-wave">
                         facebook
                     </a>
                 </div>
