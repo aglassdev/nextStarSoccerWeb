@@ -14,6 +14,19 @@ export interface CampWeek {
   dates: string;
 }
 
+export interface CampLocation {
+  name: string;
+  address: string;
+  city: string;
+}
+
+/** One camp day: each group's time and where it trains that day. */
+export interface CampDay {
+  /** YYYY-MM-DD */
+  date: string;
+  groups: { label: string; time: string; place: string }[];
+}
+
 export interface Camp {
   id: string;
   slug: string;
@@ -22,13 +35,14 @@ export interface Camp {
   /** The card's photo (the first) and the three across the top of the camp's page. */
   photos: string[];
   heroDateRange: string;
-  location: {
-    name: string;
-    address: string;
-    city: string;
-  };
+  /** Where the camp is (the cards, the register card and checkout show this one). */
+  location: CampLocation;
+  /** Other places the camp uses on some days (the schedule says which). */
+  moreLocations?: CampLocation[];
   weeks: CampWeek[];
   sessions: CampSession[];
+  /** Day by day, when the times or places change from day to day. */
+  schedule?: CampDay[];
   /** The short price shown on the card and in the camp's details. */
   priceSummary: string;
   pricing: string;
@@ -49,7 +63,8 @@ export interface Camp {
 export const camps: Camp[] = [
   {
     // Same camp as the app's FallCampScreen. Prices, days and the calendar
-    // events it signs players up to live in the register-clinic function.
+    // events it signs players up to live in the register-clinic function
+    // (which has this schedule too, for the confirmation email).
     id: 'fall',
     slug: 'fall',
     name: 'Next Star Fall Camp',
@@ -61,10 +76,38 @@ export const camps: Camp[] = [
       address: '1659 Chain Bridge Rd, McLean, VA 22101',
       city: 'McLean, VA',
     },
+    moreLocations: [
+      {
+        name: 'Somerset Elementary School',
+        address: '5811 Warwick Pl, Chevy Chase, MD 20815',
+        city: 'Chevy Chase, MD',
+      },
+    ],
     weeks: [{ label: 'Week', dates: 'November 23 – November 27' }],
+    // Shown under each group in checkout. The day-by-day schedule is below.
     sessions: [
-      { label: 'Youth Group', time: '10:00 AM – 12:00 PM', key: 'youth' },
-      { label: 'Pro/College Group', time: '9:00 AM – 11:00 AM', key: 'college' },
+      {
+        label: 'Youth Group',
+        time: 'Mon–Wed: 12:00 – 2:00 PM, Somerset ES\nThu–Fri: 10:00 AM – 12:00 PM, Lewinsville Park',
+        key: 'youth',
+      },
+      { label: 'Pro/College Group', time: '10:00 AM – 12:00 PM, Lewinsville Park', key: 'college' },
+    ],
+    schedule: [
+      ...['2026-11-23', '2026-11-24', '2026-11-25'].map((date) => ({
+        date,
+        groups: [
+          { label: 'Pro/College Group', time: '10:00 AM – 12:00 PM', place: 'Lewinsville Park' },
+          { label: 'Youth Group', time: '12:00 PM – 2:00 PM', place: 'Somerset Elementary School' },
+        ],
+      })),
+      ...['2026-11-26', '2026-11-27'].map((date) => ({
+        date,
+        groups: [
+          { label: 'Pro/College Group', time: '10:00 AM – 12:00 PM', place: 'Lewinsville Park' },
+          { label: 'Youth Group', time: '10:00 AM – 12:00 PM', place: 'Lewinsville Park' },
+        ],
+      })),
     ],
     priceSummary: '$250 / week · $60 / day',
     pricing: 'Full Week: $250\nIndividual Day: $60 / day (drop-in)\nCancellation and rebooking available',
@@ -213,7 +256,7 @@ export const camps: Camp[] = [
     heroDateRange: 'August 17 – September 4, 2026',
     location: {
       name: 'Somerset Elementary School',
-      address: '5710 Warwick Place, Chevy Chase, MD 20815',
+      address: '5811 Warwick Pl, Chevy Chase, MD 20815',
       city: 'Chevy Chase, MD',
     },
     weeks: [

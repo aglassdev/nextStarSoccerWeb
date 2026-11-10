@@ -414,7 +414,7 @@ const CheckoutForm = ({ camp, onDone }: { camp: Camp; onDone: (r: DoneResult) =>
                     }`}
                   >
                     <span className="block text-gray-900 text-sm font-medium">{g.label}</span>
-                    <span className="block text-gray-500 text-xs mt-0.5">{g.time}</span>
+                    <span className="block text-gray-500 text-xs mt-0.5 whitespace-pre-line">{g.time}</span>
                   </button>
                 ))}
               </div>

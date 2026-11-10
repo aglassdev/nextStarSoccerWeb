@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import Navigation from '../components/layout/Navigation';
 import Footer from '../components/layout/Footer';
 import { useAuth } from '../contexts/AuthContext';
-import { camps, campHasEnded, type Camp } from '../constants/campsData';
+import { camps, campHasEnded, type Camp, type CampDay, type CampLocation } from '../constants/campsData';
 import { withPageImages } from '../hooks/usePageImages';
 
 // A camp's page, MICHELIN Guide style: breadcrumb, three photos across, then
@@ -15,8 +15,15 @@ const MAPS_EMBED_KEY = 'AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8';
 const APP_STORE = 'https://apps.apple.com/us/app/next-star-soccer/id6754170423';
 const PLAY_STORE = 'https://play.google.com/store/apps/details?id=com.nextstarsoccer.nextstar&hl=en_US';
 
-const directionsUrl = (camp: Camp) =>
-  `https://maps.google.com/?q=${encodeURIComponent(`${camp.location.name}, ${camp.location.address}`)}`;
+const placeQuery = (l: CampLocation) => encodeURIComponent(`${l.name}, ${l.address}`);
+const directionsUrl = (l: CampLocation) => `https://maps.google.com/?q=${placeQuery(l)}`;
+const allLocations = (camp: Camp) => [camp.location, ...(camp.moreLocations ?? [])];
+
+/** "2026-11-23" → "Monday", "November 23". */
+const dayName = (date: string) =>
+  new Date(`${date}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
+const monthDay = (date: string) =>
+  new Date(`${date}T12:00:00Z`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' });
 
 /** "Ages 6-21 · Coed · All skill levels" → ages "6-21", good for "Coed · All skill levels". */
 const splitNote = (note: string) => {
@@ -169,6 +176,81 @@ const Facts = ({ rows, className = '' }: { rows: ([string, string] | [string])[]
   </dl>
 );
 
+// The camp's days as cards, like the Guide's opening hours: the day, then
+// each group's time and where it trains that day.
+const Schedule = ({ days }: { days: CampDay[] }) => (
+  <div className="grid sm:grid-cols-2 gap-4 lg:gap-5">
+    {days.map((day) => (
+      <div key={day.date} className="rounded-md border border-white/10 bg-white/[0.03] px-6 pt-5 pb-6">
+        <p className="text-white text-[17px] font-medium">{dayName(day.date)}</p>
+        <p className="text-white/45 text-sm">{monthDay(day.date)}</p>
+        <dl className="mt-4 space-y-4">
+          {day.groups.map((g) => (
+            <div key={g.label}>
+              <dt className="text-white/50 text-[13px]">{g.label}</dt>
+              <dd className="text-white/90 text-[15px] mt-0.5">{g.time}</dd>
+              <dd className="text-white/50 text-[13px] mt-0.5 flex items-start gap-1">
+                <Icon d={PIN} className="w-3.5 h-3.5 shrink-0 mt-[2px]" />
+                {g.place}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    ))}
+  </div>
+);
+
+// A satellite map of where the camp is; with more than one place, a switch between them.
+const LocationMap = ({ camp }: { camp: Camp }) => {
+  const places = allLocations(camp);
+  const [i, setI] = useState(0);
+  const place = places[i] ?? places[0];
+  return (
+    <>
+      {places.length > 1 && (
+        <div className="mb-4 flex flex-wrap gap-2" role="tablist" aria-label="Locations">
+          {places.map((l, j) => (
+            <button
+              key={l.name}
+              type="button"
+              role="tab"
+              aria-selected={j === i}
+              onClick={() => setI(j)}
+              className={`h-10 px-4 rounded-md border text-sm transition-colors ${
+                j === i ? 'border-white bg-white text-black' : 'border-white/[0.12] text-white/80 hover:border-white/30 hover:text-white'
+              }`}
+            >
+              {l.name}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="aspect-[4/3] sm:aspect-[16/9] rounded-md overflow-hidden border border-white/10 bg-neutral-900">
+        <iframe
+          key={place.name}
+          title={`Map of ${place.name}`}
+          width="100%"
+          height="100%"
+          style={{ border: 0 }}
+          src={`https://www.google.com/maps/embed/v1/place?key=${MAPS_EMBED_KEY}&q=${placeQuery(place)}&maptype=satellite`}
+          allowFullScreen
+          loading="lazy"
+        />
+      </div>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-white text-[15px] font-medium">{place.name}</p>
+          <p className="text-white/50 text-sm mt-0.5">{place.address}</p>
+        </div>
+        <a href={directionsUrl(place)} target="_blank" rel="noopener noreferrer" className="text-white/70 hover:text-white text-sm underline underline-offset-4">
+          Get directions
+        </a>
+      </div>
+    </>
+  );
+};
+
 const SectionTitle = ({ children }: { children: React.ReactNode }) => (
   <h2 className="text-white text-[26px] md:text-[32px] font-medium mt-14 md:mt-16 mb-5">{children}</h2>
 );
@@ -291,7 +373,11 @@ const CampDetail = ({ camp }: { camp: Camp }) => {
               <p className="text-white/50 text-xs font-semibold tracking-[0.18em] uppercase mb-3">× Nike</p>
             )}
             <h1 className="text-white text-[34px] md:text-5xl font-semibold leading-tight">{camp.name}</h1>
-            <p className="text-white/70 text-[15px] mt-3">{camp.location.name}, {camp.location.address}</p>
+            {allLocations(camp).map((l, i) => (
+              <p key={l.name} className={`text-white/70 text-[15px] ${i === 0 ? 'mt-3' : 'mt-1'}`}>
+                {l.name}, {l.address}
+              </p>
+            ))}
             <Facts
               className="mt-6 max-w-md"
               rows={[
@@ -314,7 +400,7 @@ const CampDetail = ({ camp }: { camp: Camp }) => {
             <p className="mt-10 text-white/80 text-[17px] md:text-[19px] leading-[1.7]">{camp.description}</p>
 
             <div className="mt-8 flex flex-wrap gap-3">
-              <a href={directionsUrl(camp)} target="_blank" rel="noopener noreferrer" className={chip}>
+              <a href={directionsUrl(camp.location)} target="_blank" rel="noopener noreferrer" className={chip}>
                 <Icon d={PIN} />
                 Directions
               </a>
@@ -325,14 +411,23 @@ const CampDetail = ({ camp }: { camp: Camp }) => {
               <ShareChip camp={camp} />
             </div>
 
-            <SectionTitle>Sessions</SectionTitle>
-            <Facts
-              className="max-w-xl"
-              rows={[
-                ...camp.sessions.map((s) => [s.label, s.time] as [string, string]),
-                ...(camp.weeks.length > 1 ? camp.weeks.map((w) => [w.label, w.dates] as [string, string]) : []),
-              ]}
-            />
+            {camp.schedule ? (
+              <>
+                <SectionTitle>Schedule</SectionTitle>
+                <Schedule days={camp.schedule} />
+              </>
+            ) : (
+              <>
+                <SectionTitle>Sessions</SectionTitle>
+                <Facts
+                  className="max-w-xl"
+                  rows={[
+                    ...camp.sessions.map((s) => [s.label, s.time] as [string, string]),
+                    ...(camp.weeks.length > 1 ? camp.weeks.map((w) => [w.label, w.dates] as [string, string]) : []),
+                  ]}
+                />
+              </>
+            )}
 
             <SectionTitle>Pricing</SectionTitle>
             <Facts className="max-w-xl" rows={camp.pricing.split('\n').map(splitLine)} />
@@ -340,27 +435,8 @@ const CampDetail = ({ camp }: { camp: Camp }) => {
             <SectionTitle>What to bring</SectionTitle>
             <p className="text-white/80 text-[17px] leading-[1.7]">{camp.itemsToBring}</p>
 
-            <SectionTitle>Location</SectionTitle>
-            <div className="aspect-[4/3] sm:aspect-[16/9] rounded-md overflow-hidden border border-white/10 bg-neutral-900">
-              <iframe
-                title={`Map of ${camp.location.name}`}
-                width="100%"
-                height="100%"
-                style={{ border: 0 }}
-                src={`https://www.google.com/maps/embed/v1/place?key=${MAPS_EMBED_KEY}&q=${encodeURIComponent(`${camp.location.name}, ${camp.location.address}`)}&maptype=satellite`}
-                allowFullScreen
-                loading="lazy"
-              />
-            </div>
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-white text-[15px] font-medium">{camp.location.name}</p>
-                <p className="text-white/50 text-sm mt-0.5">{camp.location.address}</p>
-              </div>
-              <a href={directionsUrl(camp)} target="_blank" rel="noopener noreferrer" className="text-white/70 hover:text-white text-sm underline underline-offset-4">
-                Get directions
-              </a>
-            </div>
+            <SectionTitle>{camp.moreLocations?.length ? 'Locations' : 'Location'}</SectionTitle>
+            <LocationMap camp={camp} />
           </div>
         </div>
       </main>
