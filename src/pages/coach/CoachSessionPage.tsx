@@ -5,7 +5,7 @@ import { isEventCancelled, type CalendarEvent } from '@/services/googleCalendar'
 import { useAccount } from '../account/AccountContext';
 import { AccountPageHeader, AccountSpinner } from '../account/AccountLayout';
 import { ConfirmCancelModal, ErrorModal, Overlay } from '../account/schedule/ScheduleModals';
-import { dayKeyOf, formatClock, formatDateWithOrdinal, locationName, todayKey, toInstant } from '../account/schedule/scheduleData';
+import { formatClock, formatDateWithOrdinal, locationName } from '../account/schedule/scheduleData';
 import {
   canCoachCheckIn,
   cancelCoaching,
@@ -13,6 +13,7 @@ import {
   fetchSessionDetail,
   requestCancellation,
   saveSessionNote,
+  sessionEnded,
   signUpToCoach,
   type SessionDetail,
   type SessionPerson,
@@ -37,9 +38,6 @@ const plain = (html?: string) =>
     .replace(/&nbsp;/g, ' ')
     .replace(/&amp;/g, '&')
     .trim();
-
-const ended = (ev: CalendarEvent) =>
-  ev.dateOnly ? dayKeyOf(ev.startDateTime, true) < todayKey() : toInstant(ev.endDateTime).getTime() < Date.now();
 
 const Fact = ({ name, value, sub }: { name: string; value: React.ReactNode; sub?: string }) => (
   <div className={`${card} px-5 py-4`}>
@@ -140,7 +138,7 @@ const CoachSessionPage = () => {
     );
   }
 
-  const isOver = ended(ev);
+  const isOver = sessionEnded(ev);
   const cancelled = isEventCancelled(ev);
   const signedUp = !!detail.mySignup;
   const time = ev.dateOnly ? 'All Day' : `${formatClock(ev.startDateTime)} – ${formatClock(ev.endDateTime)}`;

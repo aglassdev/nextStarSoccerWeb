@@ -31,7 +31,16 @@ interface FilterOption {
   selected: boolean;
 }
 
-const CalendarPage = () => {
+/** What a page can add to an event's details window (the coach calendar's sign-up). */
+export type EventExtra = (event: CalendarEvent, helpers: { close: () => void; refreshCoaches: () => void }) => React.ReactNode;
+
+/**
+ * The website's calendar: Today's Events, the months, the filter, the month
+ * grid (a list on phones) and an event's details window. The Calendar page
+ * shows it with the site's bar and footer; `embedded` leaves those (and the
+ * page title) to the page it sits in, and `eventExtra` adds to the window.
+ */
+export const CalendarView = ({ embedded = false, eventExtra }: { embedded?: boolean; eventExtra?: EventExtra }) => {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [todaysEvents, setTodaysEvents] = useState<CalendarEvent[]>([]);
   const [filteredEvents, setFilteredEvents] = useState<CalendarEvent[]>([]);
@@ -44,6 +53,7 @@ const CalendarPage = () => {
   const [currentMonthIndex, setCurrentMonthIndex] = useState(0);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [coachesByEvent, setCoachesByEvent] = useState<Record<string, string[]>>({});
+  const [coachVersion, setCoachVersion] = useState(0);
   const [filterOptions, setFilterOptions] = useState<FilterOption[]>([
     { id: "patrick-mullins", label: "Patrick Mullins", color: "#FFB300", selected: true },
     { id: "attacking-focus", label: "Attacking Focus", color: "#FF00FF", selected: true },
@@ -163,7 +173,7 @@ const CalendarPage = () => {
       if (!cancelled) setCoachesByEvent(resolved);
     });
     return () => { cancelled = true; };
-  }, [events, todaysEvents]);
+  }, [events, todaysEvents, coachVersion]);
 
   useEffect(() => {
     const filtered = events.filter((event) => {
@@ -309,6 +319,13 @@ const CalendarPage = () => {
       .map(([dateStr, events]) => ({ dateStr, date: new Date(dateStr + 'T12:00:00'), events }));
   };
 
+  if (loading && embedded) {
+    return (
+      <div className="flex items-center justify-center h-48">
+        <div className="w-8 h-8 border-2 border-white/40 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
   if (loading) {
     return (
       <div className="h-screen bg-black overflow-hidden">
@@ -324,9 +341,10 @@ const CalendarPage = () => {
   const today = new Date(todayET.year, todayET.month, todayET.day);
 
   return (
-    <div className="min-h-screen bg-black flex flex-col">
-      <Navigation />
+    <div className={embedded ? '' : 'min-h-screen bg-black flex flex-col'}>
+      {!embedded && <Navigation />}
 
+      {!embedded && (
       <div className="pt-32 pb-10 px-6 md:px-10 lg:px-14">
         <div className="max-w-[1560px] mx-auto">
           <h1 className="text-white font-bold font-lt-wave leading-none" style={{ fontSize: '29px' }}>
@@ -335,9 +353,10 @@ const CalendarPage = () => {
           <div className="h-px bg-white/8 mt-8" />
         </div>
       </div>
+      )}
 
-      <div className="pb-16 px-4">
-        <div className="max-w-7xl mx-auto">
+      <div className={embedded ? '' : 'pb-16 px-4'}>
+        <div className={embedded ? '' : 'max-w-7xl mx-auto'}>
 
           {/* Today's Events Card */}
           {todaysEvents.length > 0 && (
@@ -610,7 +629,7 @@ const CalendarPage = () => {
         </div>
       </div>
 
-      <Footer />
+      {!embedded && <Footer />}
 
       {/* Event Details Modal */}
       {selectedEvent && (
@@ -704,6 +723,11 @@ const CalendarPage = () => {
                   </div>
                 )}
               </div>
+
+              {eventExtra?.(selectedEvent, {
+                close: () => setSelectedEvent(null),
+                refreshCoaches: () => setCoachVersion((v) => v + 1),
+              })}
             </div>
           </div>
         </div>
@@ -766,5 +790,7 @@ const CalendarPage = () => {
     </div>
   );
 };
+
+const CalendarPage = () => <CalendarView />;
 
 export default CalendarPage;

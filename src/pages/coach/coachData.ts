@@ -1,6 +1,6 @@
 import { ID, Query } from 'appwrite';
 import { databases, databaseId, collections } from '@/services/appwrite';
-import { googleCalendarService, isEventCancelled, type CalendarEvent } from '@/services/googleCalendar';
+import { isEventCancelled, type CalendarEvent } from '@/services/googleCalendar';
 import {
   byStart,
   dayKeyOf,
@@ -113,28 +113,13 @@ export async function fetchCoachSchedule(uid: string): Promise<CoachSchedule> {
   return out;
 }
 
-/** Public group sessions in the next four weeks the coach can sign up to coach. */
-export async function fetchOpenSessions(signedUp: Set<string>): Promise<{ events: CalendarEvent[]; coachCounts: Record<string, number> }> {
-  const now = new Date();
-  const months = [0, 1].map((i) => new Date(now.getFullYear(), now.getMonth() + i, 1));
-  const lists = await Promise.all(
-    months.map((d) => googleCalendarService.getEventsForMonth(d.getFullYear(), d.getMonth(), 'public').catch(() => [] as CalendarEvent[])),
-  );
-  const horizon = Date.now() + 28 * 86400000;
-  const seen = new Set<string>();
-  const events = lists
-    .flat()
-    .filter((e) => !seen.has(e.id) && seen.add(e.id))
-    .filter((e) => toInstant(e.endDateTime).getTime() > Date.now() && toInstant(e.startDateTime).getTime() < horizon)
-    .filter((e) => !isEventCancelled(e) && !signedUp.has(e.id))
-    .sort(byStart);
-  const coachCounts: Record<string, number> = {};
-  if (events.length) {
-    const all = await list<CoachRow>(collections.coachSignups, [Query.equal('eventID', events.map((e) => e.id).slice(0, 100)), Query.limit(PAGE)]);
-    for (const s of all) coachCounts[s.eventID] = (coachCounts[s.eventID] || 0) + 1;
-  }
-  return { events, coachCounts };
-}
+/** Over: an all-day session after its day, otherwise after it ends. */
+export const sessionEnded = (ev: CalendarEvent) =>
+  ev.dateOnly ? dayKeyOf(ev.startDateTime, true) < todayKey() : toInstant(ev.endDateTime).getTime() < Date.now();
+
+/** Whether the coach is signed up to coach a session. */
+export const isSignedUpToCoach = async (eventId: string, uid: string) =>
+  (await list<CoachRow>(collections.coachSignups, [Query.equal('eventID', eventId), Query.equal('coachUserId', uid), Query.limit(1)])).length > 0;
 
 // ---------------------------------------------------------------- one session
 

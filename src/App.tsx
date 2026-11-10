@@ -57,6 +57,7 @@ import AccountJournalPage from './pages/account/playerCenter/AccountJournalPage'
 import CoachLayout from './pages/coach/CoachLayout';
 import CoachDashboardPage from './pages/coach/CoachDashboardPage';
 import CoachSessionPage from './pages/coach/CoachSessionPage';
+import CoachCalendarPage from './pages/coach/CoachCalendarPage';
 import CoachInboxPage from './pages/coach/CoachInboxPage';
 import CoachVideoAnalysisPage from './pages/coach/CoachVideoAnalysisPage';
 import CoachAnalysisWorkspacePage from './pages/coach/CoachAnalysisWorkspacePage';
@@ -253,9 +254,10 @@ function AppRoutes() {
           </UserProtectedRoute>
         }
       >
-        {/* Dashboard (sessions, calendar, stats), Inbox and Video Analysis, in the right-side menu */}
+        {/* Dashboard (sessions, calendar, stats), Calendar, Inbox and Video Analysis, in the right-side menu */}
         <Route index element={<CoachDashboardPage />} />
         <Route path="session/:eventId" element={<CoachSessionPage />} />
+        <Route path="calendar" element={<CoachCalendarPage />} />
         <Route path="inbox" element={<CoachInboxPage />} />
         <Route path="video-analysis" element={<CoachVideoAnalysisPage />} />
         <Route path="analysis/:id" element={<CoachAnalysisWorkspacePage />} />

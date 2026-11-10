@@ -14,6 +14,7 @@ import { ACCOUNTS_LIVE } from '../../constants/features';
 
 const ITEMS: MenuItem[] = [
   { label: 'Dashboard', to: '/coach' },
+  { label: 'Calendar', to: '/coach/calendar' },
   { label: 'Inbox', to: '/coach/inbox' },
   { label: 'Video Analysis', to: '/coach/video-analysis' },
 ];

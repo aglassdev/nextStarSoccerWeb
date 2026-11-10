@@ -2,18 +2,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { isEventCancelled, type CalendarEvent } from '@/services/googleCalendar';
-import { useAccount } from '../account/AccountContext';
 import { AccountPageHeader, AccountSpinner } from '../account/AccountLayout';
 import SessionsCalendar from '../account/schedule/SessionsCalendar';
 import { ConfirmCancelModal, ErrorModal } from '../account/schedule/ScheduleModals';
 import { calculateStreak, formatCardDateTime, keyToLocalDate, locationName, sessionsByDay, todayKey } from '../account/schedule/scheduleData';
-import { cancelCoaching, fetchCoachSchedule, fetchOpenSessions, signUpToCoach, type CoachSchedule, type CoachSession } from './coachData';
+import { cancelCoaching, fetchCoachSchedule, type CoachSchedule, type CoachSession } from './coachData';
 
 // Coach Dashboard, as the app's CoachDashboardScreen and laid out like the
 // client's My Schedule: the sessions calendar and the coach's stats in a
 // column, beside Ongoing / Your Sessions / Past Sessions (two to a row on a
-// wide screen). A session opens its page; open group sessions to sign up
-// for are at the end.
+// wide screen). A session opens its page; sessions to sign up for are on
+// the Calendar.
 
 const LOAD_ERROR = 'Failed to load your sessions. Please check your internet connection and try again.';
 
@@ -125,13 +124,10 @@ const Stat = ({ value, label, active }: { value: number; label: string; active?:
 
 const CoachDashboardPage = () => {
   const { user } = useAuth();
-  const { profile } = useAccount();
   const navigate = useNavigate();
   const uid = user?.$id;
-  const coachName = (user?.name || `${profile?.firstName || ''} ${profile?.lastName || ''}`).trim();
 
   const [data, setData] = useState<CoachSchedule | null>(() => readCache(uid));
-  const [open, setOpen] = useState<{ events: CalendarEvent[]; coachCounts: Record<string, number> } | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [month, setMonth] = useState(() => {
@@ -151,8 +147,6 @@ const CoachDashboardPage = () => {
       setData(fresh);
       writeCache(uid, fresh);
       setLoadError('');
-      const mine = new Set([...fresh.upcoming, ...fresh.ongoing, ...fresh.past].map((s) => s.id));
-      setOpen(await fetchOpenSessions(mine).catch(() => ({ events: [], coachCounts: {} })));
     } catch (e) {
       console.error('Coach dashboard failed to load:', e);
       setLoadError(LOAD_ERROR);
@@ -188,20 +182,6 @@ const CoachDashboardPage = () => {
       console.error('Cancel failed:', e);
       setToCancel(null);
       setAlertMsg('Failed to cancel. Please try again.');
-    } finally {
-      setBusy('');
-    }
-  };
-
-  const signUp = async (ev: CalendarEvent) => {
-    if (!uid) return;
-    setBusy(ev.id);
-    try {
-      await signUpToCoach(ev, uid, coachName);
-      await load();
-    } catch (e) {
-      console.error('Sign up failed:', e);
-      setAlertMsg('Failed to sign up. Please try again.');
     } finally {
       setBusy('');
     }
@@ -279,41 +259,6 @@ const CoachDashboardPage = () => {
               {data.past.map((s) => card(s, 'past'))}
             </Section>
 
-            {open && open.events.length > 0 && (
-              <Section title="Sign Up to Coach" count={open.events.length}>
-                {open.events.map((ev) => {
-                  const { date, time } = formatCardDateTime(ev);
-                  const where = locationName(ev.location);
-                  const n = open.coachCounts[ev.id] || 0;
-                  return (
-                    <div
-                      key={ev.id}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => openSession(ev)}
-                      onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openSession(ev); } }}
-                      className={`${cardClass} cursor-pointer hover:border-[#3a3a3a] transition-colors`}
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="text-white text-lg lg:text-xl font-bold leading-snug line-clamp-2 mb-1">{ev.title}</p>
-                        <p className="text-[#9ca3af] text-base mb-1">{date} | {time}</p>
-                        <p className="text-[#9ca3af] text-base truncate">
-                          {where ? `${where} · ` : ''}{n} coach{n === 1 ? '' : 'es'}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        disabled={busy === ev.id}
-                        onClick={(e) => { e.stopPropagation(); signUp(ev); }}
-                        className="flex-shrink-0 px-4 py-2 bg-white text-black text-sm font-semibold rounded-lg hover:bg-white/85 disabled:opacity-50"
-                      >
-                        {busy === ev.id ? 'Signing up…' : 'Sign Up'}
-                      </button>
-                    </div>
-                  );
-                })}
-              </Section>
-            )}
           </div>
         </div>
       )}
