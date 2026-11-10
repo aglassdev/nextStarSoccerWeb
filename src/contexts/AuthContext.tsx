@@ -37,6 +37,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         emailVerification: currentUser.emailVerification || false,
         phoneVerification: currentUser.phoneVerification || false,
         status: currentUser.status || false,
+        labels: currentUser.labels || [],
       };
       
       setUser(userWithName);

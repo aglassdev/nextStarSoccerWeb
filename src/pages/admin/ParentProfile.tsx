@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Query } from 'appwrite';
 import { databases, databaseId, collections } from '../../services/appwrite';
+import PlayerCenterAccess from './PlayerCenterAccess';
 
 const TYPE_PATH: Record<string, string> = { Youth: 'youth', Collegiate: 'collegiate', Professional: 'professional', Proxy: 'proxy' };
 const BILLING_OPTIONS = ['unapproved', 'approved'] as const;
@@ -189,7 +190,7 @@ const ParentProfile = () => {
         {saving && <span className="text-white/30 text-xs">saving…</span>}
       </div>
 
-      {/* Single row: Personal Info | Family | Billing Status */}
+      {/* Personal Info | Family | Billing Status, then the Player Center unlocks */}
       <div className="grid grid-cols-3 gap-4 items-start">
 
         {/* Personal Info */}
@@ -268,6 +269,8 @@ const ParentProfile = () => {
             </div>
           </div>
         </Card>
+
+        <PlayerCenterAccess userId={parent.userId || parent.$id} />
       </div>
     </div>
   );

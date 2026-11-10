@@ -5,6 +5,8 @@ import { Query } from 'appwrite';
 import { AccountInfo, COACH_DASHBOARD_LIVE, isPureCoach, resolveAccount } from '../../services/accountProfile';
 import { databases, databaseId } from '../../services/appwrite';
 import { ANALYSES_COLLECTION } from '../../services/videoAnalysis';
+import { canOpenAny, isAdminUser } from '../../services/playerCenter';
+import type { User } from '../../types';
 
 // The signed-in person icon in the site navigation. It opens a menu of the
 // account pages (there's no separate account hub page), like the app's
@@ -40,10 +42,11 @@ const hasVideoAnalysis = (userId: string) => {
   return purchaseCache.get(userId)!;
 };
 
-const menuFor = (info: AccountInfo | null, boughtAnalysis: boolean): { items: MenuItem[]; staff: MenuItem[] } => {
+const menuFor = (info: AccountInfo | null, boughtAnalysis: boolean, user: User | null): { items: MenuItem[]; staff: MenuItem[] } => {
+  const admin = !!info?.isAdmin || isAdminUser(user);
   const staff: MenuItem[] = [
     ...(info?.isCoach && COACH_DASHBOARD_LIVE ? [{ label: 'Coach Dashboard', to: '/coach' }] : []),
-    ...(info?.isAdmin ? [{ label: 'Admin', to: '/admin/dashboard' }] : []),
+    ...(admin ? [{ label: 'Admin', to: '/admin/dashboard' }] : []),
   ];
   if (info && COACH_DASHBOARD_LIVE && isPureCoach(info)) {
     return { items: [{ label: 'Settings', to: '/account/settings' }], staff };
@@ -53,8 +56,10 @@ const menuFor = (info: AccountInfo | null, boughtAnalysis: boolean): { items: Me
       { label: 'Profile', to: '/account/profile' },
       { label: 'My Schedule', to: '/account/schedule' },
       { label: 'Payment Center', to: '/account/payments' },
-      // Not open yet: shown greyed out and locked.
-      { label: 'At-Home Training', to: '/account/home-training', locked: true, dim: true },
+      // Locked until an admin unlocks the Training Program or the Journal for the account.
+      { label: 'Player Center', to: '/account/player-center', locked: !admin && !canOpenAny(user) },
+      // Not open yet (admins can open it): shown greyed out and locked.
+      { label: 'At-Home Training', to: '/account/home-training', locked: !admin, dim: !admin },
       { label: 'Video Analysis', to: '/account/video-analysis', locked: !boughtAnalysis },
       { label: 'Inbox', to: '/account/inbox' },
       ...(info?.userType === 'parent' ? [{ label: 'My Family', to: '/account/family' }] : []),
@@ -76,7 +81,7 @@ export const useAccountMenuItems = () => {
     hasVideoAnalysis(user.$id).then((b) => live && setBoughtAnalysis(b));
     return () => { live = false; };
   }, [user]);
-  return menuFor(info, boughtAnalysis);
+  return menuFor(info, boughtAnalysis, user);
 };
 
 export const LockIcon = () => (

@@ -51,6 +51,9 @@ import AccountVideoAnalysisDetailPage from './pages/account/AccountVideoAnalysis
 import AccountInboxPage from './pages/account/AccountInboxPage';
 import AccountProfilePage from './pages/account/AccountProfilePage';
 import AccountHomeTrainingPage from './pages/account/AccountHomeTrainingPage';
+import AccountPlayerCenterPage from './pages/account/playerCenter/AccountPlayerCenterPage';
+import AccountTrainingProgramPage from './pages/account/playerCenter/AccountTrainingProgramPage';
+import AccountJournalPage from './pages/account/playerCenter/AccountJournalPage';
 import CoachLayout from './pages/coach/CoachLayout';
 import CoachHomePage from './pages/coach/CoachHomePage';
 import CoachAnalysisWorkspacePage from './pages/coach/CoachAnalysisWorkspacePage';
@@ -233,6 +236,10 @@ function AppRoutes() {
         <Route path="video-analysis/:id" element={<AccountVideoAnalysisDetailPage />} />
         <Route path="profile" element={<AccountProfilePage />} />
         <Route path="home-training" element={<AccountHomeTrainingPage />} />
+        {/* Player Center: each part locked until an admin unlocks it for the account */}
+        <Route path="player-center" element={<AccountPlayerCenterPage />} />
+        <Route path="player-center/training-program" element={<AccountTrainingProgramPage />} />
+        <Route path="player-center/journal" element={<AccountJournalPage />} />
         <Route path="inbox" element={<AccountInboxPage />} />
         <Route path="inbox/:conversationId" element={<AccountInboxPage />} />
       </Route>

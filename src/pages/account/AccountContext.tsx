@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { AccountInfo, resolveAccount } from '../../services/accountProfile';
 import { clearUserStripeContextCache } from '../../services/payment/paymentApi';
 import { getParentChildren, ParentChild } from '../../services/clinicRegistration';
+import { isAdminUser } from '../../services/playerCenter';
 
 interface AccountState extends AccountInfo {
   loading: boolean;
@@ -25,7 +26,8 @@ export const AccountProvider = ({ children }: { children: React.ReactNode }) => 
   const load = useCallback(async () => {
     if (!user) return;
     const a = await resolveAccount(user.$id);
-    setInfo(a);
+    // The `admin` label counts as admin too (At-Home Training, the Player Center).
+    setInfo({ ...a, isAdmin: a.isAdmin || isAdminUser(user) });
     setKids(a.userType === 'parent' ? await getParentChildren(user.$id).catch(() => []) : []);
   }, [user]);
 

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Query } from 'appwrite';
 import { databases, databaseId, collections } from '../../services/appwrite';
+import PlayerCenterAccess from './PlayerCenterAccess';
 
 type PlayerType = 'Youth' | 'Collegiate' | 'Professional';
 
@@ -646,6 +647,9 @@ const PlayerProfile = () => {
             </div>
           </div>
           )}
+
+          {/* Player Center unlocks — the player's own website account (proxy players have none) */}
+          {!player.isProxy && <PlayerCenterAccess userId={player.userId || player.$id} />}
 
           {/* Family */}
           <div className="bg-[#1d1c21] border border-white/[0.08] rounded-xl p-5">

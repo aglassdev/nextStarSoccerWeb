@@ -8,6 +8,8 @@ export interface User {
   emailVerification: boolean;
   phoneVerification: boolean;
   status: boolean;
+  /** Appwrite labels: `admin`, `coach`, and the Player Center unlocks. */
+  labels?: string[];
 }
 
 export interface Session {
