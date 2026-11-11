@@ -6,7 +6,7 @@ const Footer = () => {
     <footer className="bg-black border-t border-white/10">
       {/* Main grid */}
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 lg:gap-8">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-8 lg:gap-8">
 
           {/* ── Left: Logo + App Store buttons ───────────────────────── */}
           <div className="col-span-2 md:col-span-1 lg:col-span-1 flex flex-col items-center gap-5 mb-2 md:mb-0">
@@ -42,21 +42,15 @@ const Footer = () => {
             </div>
           </div>
 
-          {/* ── Locations ────────────────────────────────────────────── */}
-          <div className="flex flex-col items-center md:items-start">
+          {/* ── Locations: two columns wide, where the sessions are ──── */}
+          <div className="col-span-2 flex flex-col items-center md:items-start">
             <p className="text-gray-500 text-[11px] uppercase tracking-[0.15em] font-semibold mb-4">
               Locations
             </p>
-            {/* Where the sessions are, by state (also what search engines read for the area). */}
-            <ul className="space-y-3 text-center md:text-left">
-              {[
-                { state: 'Maryland', towns: 'Bethesda, Chevy Chase, Rockville, Gaithersburg' },
-                { state: 'Virginia', towns: 'McLean' },
-                { state: 'Washington D.C.', towns: '' },
-              ].map((loc) => (
-                <li key={loc.state}>
-                  <span className="text-gray-400 text-sm">{loc.state}</span>
-                  {loc.towns && <span className="block text-gray-600 text-xs mt-0.5">{loc.towns}</span>}
+            <ul className="grid grid-rows-3 grid-flow-col gap-x-10 gap-y-3 text-center md:text-left">
+              {['Bethesda', 'Chevy Chase', 'Rockville', 'Gaithersburg', 'McLean', 'Washington D.C.'].map((loc) => (
+                <li key={loc}>
+                  <span className="text-gray-400 text-sm">{loc}</span>
                 </li>
               ))}
             </ul>
