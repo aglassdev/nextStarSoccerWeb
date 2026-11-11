@@ -1,0 +1,17 @@
+User-agent: *
+Allow: /
+Disallow: /account
+Disallow: /admin
+Disallow: /checkout
+Disallow: /coach$
+Disallow: /coach/
+Disallow: /user
+Disallow: /dashboard
+Disallow: /signin
+Disallow: /signup
+Disallow: /login
+Disallow: /status
+Disallow: /calendar-embed
+Disallow: /services-preview
+
+Sitemap: https://www.nextstarsoccer.com/sitemap.xml

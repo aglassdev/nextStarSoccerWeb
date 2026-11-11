@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 import { ViteImageOptimizer } from 'vite-plugin-image-optimizer'
+import { seoPages } from './seoPages'
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -20,6 +21,8 @@ export default defineConfig({
       // no icon. They're a few KB anyway.
       exclude: /favicon/,
     }),
+    // Each public page's own HTML (title, description, canonical) and sitemap.xml
+    seoPages(),
   ],
   resolve: {
     alias: {
