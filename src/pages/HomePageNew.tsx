@@ -43,7 +43,7 @@ const STORY: {
     {
         label: 'About us',
         title: ['Founded in 2016,', 'built in the DC area'],
-        body: 'Founded in 2016, Next Star started with a simple goal: give young players the coaching, guidance and opportunities to reach their potential. Today it trains players of every age across the DC area, with alumni competing in college and professional soccer around the world.',
+        body: 'Founded in 2016, Next Star started with a simple goal: give young players the coaching, guidance and opportunities to reach their potential. Today it trains players of every age in Bethesda, Chevy Chase, Rockville, Gaithersburg, McLean and Washington, DC, with alumni competing in college and professional soccer around the world.',
         image: ABOUT_IMAGE, alt: 'Next Star players training',
     },
     {

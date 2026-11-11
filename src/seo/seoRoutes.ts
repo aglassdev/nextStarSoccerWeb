@@ -152,6 +152,7 @@ export const ORGANIZATION_JSON_LD = {
   description: `Soccer training, camps and clinics for players of every age in ${AREAS}.`,
   foundingDate: '2016',
   email: 'info@nextstarsoccer.com',
+  telephone: '+1-301-742-1796',
   areaServed: [
     { '@type': 'City', name: 'Bethesda, MD' },
     { '@type': 'City', name: 'Chevy Chase, MD' },

@@ -547,8 +547,8 @@ const ContactPage = () => {
               <div className="flex gap-8">
                 <div>
                   <p className="text-gray-400 text-sm mb-1">Phone</p>
-                  <a href="tel:+15551234567" className="text-white hover:text-gray-300 transition-colors">
-                    (555) 123-4567
+                  <a href="tel:+13017421796" className="text-white hover:text-gray-300 transition-colors">
+                    (301) 742-1796
                   </a>
                 </div>
                 <div>

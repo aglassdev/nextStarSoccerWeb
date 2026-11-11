@@ -47,10 +47,16 @@ const Footer = () => {
             <p className="text-gray-500 text-[11px] uppercase tracking-[0.15em] font-semibold mb-4">
               Locations
             </p>
+            {/* Where the sessions are, by state (also what search engines read for the area). */}
             <ul className="space-y-3 text-center md:text-left">
-              {['Maryland', 'Virginia', 'Washington D.C.'].map((loc) => (
-                <li key={loc}>
-                  <span className="text-gray-400 text-sm">{loc}</span>
+              {[
+                { state: 'Maryland', towns: 'Bethesda, Chevy Chase, Rockville, Gaithersburg' },
+                { state: 'Virginia', towns: 'McLean' },
+                { state: 'Washington D.C.', towns: '' },
+              ].map((loc) => (
+                <li key={loc.state}>
+                  <span className="text-gray-400 text-sm">{loc.state}</span>
+                  {loc.towns && <span className="block text-gray-600 text-xs mt-0.5">{loc.towns}</span>}
                 </li>
               ))}
             </ul>
