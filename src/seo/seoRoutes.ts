@@ -34,37 +34,37 @@ const clip = (text: string, max = 158) => {
 const STATIC: SeoPage[] = [
   {
     path: '/',
-    title: 'Next Star Soccer | Soccer Training in DC, Maryland & Virginia',
+    title: "Next Star Soccer · The DMV's premier soccer training",
     description: `Private, small-group and team soccer training, camps and clinics in ${AREAS}, coached by former professional and college players.`,
     priority: 1,
   },
   {
     path: '/services',
-    title: 'Soccer Training: Private, Group & Team | Next Star Soccer',
+    title: 'Soccer Training: Private, Group & Team · Next Star Soccer',
     description: `Individual, two-person, small-group and team soccer training, goalkeeper training, camps, clinics and video analysis in ${AREAS}.`,
     priority: 0.9,
   },
   {
     path: '/services/camps',
-    title: 'Soccer Camps in Maryland & Virginia | Next Star Soccer',
+    title: 'Soccer Camps in Maryland & Virginia · Next Star Soccer',
     description: 'Next Star Soccer camps in McLean, Bethesda, Chevy Chase and Rockville for players of every level: dates, schedules, prices and registration.',
     priority: 0.9,
   },
   {
     path: '/services/clinics',
-    title: 'Soccer Clinics | Next Star Soccer',
+    title: 'Soccer Clinics · Next Star Soccer',
     description: 'Clinics with Next Star Soccer coaches in the DC, Maryland and Virginia area: dates, locations and registration.',
     priority: 0.7,
   },
   {
     path: '/services/video-analysis',
-    title: 'Soccer Game Video Analysis | Next Star Soccer',
+    title: 'Soccer Game Video Analysis · Next Star Soccer',
     description: 'Send your game film and a Next Star Soccer coach reviews it, marks the key moments and gives you feedback to improve your game.',
     priority: 0.7,
   },
   {
     path: '/coaches',
-    title: 'Soccer Coaches: Former Pros & College Players | Next Star Soccer',
+    title: 'Soccer Coaches: Former Pros & College Players · Next Star Soccer',
     description: 'Meet the Next Star Soccer coaches, including former MLS and national team players Chris Pontius, Steve Birnbaum, Marco Etcheverry and Patrick Mullins.',
     priority: 0.8,
   },
@@ -76,38 +76,38 @@ const STATIC: SeoPage[] = [
   },
   {
     path: '/alumni',
-    title: 'Alumni: College & Pro Players | Next Star Soccer',
+    title: 'Alumni: College & Pro Players · Next Star Soccer',
     description: 'Next Star Soccer players who have gone on to play college and professional soccer.',
     priority: 0.6,
   },
   {
     path: '/calendar',
-    title: 'Training Calendar | Next Star Soccer',
+    title: 'Training Calendar · Next Star Soccer',
     description: `Group training sessions, camps and clinics on the Next Star Soccer calendar, in ${AREAS}.`,
     priority: 0.7,
   },
   {
     path: '/scholarships',
-    title: 'Scholarships | Next Star Soccer',
+    title: 'Scholarships · Next Star Soccer',
     description: 'Next Star Soccer scholarships help players train with us. See who can apply and how.',
     priority: 0.5,
   },
   {
     path: '/contact',
-    title: 'Contact | Next Star Soccer',
+    title: 'Contact · Next Star Soccer',
     description: 'Get in touch with Next Star Soccer about private training, group sessions, camps and clinics in the DC, Maryland and Virginia area.',
     priority: 0.6,
   },
-  { path: '/faq', title: 'FAQ | Next Star Soccer', description: 'Answers to common questions about Next Star Soccer training, camps, billing and accounts.', priority: 0.4 },
-  { path: '/store', title: 'Store | Next Star Soccer', description: 'Next Star Soccer apparel and gear.', priority: 0.3 },
+  { path: '/faq', title: 'FAQ · Next Star Soccer', description: 'Answers to common questions about Next Star Soccer training, camps, billing and accounts.', priority: 0.4 },
+  { path: '/store', title: 'Store · Next Star Soccer', description: 'Next Star Soccer apparel and gear.', priority: 0.3 },
   { path: '/coachapply', title: 'Coach with Next Star Soccer', description: 'Apply to coach with Next Star Soccer in the DC, Maryland and Virginia area.', priority: 0.3 },
-  { path: '/terms', title: 'Terms of Service | Next Star Soccer', description: 'Next Star Soccer terms of service.', priority: 0.1 },
-  { path: '/privacy', title: 'Privacy Policy | Next Star Soccer', description: 'Next Star Soccer privacy policy.', priority: 0.1 },
+  { path: '/terms', title: 'Terms of Service · Next Star Soccer', description: 'Next Star Soccer terms of service.', priority: 0.1 },
+  { path: '/privacy', title: 'Privacy Policy · Next Star Soccer', description: 'Next Star Soccer privacy policy.', priority: 0.1 },
 ];
 
 const COACH_PAGES: SeoPage[] = coaches.map((c) => ({
   path: `/coaches/${c.slug}`,
-  title: `${c.name}, ${c.title} | Next Star Soccer`,
+  title: `${c.name}, ${c.title} · Next Star Soccer`,
   description: clip(c.bio?.[0] || `${c.name} coaches with Next Star Soccer in the DC, Maryland and Virginia area.`),
   image: `${SITE}${c.cardPhoto || c.avatarUrl}`,
   priority: 0.6,
@@ -115,7 +115,7 @@ const COACH_PAGES: SeoPage[] = coaches.map((c) => ({
 
 const CAMP_PAGES: SeoPage[] = camps.map((c) => ({
   path: `/services/camps/${c.slug}`,
-  title: `${c.name}, ${c.location.city} | Next Star Soccer`,
+  title: `${c.name}, ${c.location.city} · Next Star Soccer`,
   description: clip(`${c.heroDateRange} at ${c.location.name}, ${c.location.city}. ${c.priceSummary}. ${c.pricingNote}. ${c.description}`),
   image: `${SITE}${c.photos[0]}`,
   priority: 0.7,
@@ -123,7 +123,7 @@ const CAMP_PAGES: SeoPage[] = camps.map((c) => ({
 
 const CLINIC_PAGES: SeoPage[] = visibleClinics.map((c) => ({
   path: `/services/clinics/${c.slug}`,
-  title: `${c.name}, ${c.location.city} | Next Star Soccer`,
+  title: `${c.name}, ${c.location.city} · Next Star Soccer`,
   description: clip(`${c.heroDateRange} at ${c.location.name}, ${c.location.city}. ${c.description}`),
   image: c.heroImage ? `${SITE}${c.heroImage}` : undefined,
   priority: 0.6,
