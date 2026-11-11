@@ -1,12 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-
-const ALLOWED_EMAILS = [
-  'amartyaglasses@gmail.com',
-  'seba@taso-group.com',
-  'info@nextstarsoccer.com',
-];
+import { account } from '../../services/appwrite';
+import { isAdminUser } from '../../constants/staffRoles';
 
 const AdminLoginPage = () => {
   const [email, setEmail] = useState('');
@@ -18,7 +14,7 @@ const AdminLoginPage = () => {
   // Auto-redirect if already logged in as an admin
   useEffect(() => {
     if (!initialized) return;
-    if (user && ALLOWED_EMAILS.includes(user.email.toLowerCase().trim())) {
+    if (user && isAdminUser(user)) {
       navigate('/admin/dashboard', { replace: true });
     }
   }, [user, initialized]);
@@ -29,7 +25,8 @@ const AdminLoginPage = () => {
     if (!email || !password) { setError('Please fill in all fields'); return; }
     try {
       await login(email, password);
-      if (!ALLOWED_EMAILS.includes(email.toLowerCase().trim())) {
+      const me = await account.get();
+      if (!isAdminUser(me)) {
         await logout();
         setError('Access denied. This account is not authorized for admin access.');
         return;

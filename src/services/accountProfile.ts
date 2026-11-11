@@ -1,9 +1,7 @@
 import { databases, databaseId, collections } from './appwrite';
 import { resolveUserStripeContext, UserType } from './payment/paymentApi';
 import { ACCOUNTS_LIVE } from '../constants/features';
-
-// Admin accounts, as in the app's constants/adminConfig.ts.
-export const ADMIN_USER_IDS = ['mi363q40_q03mtr0sknh', 'mi36bdeg_o704o948kfd', 'mj7d9825_hhgqztus4tb'];
+import { isAdminUser } from '../constants/staffRoles';
 
 export interface AccountInfo {
   /** The profile that pays and owns bills: parent first, then player, then coach. */
@@ -27,14 +25,15 @@ async function coachDoc(userId: string): Promise<any | null> {
  * Who a signed-in account is, the same way the app works it out: the first
  * profile collection with a doc for them, plus whether they also coach.
  */
-export async function resolveAccount(userId: string): Promise<AccountInfo> {
+export async function resolveAccount(userId: string, labels?: string[]): Promise<AccountInfo> {
   const [ctx, coach] = await Promise.all([resolveUserStripeContext(userId), coachDoc(userId)]);
   return {
     userType: ctx.userType,
     profile: ctx.profile,
     collectionId: ctx.collectionId,
     isCoach: !!coach,
-    isAdmin: ADMIN_USER_IDS.includes(userId),
+    // Admin access comes from the account's labels (Development → Staff Access).
+    isAdmin: isAdminUser({ labels }),
   };
 }
 

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { isAdminUser, isSuperAdmin, getAdminRoleLabel } from '../../constants/staffRoles';
 import { databases, databaseId, collections } from '../../services/appwrite';
 import { Query } from 'appwrite';
 import { googleCalendarService } from '../../services/googleCalendar';
@@ -23,12 +24,7 @@ import CoachPaymentsSection from './sections/CoachPaymentsSection';
 import SessionReviewsSection from './sections/SessionReviewsSection';
 import ScholarshipsSection from './sections/ScholarshipsSection';
 import VideoAnalysisSection from './sections/VideoAnalysisSection';
-
-const ALLOWED_EMAILS = [
-  'amartyaglasses@gmail.com',
-  'seba@taso-group.com',
-  'info@nextstarsoccer.com',
-];
+import StaffAccessSection from './sections/StaffAccessSection';
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -41,7 +37,7 @@ const REQUEST_TYPES = [
   'Player Report',
 ];
 
-type Section = 'players' | 'coaches' | 'parents' | 'bills' | /* 'payments' | */ 'messages' | 'requests' | 'calendar' | 'eventAssistant' | 'attendance' | 'coachManagement' | 'coachPayments' | 'devOverview' | 'appFeedback' | 'serviceStatus' | 'sessionReviews' | 'scholarships' | 'videoAnalysis';
+type Section = 'players' | 'coaches' | 'parents' | 'bills' | /* 'payments' | */ 'messages' | 'requests' | 'calendar' | 'eventAssistant' | 'attendance' | 'coachManagement' | 'coachPayments' | 'devOverview' | 'appFeedback' | 'serviceStatus' | 'staffAccess' | 'sessionReviews' | 'scholarships' | 'videoAnalysis';
 
 type NavGroup = 'Directory' | 'Coaches' | 'Messages' | 'Payments' | 'Events' | 'Development';
 
@@ -51,7 +47,7 @@ const SECTION_TO_GROUP: Partial<Record<Section, NavGroup>> = {
   messages: 'Messages', requests: 'Messages',
   bills: 'Payments', /* payments: 'Payments', */ scholarships: 'Payments',
   calendar: 'Events', eventAssistant: 'Events', attendance: 'Events', sessionReviews: 'Events',
-  devOverview: 'Development', appFeedback: 'Development', serviceStatus: 'Development',
+  devOverview: 'Development', appFeedback: 'Development', serviceStatus: 'Development', staffAccess: 'Development',
 };
 
 const SECTION_LABELS: Partial<Record<Section, string>> = {
@@ -63,6 +59,7 @@ const SECTION_LABELS: Partial<Record<Section, string>> = {
   devOverview: 'Overview',
   appFeedback: 'App Feedback',
   serviceStatus: 'Service Status',
+  staffAccess: 'Staff Access',
   sessionReviews: 'Session Reviews',
   scholarships: 'Scholarships',
   videoAnalysis: 'Video Analysis',
@@ -313,6 +310,7 @@ const SECTION_FROM_PATH: Record<string, Section> = {
   '/admin/dev': 'devOverview',
   '/admin/dev/feedback': 'appFeedback',
   '/admin/dev/status': 'serviceStatus',
+  '/admin/dev/staff': 'staffAccess',
   '/admin/session-reviews': 'sessionReviews',
   '/admin/scholarships': 'scholarships',
   '/admin/video-analysis': 'videoAnalysis',
@@ -341,6 +339,7 @@ const AdminDashboard = () => {
     devOverview: '/admin/dev',
     appFeedback: '/admin/dev/feedback',
     serviceStatus: '/admin/dev/status',
+    staffAccess: '/admin/dev/staff',
     sessionReviews: '/admin/session-reviews',
     scholarships: '/admin/scholarships',
     videoAnalysis: '/admin/video-analysis',
@@ -382,10 +381,17 @@ const AdminDashboard = () => {
   useEffect(() => {
     if (!initialized) return;
     if (!user) { navigate('/admin'); return; }
-    if (!ALLOWED_EMAILS.includes(user.email.toLowerCase().trim())) {
+    if (!isAdminUser(user)) {
       logout().then(() => navigate('/admin'));
     }
   }, [user, initialized]);
+
+  // Development (tooling, staff access) is for Super Administrators only.
+  const superAdmin = isSuperAdmin(user);
+  const devBlocked = !!activeSection && SECTION_TO_GROUP[activeSection] === 'Development' && !superAdmin;
+  useEffect(() => {
+    if (initialized && user && devBlocked) navigate('/admin/dashboard', { replace: true });
+  }, [initialized, user, devBlocked]);
 
   useEffect(() => {
     if (!user) return;
@@ -580,6 +586,7 @@ const AdminDashboard = () => {
     devOverview: <DevelopmentSection />,
     appFeedback: <AppFeedbackSection />,
     serviceStatus: <ServiceStatusSection />,
+    staffAccess: <StaffAccessSection />,
     eventAssistant: <EventAssistantSection />,
     attendance: <AttendanceManagerSection />,
     coachManagement: <CoachManagementSection />,
@@ -603,6 +610,11 @@ const AdminDashboard = () => {
               <p className="text-white font-medium text-[13px] truncate">
                 {displayName || user?.email?.split('@')[0] || 'Admin'}
               </p>
+              {getAdminRoleLabel(user) && (
+                <p className="text-white/45 text-[11px] truncate mt-0.5">
+                  {getAdminRoleLabel(user)}
+                </p>
+              )}
             </button>
           )}
           <img src="/assets/images/NextStarBall.png" alt="NSS"
@@ -701,7 +713,8 @@ const AdminDashboard = () => {
 
         </nav>
 
-        {/* Development */}
+        {/* Development — Super Administrators only */}
+        {superAdmin && (
         <div className={`${sidebarCollapsed ? 'px-1' : 'px-3'} pb-1 border-t border-white/[0.07] pt-2`}>
           <NavGroupItem label="Development" open={openGroups.has('Development')} onToggle={() => toggleGroup('Development')}
             collapsed={sidebarCollapsed} onExpand={() => setSidebarCollapsed(false)}
@@ -712,8 +725,11 @@ const AdminDashboard = () => {
               icon={<svg className="w-[13px] h-[13px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" /></svg>} />
             <NavChild section="serviceStatus" label="Service Status" active={activeSection === 'serviceStatus'} onSelect={setActiveSection}
               icon={<svg className="w-[13px] h-[13px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} />
+            <NavChild section="staffAccess" label="Staff Access" active={activeSection === 'staffAccess'} onSelect={setActiveSection}
+              icon={<svg className="w-[13px] h-[13px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>} />
           </NavGroupItem>
         </div>
+        )}
 
         {/* Sign out */}
         <div className={`${sidebarCollapsed ? 'px-1' : 'px-3'} py-3 border-t border-white/[0.07] space-y-2`}>
@@ -746,7 +762,7 @@ const AdminDashboard = () => {
             </div>
             {activeSection === 'messages'
               ? <div className="flex-1 min-h-0">{sectionComponents[activeSection]}</div>
-              : sectionComponents[activeSection]}
+              : devBlocked ? null : sectionComponents[activeSection]}
           </div>
         ) : (
           <div className="px-8 py-7 max-w-[1400px] mx-auto space-y-5">

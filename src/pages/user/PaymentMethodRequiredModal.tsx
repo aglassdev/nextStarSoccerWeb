@@ -3,6 +3,8 @@ import { Query } from 'appwrite';
 import { Elements, CardElement } from '@stripe/react-stripe-js';
 import { getStripe } from '../../services/payment/stripeClient';
 import { databases, databaseId, collections } from '../../services/appwrite';
+import { isAdminUser } from '../../constants/staffRoles';
+import { useAuth } from '../../contexts/AuthContext';
 import {
   customerHasPaymentMethod,
   resolveUserStripeContext,
@@ -16,8 +18,6 @@ import { CARD_ELEMENT_STYLE, SaveResult, usePaymentMethodActions } from './usePa
 // opens its own step whose X only comes back here. It is checked on every
 // visit and reload until a method is saved.
 
-// Admin accounts, as in the app's constants/adminConfig.ts.
-const ADMIN_USER_IDS = ['mi363q40_q03mtr0sknh', 'mi36bdeg_o704o948kfd', 'mj7d9825_hhgqztus4tb'];
 
 // A coach — including a player+coach hybrid — has a Coaches doc keyed by
 // their userId, same as the app's role detection.
@@ -30,8 +30,8 @@ async function hasCoachProfile(userId: string): Promise<boolean> {
   }
 }
 
-async function needsPaymentMethod(userId: string): Promise<boolean> {
-  if (ADMIN_USER_IDS.includes(userId)) return false;
+async function needsPaymentMethod(userId: string, labels?: string[]): Promise<boolean> {
+  if (isAdminUser({ labels })) return false;
 
   const [ctx, isCoach] = await Promise.all([
     resolveUserStripeContext(userId),
@@ -202,6 +202,7 @@ const PaymentMethodRequiredModal = ({
   suppressed: boolean;
   onMethodAdded: () => void;
 }) => {
+  const { user } = useAuth();
   const [visible, setVisible] = useState(false);
   const deferred = useRef(false);
   const checking = useRef(false);
@@ -210,13 +211,13 @@ const PaymentMethodRequiredModal = ({
     if (checking.current || suppressed || deferred.current) return;
     checking.current = true;
     try {
-      if (await needsPaymentMethod(userId)) setVisible(true);
+      if (await needsPaymentMethod(userId, user?.labels)) setVisible(true);
     } catch {
       // Never block on a failed lookup.
     } finally {
       checking.current = false;
     }
-  }, [userId, suppressed]);
+  }, [userId, suppressed, user?.labels]);
 
   // On opening (and every reload of) the portal.
   useEffect(() => { runCheck(); }, [runCheck]);

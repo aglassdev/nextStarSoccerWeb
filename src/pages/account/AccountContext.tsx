@@ -25,7 +25,7 @@ export const AccountProvider = ({ children }: { children: React.ReactNode }) => 
 
   const load = useCallback(async () => {
     if (!user) return;
-    const a = await resolveAccount(user.$id);
+    const a = await resolveAccount(user.$id, user.labels);
     // The `admin` label counts as admin too (At-Home Training, the Player Center).
     setInfo({ ...a, isAdmin: a.isAdmin || isAdminUser(user) });
     setKids(a.userType === 'parent' ? await getParentChildren(user.$id).catch(() => []) : []);

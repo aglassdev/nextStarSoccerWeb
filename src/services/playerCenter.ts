@@ -1,5 +1,5 @@
 import { functions } from './appwrite';
-import { ADMIN_USER_IDS } from './accountProfile';
+import { isAdminUser } from '../constants/staffRoles';
 import type { User } from '../types';
 
 // The Player Center in the Account Center: the Training Program and the
@@ -33,9 +33,8 @@ export const RESOURCES: { id: ResourceId; title: string; blurb: string; to: stri
   },
 ];
 
-/** The `admin` / `superadmin` label, or one of the admin accounts. */
-export const isAdminUser = (user: User | null | undefined) =>
-  !!user && (ADMIN_USER_IDS.includes(user.$id) || !!user.labels?.some((l) => l === 'admin' || l === 'superadmin'));
+/** The `admin` / `superadmin` label. */
+export { isAdminUser };
 
 export const canOpen = (user: User | null | undefined, id: ResourceId) =>
   isAdminUser(user) || !!user?.labels?.includes(LABELS[id]);
