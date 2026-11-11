@@ -6,7 +6,8 @@ const Footer = () => {
     <footer className="bg-black border-t border-white/10">
       {/* Main grid */}
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-8 lg:gap-8">
+        {/* Phones: a two-column grid. Wider: the blocks spread evenly, so every gap between them is the same. */}
+        <div className="grid grid-cols-2 gap-8 md:flex md:justify-between md:items-start md:gap-8">
 
           {/* ── Left: Logo + App Store buttons ───────────────────────── */}
           <div className="col-span-2 md:col-span-1 lg:col-span-1 flex flex-col items-center gap-5 mb-2 md:mb-0">
