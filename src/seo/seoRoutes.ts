@@ -38,7 +38,8 @@ const STATIC: SeoPage[] = [
   {
     path: '/',
     title: "Next Star Soccer · The DMV's premier soccer training.",
-    description: `Private, small-group and team soccer training, camps and clinics in ${AREAS}, coached by former professional and college players.`,
+    // The text under the title in search results: the tagline first
+    description: "The DMV's premier soccer training. Private, small-group and team sessions, camps and clinics, coached by former professional and college players.",
     priority: 1,
   },
   {
