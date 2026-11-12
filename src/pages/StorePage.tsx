@@ -58,6 +58,26 @@ function productUrl(color: SquadLockerColor): string {
     : LOCKER_URL;
 }
 
+// The real logo on each item, drawn by SquadLocker's image service from the
+// item's logo placement (`grid`). Light items get the store's logo as uploaded
+// to SquadLocker (black); black and navy ones get a white copy of it, the way
+// SquadLocker's own pictures of black items show it. The address must stay
+// exactly as is: the service caches each picture by it.
+const STORE_LOGO = 'https://teamlocker.s3.amazonaws.com/uploads/c6f1e80e71b92a8823c8f9ebf707d3bb6490be33Untitled-8.png';
+const STORE_LOGO_WHITE = 'https://www.nextstarsoccer.com/assets/images/store-logo-white.png';
+const DARK_COLORS = new Set(['Black', 'Navy']);
+
+function logoRender(color: SquadLockerColor): string | null {
+  if (!color.grid || !color.images.front) return null;
+  const logo = DARK_COLORS.has(color.colorGroup) ? STORE_LOGO_WHITE : STORE_LOGO;
+  return 'https://squadlocker.liquifire.com/squadlocker?set=' +
+    `gridPath[${color.grid}],productPath[${color.images.front}],alignLogo[Center],scaleLogo[100%],logoPath[${logo}]` +
+    '&call=url[file:previewTextRasterArtworkText.chain]&scale=size[480]&sink=format[webp],quality[80]';
+}
+
+/** The picture with the logo on it: SquadLocker's own where it made one, else the drawn one. */
+const logoImage = (color: SquadLockerColor) => color.cachedImage || logoRender(color);
+
 // Per-category logo overlay placement.
 // Coordinates are % of the image element (which has p-3 padding / white bg).
 // width: logo width as % of image. left/top: anchor point. transform always centers on that point.
@@ -81,22 +101,27 @@ const DEFAULT_LOGO_PLACEMENT = { width: '28%', left: '50%', top: '40%' };
 // ── Product Card ─────────────────────────────────────────────────────────────
 
 function ProductCard({ product }: { product: SquadLockerProduct }) {
-  // Default to the first color that has a pre-composited logo so it shows immediately
+  // Default to the first color that has the real logo on it
   const [colorIdx, setColorIdx] = useState(() => {
-    const i = product.colors.findIndex(c => c.cachedImage);
+    const i = product.colors.findIndex(c => logoImage(c));
     return i >= 0 ? i : 0;
   });
   const [hovered, setHovered] = useState(false);
+  // Which pictures have finished loading, and a logo picture that failed (then
+  // the plain photo with our logo laid over it stands in)
+  const [loaded, setLoaded] = useState<Set<string>>(() => new Set());
+  const [brokenLogo, setBrokenLogo] = useState<string | null>(null);
+  const markLoaded = (src: string) => setLoaded(prev => (prev.has(src) ? prev : new Set(prev).add(src)));
 
   const color = product.colors[colorIdx] ?? product.colors[0];
   const price = color.price ?? startingPrice(product.colors);
-  const hasCachedLogo = !!color.cachedImage;
-  const primaryImg = color.cachedImage || color.images.front;
+  const withLogo = logoImage(color);
+  const hasLogo = !!withLogo && brokenLogo !== withLogo;
+  const primaryImg = hasLogo ? withLogo : color.images.front;
   const backImg = color.images.back;
   const validBack = backImg && !backImg.endsWith('/.png') && !backImg.endsWith('//.png') && backImg !== color.images.front;
-  const showingBack = hovered && !!validBack;
-  const displayImg = showingBack ? backImg : primaryImg;
-  const showLogoOverlay = !hasCachedLogo && !showingBack && !!primaryImg;
+  const showingBack = hovered && !!validBack && loaded.has(backImg);
+  const showLogoOverlay = !hasLogo && !showingBack && !!primaryImg;
   const logoPlacement = LOGO_PLACEMENT[product.category] ?? DEFAULT_LOGO_PLACEMENT;
 
   const visibleSwatches = product.colors.slice(0, MAX_SWATCHES);
@@ -117,14 +142,48 @@ function ProductCard({ product }: { product: SquadLockerProduct }) {
         onMouseLeave={() => setHovered(false)}
       >
         {primaryImg ? (
-          <img
-            src={displayImg || primaryImg}
-            alt={product.name}
-            className="w-full h-full object-contain p-3 transition-opacity duration-200"
-            loading="lazy"
-            decoding="async"
-            onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-          />
+          <>
+            {/* Until the picture arrives (a first-time logo drawing takes a few seconds) */}
+            {!loaded.has(primaryImg) && <div className="absolute inset-3 rounded-lg bg-gray-100 animate-pulse" />}
+            <img
+              key={primaryImg}
+              src={primaryImg}
+              alt={product.name}
+              className={`relative w-full h-full object-contain p-3 transition-opacity duration-200 ${
+                loaded.has(primaryImg) && !showingBack ? 'opacity-100' : 'opacity-0'
+              }`}
+              loading="lazy"
+              decoding="async"
+              onLoad={e => {
+                // When the drawing fails, the service answers with a wide error
+                // picture instead of an error; its drawings are always square.
+                const img = e.currentTarget;
+                if (hasLogo && primaryImg !== color.cachedImage && img.naturalWidth !== img.naturalHeight) {
+                  setBrokenLogo(primaryImg);
+                  return;
+                }
+                markLoaded(primaryImg);
+              }}
+              onError={e => {
+                if (hasLogo) setBrokenLogo(primaryImg);
+                else (e.target as HTMLImageElement).style.display = 'none';
+              }}
+            />
+            {/* The back, on hover; loaded the first time it's wanted */}
+            {hovered && validBack && (
+              <img
+                key={backImg}
+                src={backImg}
+                alt=""
+                aria-hidden="true"
+                className={`absolute inset-0 w-full h-full object-contain p-3 transition-opacity duration-200 ${
+                  showingBack ? 'opacity-100' : 'opacity-0'
+                }`}
+                decoding="async"
+                onLoad={() => markLoaded(backImg)}
+              />
+            )}
+          </>
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gray-800">
             <span className="text-gray-500 text-sm">No image</span>
