@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Query } from 'appwrite';
 import { databases, databaseId, collections } from '../../../services/appwrite';
+import { CellLink, useRowOpen } from '../../../components/admin/RowLink';
 
 type PlayerType = 'Youth' | 'Collegiate' | 'Professional';
 
@@ -17,7 +17,7 @@ interface PlayerRecord {
 }
 
 const PlayersSection = () => {
-  const navigate = useNavigate();
+  const rowOpen = useRowOpen();
   const [players, setPlayers] = useState<PlayerRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -143,16 +143,19 @@ const PlayersSection = () => {
               {filtered.length === 0 ? (
                 <tr><td colSpan={4} className="px-4 py-8 text-center text-white/20 text-sm">No players found</td></tr>
               ) : (
-                filtered.map(player => (
+                filtered.map(player => {
+                  const to = player.isProxy
+                    ? `/admin/players/proxy/${player.$id}`
+                    : `/admin/players/${typeToPath[player.type]}/${player.$id}`;
+                  return (
                   <tr key={player.$id}
-                    onClick={() => navigate(
-                      player.isProxy
-                        ? `/admin/players/proxy/${player.$id}`
-                        : `/admin/players/${typeToPath[player.type]}/${player.$id}`
-                    )}
+                    {...rowOpen(to)}
                     className="transition-colors hover:bg-white/[0.03] cursor-pointer">
-                    <td className="px-4 py-3 text-white text-sm">{player.firstName} {player.lastName}</td>
-                    <td className="px-4 py-3 text-white/50 text-sm">
+                    <td className="p-0 h-px text-white text-sm">
+                      <CellLink to={to} first className="px-4 py-3">{player.firstName} {player.lastName}</CellLink>
+                    </td>
+                    <td className="p-0 h-px text-white/50 text-sm">
+                      <CellLink to={to} className="px-4 py-3">
                       {player.dateOfBirth
                         ? (() => {
                             const raw = player.dateOfBirth as string;
@@ -162,22 +165,28 @@ const PlayersSection = () => {
                             return isNaN(d.getTime()) ? raw : d.toLocaleDateString();
                           })()
                         : '—'}
+                      </CellLink>
                     </td>
-                    <td className="px-4 py-3 text-sm">
+                    <td className="p-0 h-px text-sm">
+                      <CellLink to={to} className="px-4 py-3">
                       {player.parentName
                         ? <span className="inline-block bg-white/[0.06] border border-white/[0.08] rounded-full px-2.5 py-0.5 text-white/70 text-[12px]">{player.parentName}</span>
                         : <span className="text-white/25">—</span>}
+                      </CellLink>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="p-0 h-px">
+                      <CellLink to={to} className="px-4 py-3">
                       <div className="flex items-center gap-1.5">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${typeBadge(player.type)}`}>{player.type}</span>
                         {player.isProxy && (
                           <span className="px-2 py-1 rounded-full text-xs font-medium bg-white/[0.06] text-white/40 border border-white/10">Proxy</span>
                         )}
                       </div>
+                      </CellLink>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>

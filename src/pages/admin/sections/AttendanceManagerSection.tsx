@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Query, ID } from 'appwrite';
 import { databases, databaseId, collections } from '../../../services/appwrite';
 import {
@@ -11,6 +11,7 @@ import {
   type PlayerBillingStatus,
 } from '../../../services/payment/playerBillingStatus';
 import { useAuth } from '../../../contexts/AuthContext';
+import { CellLink, useRowOpen } from '../../../components/admin/RowLink';
 import { googleCalendarService, CalendarEvent, isEventCancelled } from '../../../services/googleCalendar';
 import { updateCalendarEvent } from '../../../services/calendarAdmin';
 import { computeFacilityCost, facilityRateFor, rateLabel, getFacilityCost, setFacilityCost } from '../../../services/facilityCost';
@@ -890,9 +891,15 @@ function EventDetailView({
   const NearbyChip = ({ ev }: { ev: CalendarEvent }) => {
     const sameDay = ev.startDateTime.slice(0, 10) === currentDay;
     return (
-      <button
-        onClick={() => onSelectEvent(ev)}
-        className="w-full text-left px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.06] hover:border-white/25 transition-colors"
+      // A real link, so it can open in a new tab; a plain click stays in place
+      <Link
+        to={`/admin/attendance/${calType}/${ev.id}`}
+        onClick={e => {
+          if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+          e.preventDefault();
+          onSelectEvent(ev);
+        }}
+        className="block w-full text-left px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.06] hover:border-white/25 transition-colors"
       >
         <div className="flex items-center gap-2">
           <p className="text-white text-sm truncate flex-1">{ev.title}</p>
@@ -905,7 +912,7 @@ function EventDetailView({
         <p className="text-gray-500 text-xs mt-0.5">
           {formatDate(ev.startDateTime)} · {formatTime(ev.startDateTime, ev.dateOnly)}
         </p>
-      </button>
+      </Link>
     );
   };
 
@@ -1518,15 +1525,49 @@ async function listAllDocs(collectionId: string): Promise<any[]> {
 
 const venueLabel = (location?: string) => (location || '').split(',')[0].trim();
 
-// Puts a row just below the sticky header. Measured off bounding rects rather
-// than offsetTop, which for a <tr> is relative to the <table> and not to the
-// element actually doing the scrolling.
-const scrollRowIntoView = (list: HTMLDivElement, eventId: string): boolean => {
+// Puts a row just below the sticky header (or `offset` px from there).
+// Measured off bounding rects rather than offsetTop, which for a <tr> is
+// relative to the <table> and not to the element actually doing the scrolling.
+const scrollRowIntoView = (list: HTMLDivElement, eventId: string, offset = 0): boolean => {
   const el = list.querySelector<HTMLElement>(`[data-eid="${CSS.escape(eventId)}"]`);
   if (!el) return false;
   const head = list.querySelector('thead');
-  list.scrollTop += el.getBoundingClientRect().top - list.getBoundingClientRect().top - (head?.clientHeight ?? 0);
+  list.scrollTop += el.getBoundingClientRect().top - list.getBoundingClientRect().top - (head?.clientHeight ?? 0) - offset;
   return true;
+};
+
+// Where the list was left: the row at the top and how far it sat from the
+// header, for the public/private filter in use. Coming back from a session,
+// another admin page or a reload lands there instead of back on today. Kept
+// for the browser tab (sessionStorage), and in memory when that's blocked.
+type ListAnchor = { id: string; offset: number; filter: string };
+const ANCHOR_KEY = 'nss-admin-attendance-anchor';
+let memoryAnchor: ListAnchor | null = null;
+const readAnchor = (): ListAnchor | null => {
+  try {
+    const raw = sessionStorage.getItem(ANCHOR_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch { /* storage blocked */ }
+  return memoryAnchor;
+};
+const saveAnchor = (anchor: ListAnchor | null) => {
+  memoryAnchor = anchor;
+  try {
+    if (anchor) sessionStorage.setItem(ANCHOR_KEY, JSON.stringify(anchor));
+    else sessionStorage.removeItem(ANCHOR_KEY);
+  } catch { /* storage blocked */ }
+};
+
+/** The list's view (table or week) and filter, kept for the tab like the scroll spot. */
+const readPref = <T extends string>(key: string, allowed: readonly T[], fallback: T): T => {
+  try {
+    const v = sessionStorage.getItem(key);
+    if (v && (allowed as readonly string[]).includes(v)) return v as T;
+  } catch { /* storage blocked */ }
+  return fallback;
+};
+const savePref = (key: string, value: string) => {
+  try { sessionStorage.setItem(key, value); } catch { /* storage blocked */ }
 };
 
 function formatTableDateTime(dt: string, dateOnly?: boolean) {
@@ -1537,7 +1578,7 @@ function formatTableDateTime(dt: string, dateOnly?: boolean) {
 }
 
 function EventTable({
-  rows, scrollRef, highlightIds, firstUpcomingId, calFilter, onCalFilter, onOpen,
+  rows, scrollRef, highlightIds, firstUpcomingId, calFilter, onCalFilter, linkFor,
 }: {
   rows: TableEvent[];
   scrollRef: React.MutableRefObject<HTMLDivElement | null>;
@@ -1545,8 +1586,9 @@ function EventTable({
   firstUpcomingId: string | null;
   calFilter: 'all' | 'public' | 'private';
   onCalFilter: (f: 'all' | 'public' | 'private') => void;
-  onOpen: (ev: TableEvent) => void;
+  linkFor: (ev: TableEvent) => string;
 }) {
+  const rowOpen = useRowOpen();
   const [attendees, setAttendees] = useState<Record<string, string[]>>({});
   const [coaches, setCoaches] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
@@ -1616,20 +1658,54 @@ function EventTable({
     [rows, attendees],
   );
 
-  // Open on today rather than a year of history, and settle again once
-  // attendance lands in case the rows reflowed — but back off the moment the
-  // admin has scrolled somewhere themselves.
+  // Open where the admin left the list (else on today rather than a year of
+  // history), and settle again once attendance lands in case the rows
+  // reflowed — but back off the moment the admin has scrolled themselves.
   const autoScrollAt = useRef<number | null>(null);
-  const settleOnToday = useCallback(() => {
+  const anchor = useCallback((): ListAnchor | null => {
+    const saved = readAnchor();
+    if (saved && saved.filter === calFilter && rows.some(r => r.id === saved.id)) return saved;
+    return firstUpcomingId ? { id: firstUpcomingId, offset: 0, filter: calFilter } : null;
+  }, [rows, calFilter, firstUpcomingId]);
+  const settle = useCallback(() => {
     const list = scrollRef.current;
-    if (!list || !firstUpcomingId) return;
+    const a = anchor();
+    if (!list || !a) return;
     if (autoScrollAt.current !== null && Math.abs(list.scrollTop - autoScrollAt.current) > 2) return;
-    if (scrollRowIntoView(list, firstUpcomingId)) autoScrollAt.current = list.scrollTop;
-  }, [firstUpcomingId, scrollRef]);
+    if (scrollRowIntoView(list, a.id, a.offset)) autoScrollAt.current = list.scrollTop;
+  }, [anchor, scrollRef]);
 
-  // A different row set — the public/private toggle — re-anchors on today.
-  useEffect(() => { autoScrollAt.current = null; }, [rows]);
-  useEffect(() => { requestAnimationFrame(settleOnToday); }, [rows, loading, settleOnToday]);
+  // Switching the public/private filter starts that list on today.
+  const shownFilter = useRef(calFilter);
+  useEffect(() => {
+    if (shownFilter.current !== calFilter) {
+      shownFilter.current = calFilter;
+      saveAnchor(null);
+    }
+    autoScrollAt.current = null;
+  }, [rows, calFilter]);
+  useEffect(() => { requestAnimationFrame(settle); }, [rows, loading, settle]);
+
+  // Remember the row at the top as the admin scrolls (once a frame at most).
+  const scrollFrame = useRef<number | null>(null);
+  const rememberSpot = () => {
+    if (scrollFrame.current !== null) return;
+    scrollFrame.current = requestAnimationFrame(() => {
+      scrollFrame.current = null;
+      const list = scrollRef.current;
+      if (!list) return;
+      if (autoScrollAt.current !== null && Math.abs(list.scrollTop - autoScrollAt.current) <= 2) return;
+      const top = list.getBoundingClientRect().top + (list.querySelector('thead')?.clientHeight ?? 0);
+      for (const el of list.querySelectorAll<HTMLElement>('tr[data-eid]')) {
+        const box = el.getBoundingClientRect();
+        if (box.bottom > top) {
+          saveAnchor({ id: el.dataset.eid!, offset: box.top - top, filter: calFilter });
+          return;
+        }
+      }
+    });
+  };
+  useEffect(() => () => { if (scrollFrame.current !== null) cancelAnimationFrame(scrollFrame.current); }, []);
 
   return (
     <div className="flex flex-col h-[calc(100vh-180px)] min-h-0 bg-[#0e0e0e] border border-[#1c1c1c] rounded-xl overflow-hidden">
@@ -1653,7 +1729,7 @@ function EventTable({
         </p>
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-auto min-h-0">
+      <div ref={scrollRef} onScroll={rememberSpot} className="flex-1 overflow-auto min-h-0">
         <table className="w-full min-w-[1100px] border-collapse">
           <colgroup>
             <col style={{ width: '22%' }} />
@@ -1681,11 +1757,12 @@ function EventTable({
               const evCoaches = coaches[ev.id] ?? [];
               const isOpen = expanded.has(ev.id);
               const overflow = names.length - ATTENDANCE_PREVIEW;
+              const to = linkFor(ev);
               return (
                 <tr
                   key={ev.id}
                   data-eid={ev.id}
-                  onClick={() => onOpen(ev)}
+                  {...rowOpen(to)}
                   className={`border-b border-white/[0.04] last:border-0 cursor-pointer align-top transition-colors ${
                     highlightIds.includes(ev.id)
                       ? 'bg-green-400/10 ring-1 ring-inset ring-green-400/60'
@@ -1694,35 +1771,46 @@ function EventTable({
                       : 'hover:bg-white/[0.04]'
                   }`}
                 >
-                  <td className="px-4 py-2.5">
-                    <div className="flex items-start gap-2">
-                      <span
-                        className={`mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0 ${ev.calType === 'private' ? 'bg-purple-400' : 'bg-sky-400'}`}
-                        title={ev.calType === 'private' ? 'Private' : 'Public'}
-                      />
-                      <span className="text-white text-[12px] leading-snug">{ev.title}</span>
-                    </div>
+                  <td className="p-0 h-px">
+                    <CellLink to={to} first className="px-4 py-2.5">
+                      <div className="flex items-start gap-2">
+                        <span
+                          className={`mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0 ${ev.calType === 'private' ? 'bg-purple-400' : 'bg-sky-400'}`}
+                          title={ev.calType === 'private' ? 'Private' : 'Public'}
+                        />
+                        <span className="text-white text-[12px] leading-snug">{ev.title}</span>
+                      </div>
+                    </CellLink>
                   </td>
-                  <td className="px-3 py-2.5 text-white/50 text-[12px] whitespace-nowrap">
-                    {formatTableDateTime(ev.startDateTime, ev.dateOnly)}
+                  <td className="p-0 h-px text-white/50 text-[12px] whitespace-nowrap">
+                    <CellLink to={to} className="px-3 py-2.5">
+                      {formatTableDateTime(ev.startDateTime, ev.dateOnly)}
+                    </CellLink>
                   </td>
-                  <td className="px-3 py-2.5 text-white/55 text-[12px] truncate max-w-0" title={ev.location || ''}>
-                    {ev.location ? venueLabel(ev.location) : <span className="text-white/20">—</span>}
+                  <td className="p-0 h-px text-white/55 text-[12px] max-w-0">
+                    <CellLink to={to} title={ev.location || ''} className="px-3 py-2.5 truncate">
+                      {ev.location ? venueLabel(ev.location) : <span className="text-white/20">—</span>}
+                    </CellLink>
                   </td>
-                  <td className="px-3 py-2.5 text-emerald-300/70 text-[12px] truncate max-w-0" title={evCoaches.join(', ')}>
-                    {evCoaches.length > 0 ? evCoaches.join(', ') : <span className="text-white/20">—</span>}
+                  <td className="p-0 h-px text-emerald-300/70 text-[12px] max-w-0">
+                    <CellLink to={to} title={evCoaches.join(', ')} className="px-3 py-2.5 truncate">
+                      {evCoaches.length > 0 ? evCoaches.join(', ') : <span className="text-white/20">—</span>}
+                    </CellLink>
                   </td>
-                  <td className="px-3 py-2.5 text-right text-[12px] whitespace-nowrap">
-                    {names.length > 0
-                      ? <span className="text-white/80">{names.length}</span>
-                      : <span className="text-white/20">0</span>}
+                  <td className="p-0 h-px text-right text-[12px] whitespace-nowrap">
+                    <CellLink to={to} className="px-3 py-2.5">
+                      {names.length > 0
+                        ? <span className="text-white/80">{names.length}</span>
+                        : <span className="text-white/20">0</span>}
+                    </CellLink>
                   </td>
                   <td className="px-3 py-2.5">
                     {names.length === 0 ? (
-                      <span className="text-white/20 text-[12px]">—</span>
+                      <CellLink to={to} className="text-white/20 text-[12px]">—</CellLink>
                     ) : (
                       <div className="flex items-start gap-2">
-                        <span
+                        <CellLink
+                          to={to}
                           className={`text-white/70 text-[12px] leading-relaxed flex-1 min-w-0 ${
                             isOpen ? 'whitespace-normal break-words' : 'truncate'
                           }`}
@@ -1731,10 +1819,11 @@ function EventTable({
                           {!isOpen && overflow > 0 && (
                             <span className="text-white/30"> +{overflow} more</span>
                           )}
-                        </span>
+                        </CellLink>
                         {overflow > 0 && (
                           <button
                             onClick={e => { e.stopPropagation(); toggleExpanded(ev.id); }}
+                            onAuxClick={e => e.stopPropagation()}
                             title={isOpen ? 'Collapse' : `Show all ${names.length}`}
                             className="flex-shrink-0 p-0.5 text-white/30 hover:text-white transition-colors"
                           >
@@ -1776,8 +1865,14 @@ const AttendanceManagerSection = () => {
   const [highlightIds, setHighlightIds] = useState<string[]>([]);
 
   // Table vs Week view, plus a shared player list for the week view's add search
-  const [viewMode, setViewMode] = useState<'table' | 'week'>('table');
-  const [calFilter, setCalFilter] = useState<'all' | 'public' | 'private'>('all');
+  const [viewMode, setViewModeState] = useState<'table' | 'week'>(
+    () => readPref('nss-admin-attendance-view', ['table', 'week'] as const, 'table'),
+  );
+  const [calFilter, setCalFilterState] = useState<'all' | 'public' | 'private'>(
+    () => readPref('nss-admin-attendance-filter', ['all', 'public', 'private'] as const, 'all'),
+  );
+  const setViewMode = (v: 'table' | 'week') => { setViewModeState(v); savePref('nss-admin-attendance-view', v); };
+  const setCalFilter = (f: 'all' | 'public' | 'private') => { setCalFilterState(f); savePref('nss-admin-attendance-filter', f); };
   const [allPlayers, setAllPlayers] = useState<PlayerSearchResult[]>([]);
 
   const [successMsg, setSuccessMsg] = useState('');
@@ -1974,7 +2069,7 @@ const AttendanceManagerSection = () => {
           firstUpcomingId={firstUpcomingId}
           calFilter={calFilter}
           onCalFilter={setCalFilter}
-          onOpen={(ev) => navigate(`/admin/attendance/${ev.calType}/${ev.id}`)}
+          linkFor={(ev) => `/admin/attendance/${ev.calType}/${ev.id}`}
         />
       )}
 

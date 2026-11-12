@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Query } from 'appwrite';
 import { databases, databaseId, collections } from '../../../services/appwrite';
+import { CellLink, useRowOpen } from '../../../components/admin/RowLink';
 
 interface ParentRecord {
   $id: string;
@@ -16,7 +16,7 @@ interface ParentRecord {
 }
 
 const ParentsSection = () => {
-  const navigate = useNavigate();
+  const rowOpen = useRowOpen();
   const [parents, setParents] = useState<ParentRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -110,13 +110,20 @@ const ParentsSection = () => {
               {filtered.length === 0 ? (
                 <tr><td colSpan={3} className="px-4 py-8 text-center text-white/20 text-sm">No parents found</td></tr>
               ) : (
-                filtered.map(parent => (
+                filtered.map(parent => {
+                  const to = `/admin/parents/${parent.$id}`;
+                  return (
                   <tr key={parent.$id}
-                    onClick={() => navigate(`/admin/parents/${parent.$id}`)}
+                    {...rowOpen(to)}
                     className="hover:bg-white/[0.03] cursor-pointer transition-colors">
-                    <td className="px-4 py-3 text-white text-sm">{getDisplayName(parent)}</td>
-                    <td className="px-4 py-3 text-white/50 text-sm">{parent.email || '—'}</td>
-                    <td className="px-4 py-3 text-sm">
+                    <td className="p-0 h-px text-white text-sm">
+                      <CellLink to={to} first className="px-4 py-3">{getDisplayName(parent)}</CellLink>
+                    </td>
+                    <td className="p-0 h-px text-white/50 text-sm">
+                      <CellLink to={to} className="px-4 py-3">{parent.email || '—'}</CellLink>
+                    </td>
+                    <td className="p-0 h-px text-sm">
+                      <CellLink to={to} className="px-4 py-3">
                       {parent.childNames.length === 0 ? (
                         <span className="text-white/25">—</span>
                       ) : (
@@ -128,9 +135,11 @@ const ParentsSection = () => {
                           ))}
                         </div>
                       )}
+                      </CellLink>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>
