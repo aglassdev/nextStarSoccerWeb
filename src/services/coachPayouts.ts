@@ -117,11 +117,17 @@ export const isMullinsOwnSession = (event: CalendarEvent): boolean =>
 export const isPayableCalendar = (event: CalendarEvent): boolean =>
   event.calendar === "public";
 
+// Camp days Gyau takes no share of at all, whatever they made (Eastern
+// dates): the camp in the first week of September 2026. The week's evening
+// group sessions are not camps and still count.
+const GYAU_NO_SHARE_CAMP_DAYS = new Set(["2026-09-01", "2026-09-02", "2026-09-03", "2026-09-04"]);
+
 // Camps and group sessions are the only revenue Gyau shares in. Weekend
 // afternoons and privates are excluded whether or not he was there.
 export const gyauEligible = (event: CalendarEvent): boolean => {
   if (isPrivateOrAnalysis(event.title)) return false;
   if (isWeekendAfternoon(event)) return false;
+  if (isCamp(event.title) && GYAU_NO_SHARE_CAMP_DAYS.has(easternDay(event.startDateTime))) return false;
   return isCamp(event.title) || lower(event.title).includes("group");
 };
 
