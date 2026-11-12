@@ -1,9 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import lottie from 'lottie-web';
 import Navigation from '../components/layout/Navigation';
 import Footer from '../components/layout/Footer';
 import { squadLockerProducts, type SquadLockerProduct, type SquadLockerColor } from '../constants/squadlocker-clean';
 
 const LOCKER_URL = 'https://teamlocker.squadlocker.com/#/lockers/next-star-soccer';
+
+// The store is closed for now (what to do with it and SquadLocker is still
+// being decided): the page shows the app's "In Progress" screen instead of
+// the catalog. Set to true to bring the catalog back.
+const STORE_OPEN = false;
 const MAX_SWATCHES = 6;
 
 const EXCLUDED_CATEGORIES = new Set([
@@ -284,6 +290,32 @@ function ProductCard({ product }: { product: SquadLockerProduct }) {
   );
 }
 
+// ── In Progress ──────────────────────────────────────────────────────────────
+
+/** The app's "In Progress" screen (its Orders and Documents pages), animation and all. */
+function InProgress() {
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!box.current) return;
+    const anim = lottie.loadAnimation({
+      container: box.current,
+      renderer: 'svg',
+      loop: true,
+      autoplay: true,
+      path: '/assets/animations/animation4.json',
+    });
+    return () => anim.destroy();
+  }, []);
+
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center px-6 pb-24">
+      <div ref={box} className="w-[300px] h-[300px] max-w-full mb-10" aria-hidden="true" />
+      <p className="text-white font-lt-wave font-semibold text-[32px] leading-tight mb-4 text-center">In Progress</p>
+      <p className="text-[#ccc] font-lt-wave text-lg text-center">Check back soon</p>
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 const CATEGORIES = ['All', ...CATALOG_CATEGORIES];
@@ -308,6 +340,7 @@ export default function StorePage() {
         </div>
       </div>
 
+      {!STORE_OPEN ? <InProgress /> : (
       <div className="px-4 pb-16 flex-1">
         <div className="max-w-7xl mx-auto">
           <p className="text-gray-500 text-xs mb-8 pt-2">
@@ -349,6 +382,7 @@ export default function StorePage() {
 
         </div>
       </div>
+      )}
 
       <Footer />
     </div>
