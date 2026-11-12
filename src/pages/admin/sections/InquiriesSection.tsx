@@ -226,6 +226,11 @@ const InquiriesSection = () => {
     setExpandedId(null);
   };
 
+  // Replies go out from the Mail app for now: the in-dashboard reply window
+  // (write here, send through the send-inquiry-reply function) is switched
+  // off. Set to true to bring it back.
+  const IN_DASHBOARD_REPLIES = false;
+
   const openReply = (inq: Inquiry, e: React.MouseEvent) => {
     e.stopPropagation();
     setReplyModalId(inq.$id);
@@ -493,7 +498,7 @@ const InquiriesSection = () => {
                   </p>
                 )}
               </div>
-              {!inTrash && inq.email && (
+              {!inTrash && inq.email && (IN_DASHBOARD_REPLIES ? (
                 <button
                   onClick={(e) => openReply(inq, e)}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white/[0.07] border border-white/[0.10] text-white text-[12px] hover:bg-white/[0.12] transition-colors flex-shrink-0"
@@ -503,7 +508,18 @@ const InquiriesSection = () => {
                   </svg>
                   Reply
                 </button>
-              )}
+              ) : (
+                <button
+                  onClick={(e) => { e.stopPropagation(); openInMail(inq); }}
+                  title="Reply from your Mail app"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white/[0.07] border border-white/[0.10] text-white text-[12px] hover:bg-white/[0.12] transition-colors flex-shrink-0"
+                >
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
+                    <path d="M22 6C22 4.9 21.1 4 20 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V6ZM20 6L12 11L4 6H20ZM20 18H4V8L12 13L20 8V18Z" fill="currentColor"/>
+                  </svg>
+                  Open in Mail
+                </button>
+              ))}
             </div>
             <p className="text-white/80 text-[13px] leading-relaxed whitespace-pre-wrap">
               {inq.message || '(No message body)'}
@@ -662,7 +678,7 @@ const InquiriesSection = () => {
       )}
 
       {/* Reply modal */}
-      {replyModalId && (() => {
+      {IN_DASHBOARD_REPLIES && replyModalId && (() => {
         const inq = allDocs.find(i => i.$id === replyModalId);
         if (!inq) return null;
         const canSend = !!replyBody.trim() && !!inq.email;
