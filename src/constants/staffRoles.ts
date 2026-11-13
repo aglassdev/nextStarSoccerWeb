@@ -12,14 +12,15 @@
  * staff-access function.
  */
 
-/** Branch IDs. Seattle and San Diego get added here when they launch. */
-export type BranchId = 'dc';
+/** Branch IDs. Admin labels are admin<id>, e.g. "admindc", "adminsandiego". */
+export type BranchId = 'dc' | 'sandiego';
 
 export const BRANCH_NAMES: Record<BranchId, string> = {
   dc: 'DC',
+  sandiego: 'San Diego',
 };
 
-const BRANCH_IDS = Object.keys(BRANCH_NAMES) as BranchId[];
+export const BRANCH_IDS = Object.keys(BRANCH_NAMES) as BranchId[];
 
 export type StaffRole = 'superadmin' | 'admin' | 'none';
 

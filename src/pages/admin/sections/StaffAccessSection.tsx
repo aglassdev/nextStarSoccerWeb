@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { functions } from '../../../services/appwrite';
-import { BRANCH_NAMES, BranchId, StaffRole } from '../../../constants/staffRoles';
+import { BRANCH_IDS, BRANCH_NAMES, BranchId, StaffRole } from '../../../constants/staffRoles';
 
 // ── Staff Access (Super Administrators only) ───────────────────────────────────
 // Who can open the admin dashboards, and for which locations. Roles live on
@@ -30,8 +30,6 @@ async function call<T>(payload: object): Promise<T> {
   }
   return body as T;
 }
-
-const BRANCH_IDS = Object.keys(BRANCH_NAMES) as BranchId[];
 
 const ROLE_OPTIONS: { value: StaffRole; label: string; hint: string }[] = [
   { value: 'superadmin', label: 'Super Administrator', hint: 'Every location, plus Development' },

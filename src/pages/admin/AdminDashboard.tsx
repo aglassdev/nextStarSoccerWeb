@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { isAdminUser, isSuperAdmin, getAdminRoleLabel } from '../../constants/staffRoles';
+import { isAdminUser, isSuperAdmin, getAdminRoleLabel, getAdminBranches, BranchId, BRANCH_IDS, BRANCH_NAMES } from '../../constants/staffRoles';
+import { AdminBranchContext, BRANCHES_WITH_DATA } from '../../contexts/AdminBranchContext';
 import { databases, databaseId, collections } from '../../services/appwrite';
 import { Query } from 'appwrite';
 import { googleCalendarService } from '../../services/googleCalendar';
@@ -393,6 +394,32 @@ const AdminDashboard = () => {
     if (initialized && user && devBlocked) navigate('/admin/dashboard', { replace: true });
   }, [initialized, user, devBlocked]);
 
+  // Location the dashboard shows. Super Administrators switch it from the
+  // sidebar; an Administrator is pinned to their own location(s).
+  const allowedBranches = useMemo<BranchId[]>(() => {
+    const b = getAdminBranches(user);
+    return b === 'all' ? BRANCH_IDS : b;
+  }, [user]);
+  const [branch, setBranchState] = useState<BranchId>(() => {
+    try {
+      const saved = localStorage.getItem(BRANCH_KEY) as BranchId | null;
+      if (saved && BRANCH_IDS.includes(saved)) return saved;
+    } catch { /* storage blocked */ }
+    return 'dc';
+  });
+  useEffect(() => {
+    if (allowedBranches.length && !allowedBranches.includes(branch)) setBranchState(allowedBranches[0]);
+  }, [allowedBranches, branch]);
+  const setBranch = (b: BranchId) => {
+    setBranchState(b);
+    try { localStorage.setItem(BRANCH_KEY, b); } catch { /* storage blocked */ }
+  };
+  const branchState = useMemo(() => ({ branch, branches: allowedBranches, setBranch }), [branch, allowedBranches]);
+  const canSwitchBranch = allowedBranches.length > 1;
+  // Development is HQ-wide; every other section belongs to one location.
+  const sectionScoped = !!activeSection && SECTION_TO_GROUP[activeSection] !== 'Development';
+  const branchEmpty = !allowedBranches.includes(branch) || !BRANCHES_WITH_DATA.has(branch);
+
   useEffect(() => {
     if (!user) return;
     (async () => {
@@ -597,6 +624,7 @@ const AdminDashboard = () => {
   };
 
   return (
+    <AdminBranchContext.Provider value={branchState}>
     <div className="flex h-screen bg-[#0d0b09] text-white overflow-hidden">
 
       {/* ── Sidebar ─────────────────────────────────────────────────────────── */}
@@ -630,6 +658,13 @@ const AdminDashboard = () => {
             </svg>
           </button>
         </div>
+
+        {/* Location — Super Administrators switch between locations */}
+        {canSwitchBranch && (
+          <div className={`${sidebarCollapsed ? 'px-1' : 'px-3'} pt-3`}>
+            <LocationSwitch collapsed={sidebarCollapsed} branch={branch} branches={allowedBranches} onChange={setBranch} />
+          </div>
+        )}
 
         {/* Nav */}
         <nav className={`flex-1 ${sidebarCollapsed ? 'px-1' : 'px-3'} py-3 overflow-y-auto space-y-px`}>
@@ -759,10 +794,28 @@ const AdminDashboard = () => {
               </button>
               <span className="text-white/20 text-xs">—</span>
               <span className="text-white text-[13px]">{activeSectionLabel}</span>
+              {sectionScoped && canSwitchBranch && (
+                <span className="ml-auto text-[11px] text-white/40">{BRANCH_NAMES[branch]}</span>
+              )}
             </div>
-            {activeSection === 'messages'
-              ? <div className="flex-1 min-h-0">{sectionComponents[activeSection]}</div>
-              : devBlocked ? null : sectionComponents[activeSection]}
+            {sectionScoped && branchEmpty
+              ? <EmptyBranch branch={branch} what={activeSectionLabel}
+                  onShowDc={allowedBranches.includes('dc') ? () => setBranch('dc') : undefined} />
+              : activeSection === 'messages'
+                ? <div className="flex-1 min-h-0">{sectionComponents[activeSection]}</div>
+                : devBlocked ? null : sectionComponents[activeSection]}
+          </div>
+        ) : branchEmpty ? (
+          <div className="px-8 py-7 max-w-[1400px] mx-auto space-y-5">
+            <div>
+              <h1 className="text-white text-[22px] font-semibold tracking-tight leading-none">
+                {greeting}, {firstName}
+              </h1>
+              <p className="text-white/40 text-sm mt-1.5">{dateStr} · {BRANCH_NAMES[branch]}</p>
+            </div>
+            <div className="bg-[#1d1c21] rounded-lg border border-white/[0.08]">
+              <EmptyBranch branch={branch} onShowDc={allowedBranches.includes('dc') ? () => setBranch('dc') : undefined} />
+            </div>
           </div>
         ) : (
           <div className="px-8 py-7 max-w-[1400px] mx-auto space-y-5">
@@ -773,7 +826,7 @@ const AdminDashboard = () => {
                 <h1 className="text-white text-[22px] font-semibold tracking-tight leading-none">
                   {greeting}, {firstName}
                 </h1>
-                <p className="text-white/40 text-sm mt-1.5">{dateStr}</p>
+                <p className="text-white/40 text-sm mt-1.5">{dateStr}{canSwitchBranch ? ` · ${BRANCH_NAMES[branch]}` : ''}</p>
               </div>
               <div className="flex items-center gap-7">
                 <div className="text-right">
@@ -943,8 +996,73 @@ const AdminDashboard = () => {
         )}
       </main>
     </div>
+    </AdminBranchContext.Provider>
   );
 };
+
+// ─── Location switch (Super Administrators) ─────────────────────────────────
+const BRANCH_KEY = 'nss_admin_branch';
+
+const shortName = (b: BranchId) => {
+  const name = BRANCH_NAMES[b];
+  return name.includes(' ') ? name.split(' ').map(w => w[0]).join('') : name.slice(0, 2);
+};
+
+const LocationSwitch = ({ collapsed, branch, branches, onChange }: {
+  collapsed: boolean; branch: BranchId; branches: BranchId[]; onChange: (b: BranchId) => void;
+}) => {
+  if (collapsed) {
+    const next = branches[(branches.indexOf(branch) + 1) % branches.length];
+    return (
+      <button
+        onClick={() => onChange(next)}
+        title={`Location: ${BRANCH_NAMES[branch]} (click for ${BRANCH_NAMES[next]})`}
+        className="w-full flex items-center justify-center py-[7px] rounded-md text-white hover:bg-white/[0.05] text-[10px] font-semibold"
+      >
+        {shortName(branch)}
+      </button>
+    );
+  }
+  return (
+    <div>
+      <p className="px-1 mb-1.5 text-[10px] font-medium tracking-widest uppercase text-white/30">Location</p>
+      <div role="radiogroup" aria-label="Location" className="flex bg-white/[0.04] border border-white/[0.08] rounded-md p-0.5">
+        {branches.map(b => (
+          <button
+            key={b}
+            role="radio"
+            aria-checked={branch === b}
+            onClick={() => onChange(b)}
+            className={`flex-1 py-1 text-[11px] rounded transition-colors ${
+              branch === b ? 'bg-white text-black font-medium' : 'text-white/55 hover:text-white'
+            }`}
+          >
+            {BRANCH_NAMES[b]}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+/** A location with no records yet (nothing is tagged with it in the database). */
+const EmptyBranch = ({ branch, what, onShowDc }: { branch: BranchId; what?: string | null; onShowDc?: () => void }) => (
+  <div className="flex flex-col items-center justify-center text-center px-6 py-24">
+    <p className="text-white text-[15px] font-medium">
+      {what ? `No ${BRANCH_NAMES[branch]} ${what.toLowerCase()} yet` : `${BRANCH_NAMES[branch]} isn't live yet`}
+    </p>
+    <p className="text-white/40 text-[13px] mt-2 max-w-md leading-relaxed">
+      {BRANCH_NAMES[branch]}'s players, coaches, events, bills and messages show up here once its records
+      are set up in the database. Everything that exists today belongs to DC.
+    </p>
+    {onShowDc && (
+      <button onClick={onShowDc}
+        className="mt-5 px-4 py-2 text-[12px] text-white/70 hover:text-white border border-white/15 hover:border-white/30 rounded-lg transition-colors">
+        Switch to DC
+      </button>
+    )}
+  </div>
+);
 
 // ─── Appearance: System / Light / Dark ─────────────────────────────────────
 const THEME_OPTIONS: { value: AdminTheme; label: string }[] = [
