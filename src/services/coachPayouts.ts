@@ -22,28 +22,27 @@ const isHourlySettled = (startDateTime: string): boolean =>
 
 // ── Rates ─────────────────────────────────────────────────────────────────────
 
-// Everyone is hourly and paid on exact elapsed time, so 3h pays 3 × the rate.
-export const DEFAULT_HOURLY = 25;
-export const SENIOR_HOURLY = 50;
+// Group sessions pay $50 an hour unless a coach is listed below; camps pay
+// every coach $25 an hour. Hourly pay is on exact elapsed time, so 1.5h at
+// $50 is $75. (Nike camp coaches are paid separately, outside this page.)
+export const GROUP_HOURLY = 50;
+export const CAMP_HOURLY = 25;
 
-// Paid at the higher rate, with one exception: at a camp run by a head coach
-// they drop to the default rate like everyone else. Spelling variants are
-// listed because names also arrive from free-text calendar descriptions.
-const SENIOR_COACHES = new Set([
-  "ryan machado",
-  "jake steinman",
-  "noah satriano",
-  "michael elfman",
-  "michael anthony elfman",
-  "patrick mullins",
-  "brayden stevens",
-  "gonzalo carrasco",
+// Group sessions at $25 an hour
+const GROUP_HOURLY_25 = new Set([
+  "ahmed ben youssef",
+  "andrew stevens",
 ]);
+
+// Group sessions at a flat amount per session, however long it runs
+const GROUP_FLAT: Record<string, number> = {
+  "sophia cusack": 50,
+  "presley weiner": 50,
+};
 
 // Session leads. Neither draws an hourly rate: Gyau takes a share of the
 // profit of each eligible session, and Torres keeps whatever is left after
-// him, so Torres is left off this page entirely. He still counts as a head
-// coach being present, which is what sets the camp rate.
+// him, so Torres is left off this page entirely.
 const GYAU = "phillip gyau";
 const PAUL_TORRES = "paul torres";
 const HEAD_COACHES = new Set([GYAU, PAUL_TORRES]);
@@ -226,7 +225,6 @@ export interface CoachRate {
 export const rateForCoach = (
   coachName: string,
   event: CalendarEvent,
-  headCoachPresent: boolean
 ): CoachRate => {
   const key = normalizeName(coachName);
 
@@ -238,14 +236,14 @@ export const rateForCoach = (
   const hours = durationHours(event);
   const hoursLabel = hours ? `${hours % 1 ? hours.toFixed(1) : hours}h` : "duration unknown";
 
-  // The higher rate does not apply at a camp a head coach is running.
-  const campWithHead = isCamp(event.title) && headCoachPresent;
-  const rate = SENIOR_COACHES.has(key) && !campWithHead ? SENIOR_HOURLY : DEFAULT_HOURLY;
-  const note = SENIOR_COACHES.has(key) && campWithHead ? " (camp rate)" : "";
+  const camp = isCamp(event.title);
+  const flat = GROUP_FLAT[key];
+  if (!camp && flat !== undefined) return { amount: flat, basis: `$${flat} per session` };
 
+  const rate = camp ? CAMP_HOURLY : GROUP_HOURLY_25.has(key) ? 25 : GROUP_HOURLY;
   return {
     amount: hours ? hours * rate : rate,
-    basis: `${hoursLabel} × $${rate}${note}`,
+    basis: `${hoursLabel} × $${rate}${camp ? " (camp rate)" : ""}`,
   };
 };
 
@@ -417,7 +415,6 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
     if (attendees.length === 0 && expectedRevenue <= 0) continue;
 
     const headCoaches = attendees.filter(n => HEAD_COACHES.has(normalizeName(n)));
-    const headCoachPresent = headCoaches.length > 0;
 
     const otherCosts: SessionCost[] = [];
     const supportCoaches: SupportPay[] = [];
@@ -433,7 +430,7 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
       }
       const expense = SESSION_EXPENSES[key];
       if (expense) { otherCosts.push({ label: expense.label, amount: expense.amount }); continue; }
-      const rate = rateForCoach(name, payableEventFor(event.id, name, event), headCoachPresent);
+      const rate = rateForCoach(name, payableEventFor(event.id, name, event));
       const basis = isHourlySettled(event.startDateTime) ? `${rate.basis} · already paid` : rate.basis;
       supportCoaches.push({ name, amount: rate.amount ?? 0, basis });
     }

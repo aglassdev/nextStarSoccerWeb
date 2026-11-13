@@ -9,7 +9,7 @@ import {
 } from '../../../services/coachPayouts';
 
 // Bumped whenever the cached shape changes, so an old payload is never drawn.
-const CACHE_KEY = 'nss.coachPayouts.v13';
+const CACHE_KEY = 'nss.coachPayouts.v14';
 
 const ALL_MONTHS = 'all';
 
