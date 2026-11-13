@@ -37,6 +37,7 @@ const SENIOR_COACHES = new Set([
   "michael anthony elfman",
   "patrick mullins",
   "brayden stevens",
+  "gonzalo carrasco",
 ]);
 
 // Session leads. Neither draws an hourly rate: Gyau takes a share of the
