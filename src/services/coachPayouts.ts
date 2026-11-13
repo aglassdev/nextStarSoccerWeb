@@ -122,13 +122,37 @@ export const isPayableCalendar = (event: CalendarEvent): boolean =>
 // group sessions are not camps and still count.
 const GYAU_NO_SHARE_CAMP_DAYS = new Set(["2026-09-01", "2026-09-02", "2026-09-03", "2026-09-04"]);
 
-// Camps and group sessions are the only revenue Gyau shares in. Weekend
-// afternoons and privates are excluded whether or not he was there.
+// A special weekday-morning session (a holiday Monday, a no-school day) that
+// Gyau attended earns his 50% whatever it's called; one he missed only counts
+// if it's a camp or group session like any other.
+const isWeekdayMorning = (event: CalendarEvent): boolean => {
+  if (event.dateOnly) return false;
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York", weekday: "short", hour: "numeric", hour12: false,
+  }).formatToParts(new Date(event.startDateTime));
+  const weekday = parts.find(p => p.type === "weekday")?.value ?? "";
+  const hour = Number(parts.find(p => p.type === "hour")?.value ?? "0");
+  return !["Sat", "Sun"].includes(weekday) && hour < 12;
+};
+
+export const gyauEligibleWhenAttended = (event: CalendarEvent): boolean =>
+  gyauEligible(event) ||
+  (isWeekdayMorning(event) && !isPrivateOrAnalysis(event.title) &&
+    !(isCamp(event.title) && GYAU_NO_SHARE_CAMP_DAYS.has(easternDay(event.startDateTime))));
+
+const isFriday = (event: CalendarEvent): boolean =>
+  new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short" })
+    .format(new Date(event.startDateTime)) === "Fri";
+
+// Camps and group sessions are the only revenue Gyau shares in, and Friday
+// sessions always count, whatever they're called (some Fridays are titled
+// just "Next Star x Nike Evening"). Weekend afternoons and privates are
+// excluded whether or not he was there.
 export const gyauEligible = (event: CalendarEvent): boolean => {
   if (isPrivateOrAnalysis(event.title)) return false;
   if (isWeekendAfternoon(event)) return false;
   if (isCamp(event.title) && GYAU_NO_SHARE_CAMP_DAYS.has(easternDay(event.startDateTime))) return false;
-  return isCamp(event.title) || lower(event.title).includes("group");
+  return isCamp(event.title) || lower(event.title).includes("group") || isFriday(event);
 };
 
 const easternDay = (iso: string) =>
@@ -419,8 +443,8 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
 
     const expectedProfit = expectedRevenue - facilityCost - supportCost - otherCost;
 
-    const eligible = gyauEligible(event);
     const attended = attendees.some(n => normalizeName(n) === GYAU);
+    const eligible = attended ? gyauEligibleWhenAttended(event) : gyauEligible(event);
     const shareRate = attended ? GYAU_ATTENDED_SHARE : GYAU_ABSENT_SHARE;
     // Only sessions he has a row for count: one he missed that billed nothing
     // is no business of his.
