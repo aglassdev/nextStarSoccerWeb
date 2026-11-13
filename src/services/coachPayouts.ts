@@ -230,6 +230,9 @@ export interface SupportPay {
   name: string;
   amount: number;
   basis: string;
+  // Nike camp coaches: paid separately, so neither a cost to the session nor
+  // owed through this page. Listed so the day still shows who worked it.
+  paidSeparately?: boolean;
 }
 
 export interface SessionCost {
@@ -392,10 +395,16 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
 
     const otherCosts: SessionCost[] = [];
     const supportCoaches: SupportPay[] = [];
+    // Every coach at a Nike camp was paid separately, outside this page.
+    const nikeCamp = isNikeCamp(event.title);
     for (const name of attendees) {
       const key = normalizeName(name);
       if (HEAD_COACHES.has(key)) continue;
       if (NOT_PAID_HERE.has(key)) continue;
+      if (nikeCamp) {
+        supportCoaches.push({ name, amount: 0, basis: "Nike camp · paid separately", paidSeparately: true });
+        continue;
+      }
       const expense = SESSION_EXPENSES[key];
       if (expense) { otherCosts.push({ label: expense.label, amount: expense.amount }); continue; }
       const rate = rateForCoach(name, payableEventFor(event.id, name, event), headCoachPresent);
@@ -456,7 +465,7 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
     const supportNames = session.supportCoaches.map(c => c.name);
 
     // Settled hourly pay has no row of its own; it only reduces Gyau's share.
-    for (const support of isHourlySettled(session.startDateTime) ? [] : session.supportCoaches) {
+    for (const support of isHourlySettled(session.startDateTime) ? [] : session.supportCoaches.filter(s => !s.paidSeparately)) {
       rows.push({
         id: `${session.id}::${normalizeName(support.name)}`,
         eventId: session.eventId,
