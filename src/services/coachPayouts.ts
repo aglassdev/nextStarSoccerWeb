@@ -295,6 +295,7 @@ export interface SessionRow {
   expectedGyauShare: number;
   gyauAttended: boolean;
   gyauEligible: boolean;
+  players: number;      // players checked in (across a combined camp day's events)
 }
 
 // One row of the Coach view: what a single coach earned on a single session.
@@ -479,6 +480,7 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
       expectedGyauShare,
       gyauAttended: attended,
       gyauEligible: eligible,
+      players: new Set((memberIds.get(event.id) ?? [event.id]).flatMap(id => data.playersByEvent?.[id] ?? [])).size,
     });
   }
 

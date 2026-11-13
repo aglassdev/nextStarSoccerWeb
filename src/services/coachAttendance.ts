@@ -52,6 +52,8 @@ export interface CoachAttendanceData {
   revenueByEvent: Record<string, number>;
   // What it is due to bring in: everything billed for it, paid or not.
   expectedRevenueByEvent: Record<string, number>;
+  // The players checked in to each event (one key per person).
+  playersByEvent: Record<string, string[]>;
   builtAt: string;
 }
 
@@ -240,6 +242,14 @@ export async function buildCoachAttendance(): Promise<CoachAttendanceData> {
     if (status === "paid") revenueByEvent[item.eventId] = (revenueByEvent[item.eventId] || 0) + price;
   }
 
+  const playerSets: Record<string, Set<string>> = {};
+  for (const c of playerCheckins) {
+    if (!c.eventID) continue;
+    const who = c.userId || c.onBehalfOfProxyId || `${c.firstName || ""} ${c.lastName || ""}`.trim();
+    if (who) (playerSets[c.eventID] ||= new Set()).add(who);
+  }
+  const playersByEvent = Object.fromEntries(Object.entries(playerSets).map(([k, v]) => [k, [...v]]));
+
   const sortByDate = (a: CoachSession, b: CoachSession) =>
     Date.parse(b.startDateTime) - Date.parse(a.startDateTime);
   const coaches = Array.from(coachRows.values());
@@ -259,6 +269,6 @@ export async function buildCoachAttendance(): Promise<CoachAttendanceData> {
 
   return {
     excludedEventIds, facilityCosts, coaches, events, coachesByEvent,
-    revenueByEvent, expectedRevenueByEvent, builtAt: new Date().toISOString(),
+    revenueByEvent, expectedRevenueByEvent, playersByEvent, builtAt: new Date().toISOString(),
   };
 }

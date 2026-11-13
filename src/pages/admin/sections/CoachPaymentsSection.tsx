@@ -9,7 +9,7 @@ import {
 } from '../../../services/coachPayouts';
 
 // Bumped whenever the cached shape changes, so an old payload is never drawn.
-const CACHE_KEY = 'nss.coachPayouts.v11';
+const CACHE_KEY = 'nss.coachPayouts.v12';
 
 const ALL_MONTHS = 'all';
 
@@ -327,7 +327,7 @@ const CoachPaymentsSection = () => {
           <p className="text-white/50 text-sm mt-3">Pulling attendance, facilities and session revenue…</p>
         </div>
       ) : view === 'payouts' && table ? (
-        <CoachPayoutsView rows={table.rows} recordedBy={user?.name || user?.email?.split('@')[0]} />
+        <CoachPayoutsView rows={table.rows} sessions={table.sessions} recordedBy={user?.name || user?.email?.split('@')[0]} />
       ) : (
         <>
           {/* Per-coach profit. Paul Torres takes whatever is left after

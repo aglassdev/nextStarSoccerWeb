@@ -80,6 +80,8 @@ export const collections = {
   eventMeta: import.meta.env.VITE_APPWRITE_EVENT_META_COLLECTION_ID || 'event_meta',
   // What each coach has been paid (Coach Payments → Payouts). Admins only.
   coachPayouts: 'coach_payouts',
+  coachAdjustments: 'coach_adjustments', // deductions (late, no-show) per coach per month
+  coachStatements: 'coach_statements',   // monthly statements emailed
 };
 
 // Appwrite Function IDs for Stripe/payment processing (shared with the mobile app).

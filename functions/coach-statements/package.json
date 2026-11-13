@@ -1,0 +1,11 @@
+{
+  "name": "coach-statements",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "src/main.js",
+  "description": "Builds coaches' monthly statement PDFs (Phillip Gyau's as a session share report) and emails them",
+  "dependencies": {
+    "nodemailer": "^6.9.7",
+    "pdfmake": "^0.2.20"
+  }
+}

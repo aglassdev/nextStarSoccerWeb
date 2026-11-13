@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { PayoutRow } from '../../../services/coachPayouts';
+import type { PayoutRow, SessionRow } from '../../../services/coachPayouts';
+import StatementsPanel from './StatementsPanel';
 import {
-  CoachBalance, PayoutKind, PayoutRecord, QuickBooksStatus, addPayoutRecord, coachBalances, deletePayoutRecord,
-  listPayoutRecords, quickbooksAuthUrl, quickbooksDisconnect, quickbooksStatus, quickbooksSync,
+  Adjustment, CoachBalance, PayoutKind, PayoutRecord, QuickBooksStatus, addPayoutRecord, coachBalances, deletePayoutRecord,
+  listAdjustments, listPayoutRecords, quickbooksAuthUrl, quickbooksDisconnect, quickbooksStatus, quickbooksSync,
 } from '../../../services/coachPayoutLedger';
 
 // Coach Payments → Payouts: what each coach has earned, what they've been
@@ -210,12 +211,14 @@ function RecordModal({ coaches, initialCoach, recordedBy, onClose, onSaved }: {
   );
 }
 
-export default function CoachPayoutsView({ rows, recordedBy }: { rows: PayoutRow[]; recordedBy?: string }) {
+export default function CoachPayoutsView({ rows, sessions, recordedBy }: { rows: PayoutRow[]; sessions: SessionRow[]; recordedBy?: string }) {
   const [records, setRecords] = useState<PayoutRecord[] | null>(null);
+  const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
   const [error, setError] = useState('');
   const [modalFor, setModalFor] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    listAdjustments().then(setAdjustments).catch(() => {});
     try {
       setRecords(await listPayoutRecords());
       setError('');
@@ -226,7 +229,7 @@ export default function CoachPayoutsView({ rows, recordedBy }: { rows: PayoutRow
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  const balances: CoachBalance[] = useMemo(() => coachBalances(rows, records ?? []), [rows, records]);
+  const balances: CoachBalance[] = useMemo(() => coachBalances(rows, records ?? [], adjustments), [rows, records, adjustments]);
   const coaches = useMemo(() => balances.map(b => b.coach).sort((a, b) => a.localeCompare(b)), [balances]);
   const totals = useMemo(() => balances.reduce(
     (t, b) => ({
@@ -294,6 +297,7 @@ export default function CoachPayoutsView({ rows, recordedBy }: { rows: PayoutRow
                 <td className="px-3 py-3 text-right text-[12px]">
                   <span className="text-white">{fmtMoney(b.income)}</span>
                   {differs(b.income, b.expectedIncome) && <p className="text-white/30 text-[10px]">{fmtMoney(b.expectedIncome)} exp.</p>}
+                  {b.deductions > 0 && <p className="text-red-300/70 text-[10px]">after {fmtMoney(b.deductions)} deducted</p>}
                 </td>
                 <td className="px-3 py-3 text-right text-[12px]">
                   <span className="text-emerald-300">{fmtMoney(b.paid)}</span>
@@ -315,6 +319,8 @@ export default function CoachPayoutsView({ rows, recordedBy }: { rows: PayoutRow
           </tbody>
         </table>
       </div>
+
+      <StatementsPanel rows={rows} sessions={sessions} adjustments={adjustments} setAdjustments={setAdjustments} recordedBy={recordedBy} />
 
       <div>
         <div className="flex items-center justify-between mb-2">
