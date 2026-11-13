@@ -68,6 +68,7 @@ const HIDDEN_COACHES = new Set(["coach testing"]);
 const COACH_ALIASES: Record<string, string> = {
   "coach kareem": "Karim Metwalli",
   "kareem metwalli": "Karim Metwalli",
+  "kieran": "Kieran Bartlett",
 };
 
 export const isHiddenCoach = (name: string): boolean =>
