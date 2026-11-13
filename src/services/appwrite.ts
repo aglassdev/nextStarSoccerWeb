@@ -78,6 +78,8 @@ export const collections = {
   serviceStatus: import.meta.env.VITE_APPWRITE_SERVICE_STATUS_COLLECTION_ID || 'service_status',
   // Per-event fields that Google Calendar has nowhere to store, keyed by event id.
   eventMeta: import.meta.env.VITE_APPWRITE_EVENT_META_COLLECTION_ID || 'event_meta',
+  // What each coach has been paid (Coach Payments → Payouts). Admins only.
+  coachPayouts: 'coach_payouts',
 };
 
 // Appwrite Function IDs for Stripe/payment processing (shared with the mobile app).

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { buildCoachAttendance } from '../../../services/coachAttendance';
+import { useAuth } from '../../../contexts/AuthContext';
+import CoachPayoutsView from './CoachPayoutsView';
 import {
   computePayoutTable, summarizePayouts, easternMonthKey, easternMonthLabel,
   PayoutRow, PayoutTable, SessionRow,
@@ -31,7 +33,7 @@ const fmtDateTime = (iso: string, dateOnly?: boolean) => {
   return `${date} · ${time}`;
 };
 
-type View = 'session' | 'coach';
+type View = 'session' | 'coach' | 'payouts';
 
 type SessionSortKey = 'title' | 'startDateTime' | 'headCoaches' | 'supportCoaches' | 'facility' | 'facilityCost' | 'revenue' | 'profit';
 type CoachSortKey = 'coach' | 'sessionTitle' | 'startDateTime' | 'facility' | 'supportCoaches' | 'supportCost' | 'payment';
@@ -111,6 +113,7 @@ const Expected = ({ value, of }: { value: number; of: number }) =>
 
 const CoachPaymentsSection = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [table, setTable] = useState<PayoutTable | null>(null);
   const [error, setError] = useState('');
   const [view, setView] = useState<View>('session');
@@ -282,8 +285,9 @@ const CoachPaymentsSection = () => {
       <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
         <h1 className="text-white text-xl font-semibold">Coach Payments</h1>
         <div className="flex items-center gap-2">
-          {/* Narrows the table and re-totals every coach card to that month. */}
-          <select
+          {/* Narrows the table and re-totals every coach card to that month.
+              Payouts always covers every month. */}
+          {view !== 'payouts' && <select
             value={month}
             onChange={e => setMonth(e.target.value)}
             className={`px-3 py-1.5 text-[12px] rounded-lg border outline-none transition-colors ${
@@ -294,9 +298,9 @@ const CoachPaymentsSection = () => {
           >
             <option value={ALL_MONTHS}>All months</option>
             {months.map(m => <option key={m} value={m}>{easternMonthLabel(m)}</option>)}
-          </select>
+          </select>}
           <div className="flex bg-white/[0.04] border border-white/10 rounded-lg p-0.5">
-            {([['session', 'Session'], ['coach', 'Coach']] as [View, string][]).map(([v, label]) => (
+            {([['session', 'Session'], ['coach', 'Coach'], ['payouts', 'Payouts']] as [View, string][]).map(([v, label]) => (
               <button
                 key={v}
                 onClick={() => switchView(v)}
@@ -320,6 +324,8 @@ const CoachPaymentsSection = () => {
           <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin mx-auto" />
           <p className="text-white/50 text-sm mt-3">Pulling attendance, facilities and session revenue…</p>
         </div>
+      ) : view === 'payouts' && table ? (
+        <CoachPayoutsView rows={table.rows} recordedBy={user?.name || user?.email?.split('@')[0]} />
       ) : (
         <>
           {/* Per-coach profit. Paul Torres takes whatever is left after
