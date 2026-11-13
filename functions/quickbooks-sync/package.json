@@ -1,0 +1,7 @@
+{
+  "name": "quickbooks-sync",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "src/main.js",
+  "description": "Records coach payments made in QuickBooks on Coach Payments → Payouts"
+}

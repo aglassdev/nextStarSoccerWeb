@@ -1,5 +1,5 @@
 import { ID, Query } from 'appwrite';
-import { databases, databaseId, collections } from './appwrite';
+import { databases, databaseId, collections, functions } from './appwrite';
 import { normalizeName } from './coachAttendance';
 import type { PayoutRow } from './coachPayouts';
 
@@ -22,6 +22,10 @@ export interface PayoutRecord {
   paidThrough?: string | null; // YYYY-MM-DD
   note?: string | null;
   recordedBy?: string | null;
+  // Set on payments read from QuickBooks
+  source?: 'quickbooks' | null;
+  paidOn?: string | null; // YYYY-MM-DD
+  externalId?: string | null;
 }
 
 export async function listPayoutRecords(): Promise<PayoutRecord[]> {
@@ -94,3 +98,29 @@ export function coachBalances(rows: PayoutRow[], records: PayoutRecord[]): Coach
   }
   return out.sort((a, b) => b.expectedOwed - a.expectedOwed || a.coach.localeCompare(b.coach));
 }
+
+// ── QuickBooks (the quickbooks-sync function) ────────────────────────────────
+
+export interface QuickBooksStatus {
+  configured: boolean;
+  webhookReady: boolean;
+  connected: boolean;
+  companyName: string;
+  lastSyncAt: string | null;
+  lastResult: { at: string; recorded: number; removed: number; unmatched: Record<string, number>; full: boolean } | null;
+  syncFrom: string;
+}
+
+async function quickbooks<T>(payload: object): Promise<T> {
+  const res = await functions.createExecution('quickbooks-sync', JSON.stringify(payload), false);
+  let body: any = {};
+  try { body = JSON.parse(res.responseBody || '{}'); } catch { /* not JSON */ }
+  if (res.status !== 'completed' || !body.success) throw new Error(body.error || "QuickBooks didn't respond. Try again.");
+  return body as T;
+}
+
+export const quickbooksStatus = () => quickbooks<QuickBooksStatus>({ route: 'status' });
+export const quickbooksAuthUrl = () => quickbooks<{ url: string }>({ route: 'authUrl' }).then(r => r.url);
+export const quickbooksSync = (full = false) =>
+  quickbooks<{ result: NonNullable<QuickBooksStatus['lastResult']> }>({ route: 'sync', full }).then(r => r.result);
+export const quickbooksDisconnect = () => quickbooks<object>({ route: 'disconnect' });

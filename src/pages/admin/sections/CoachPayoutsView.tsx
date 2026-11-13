@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { PayoutRow } from '../../../services/coachPayouts';
 import {
-  CoachBalance, PayoutKind, PayoutRecord, addPayoutRecord, coachBalances, deletePayoutRecord, listPayoutRecords,
+  CoachBalance, PayoutKind, PayoutRecord, QuickBooksStatus, addPayoutRecord, coachBalances, deletePayoutRecord,
+  listPayoutRecords, quickbooksAuthUrl, quickbooksDisconnect, quickbooksStatus, quickbooksSync,
 } from '../../../services/coachPayoutLedger';
 
 // Coach Payments → Payouts: what each coach has earned, what they've been
@@ -14,6 +15,100 @@ const fmtDay = (ymd: string) =>
   new Date(`${ymd}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 const todayEastern = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date());
 const differs = (a: number, b: number) => Math.abs(a - b) >= 0.005;
+
+const fmtWhen = (iso: string) =>
+  new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+
+// Where an admin lands back from Intuit's sign-in (?quickbooks=…)
+const RETURN_MESSAGES: Record<string, [string, boolean]> = {
+  connected: ['QuickBooks is connected. Coach payments from QuickBooks will now show up here.', false],
+  access_denied: ['QuickBooks wasn\'t connected: access was declined.', true],
+  expired: ['That QuickBooks sign-in expired. Try connecting again.', true],
+  error: ['QuickBooks couldn\'t be connected. Try again.', true],
+};
+
+/** The QuickBooks connection: connect, sync now, and what the last sync did. */
+function QuickBooksBar({ onSynced }: { onSynced: () => void }) {
+  const [status, setStatus] = useState<QuickBooksStatus | null>(null);
+  const [busy, setBusy] = useState('');
+  const [error, setError] = useState('');
+  const [notice] = useState(() => {
+    try {
+      const v = new URLSearchParams(window.location.search).get('quickbooks');
+      return v ? (RETURN_MESSAGES[v] ?? RETURN_MESSAGES.error) : null;
+    } catch { return null; }
+  });
+
+  const load = useCallback(async () => {
+    try { setStatus(await quickbooksStatus()); setError(''); }
+    catch (e: any) { setError(e?.message || "Couldn't check QuickBooks."); }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const run = async (what: string, fn: () => Promise<unknown>) => {
+    setBusy(what); setError('');
+    try { await fn(); await load(); onSynced(); }
+    catch (e: any) { setError(e?.message || 'Something went wrong.'); }
+    finally { setBusy(''); }
+  };
+  const connect = () => run('connect', async () => { window.location.href = await quickbooksAuthUrl(); });
+  const disconnect = () => {
+    if (!window.confirm('Disconnect QuickBooks? Payments already recorded stay; new ones stop coming in.')) return;
+    run('disconnect', quickbooksDisconnect);
+  };
+
+  const unmatched = Object.entries(status?.lastResult?.unmatched ?? {});
+  const btn = 'px-3 py-1.5 text-[12px] rounded-lg transition-colors disabled:opacity-40';
+
+  return (
+    <div className="bg-[#0e0e0e] border border-[#1c1c1c] rounded-xl px-4 py-3">
+      {notice && (
+        <p className={`text-[12px] mb-2 ${notice[1] ? 'text-red-300' : 'text-emerald-300'}`}>{notice[0]}</p>
+      )}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-white text-[13px] font-medium">QuickBooks</p>
+          <p className="text-white/45 text-[12px]">
+            {!status ? 'Checking…'
+              : !status.configured ? "Not set up yet: the Intuit app's keys need adding to the quickbooks-sync function."
+              : !status.connected ? 'Not connected. Connect it to record coach payments automatically.'
+              : <>Connected{status.companyName ? ` to ${status.companyName}` : ''}
+                  {status.lastSyncAt ? ` · last checked ${fmtWhen(status.lastSyncAt)}` : ''}
+                  {` · payments from ${fmtDay(status.syncFrom)} on`}
+                  {!status.webhookReady && ' · checks daily (instant updates need the webhook token)'}</>}
+          </p>
+        </div>
+        {status?.configured && (
+          <div className="flex items-center gap-2">
+            {status.connected ? (
+              <>
+                <button onClick={() => run('sync', () => quickbooksSync())} disabled={!!busy}
+                  className={`${btn} bg-white text-black font-medium hover:bg-white/90`}>
+                  {busy === 'sync' ? 'Checking…' : 'Sync now'}
+                </button>
+                <button onClick={disconnect} disabled={!!busy}
+                  className={`${btn} text-white/50 hover:text-white border border-white/10 hover:border-white/25`}>
+                  Disconnect
+                </button>
+              </>
+            ) : (
+              <button onClick={connect} disabled={!!busy}
+                className={`${btn} bg-white text-black font-medium hover:bg-white/90`}>
+                {busy === 'connect' ? 'Opening QuickBooks…' : 'Connect QuickBooks'}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+      {unmatched.length > 0 && (
+        <p className="text-white/35 text-[11px] mt-2">
+          Not matched to a coach (left out): {unmatched.map(([name, n]) => `${name}${n > 1 ? ` ×${n}` : ''}`).join(', ')}
+        </p>
+      )}
+      {error && <p className="text-red-300 text-[12px] mt-2">{error}</p>}
+    </div>
+  );
+}
 
 const recordLabel = (r: PayoutRecord) =>
   r.kind === 'paidThrough' && r.paidThrough ? `Paid through ${fmtDay(r.paidThrough)}` : fmtMoney(r.amount || 0);
@@ -163,6 +258,8 @@ export default function CoachPayoutsView({ rows, recordedBy }: { rows: PayoutRow
     <div className="space-y-5">
       {error && <div className="bg-red-500/10 border border-red-500/30 text-red-300 text-sm rounded-lg px-4 py-2.5">{error}</div>}
 
+      <QuickBooksBar onSynced={load} />
+
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         {([
           ['Income', totals.income, totals.expectedIncome, 'text-white'],
@@ -233,10 +330,16 @@ export default function CoachPayoutsView({ rows, recordedBy }: { rows: PayoutRow
           ) : records.map(r => (
             <div key={r.$id} className="px-4 py-2.5 flex items-center gap-3">
               <p className="text-white/35 text-[11px] w-24 flex-shrink-0">
-                {new Date(r.$createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                {r.paidOn ? fmtDay(r.paidOn)
+                  : new Date(r.$createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
               </p>
               <p className="text-white text-[12px] font-medium w-44 flex-shrink-0 truncate">{r.coach}</p>
-              <p className="text-emerald-300 text-[12px] w-48 flex-shrink-0">{recordLabel(r)}</p>
+              <p className="text-emerald-300 text-[12px] w-48 flex-shrink-0">
+                {recordLabel(r)}
+                {r.source === 'quickbooks' && (
+                  <span className="ml-2 text-[9px] uppercase tracking-wider text-sky-300/80 bg-sky-500/10 border border-sky-500/20 rounded px-1.5 py-0.5">QuickBooks</span>
+                )}
+              </p>
               <p className="text-white/45 text-[12px] flex-1 min-w-0 truncate">
                 {r.note}{r.recordedBy && <span className="text-white/25">{r.note ? ' · ' : ''}by {r.recordedBy}</span>}
               </p>

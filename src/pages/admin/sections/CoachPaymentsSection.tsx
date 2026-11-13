@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { buildCoachAttendance } from '../../../services/coachAttendance';
 import { useAuth } from '../../../contexts/AuthContext';
 import CoachPayoutsView from './CoachPayoutsView';
@@ -116,7 +116,9 @@ const CoachPaymentsSection = () => {
   const { user } = useAuth();
   const [table, setTable] = useState<PayoutTable | null>(null);
   const [error, setError] = useState('');
-  const [view, setView] = useState<View>('session');
+  // ?view=payouts opens the Payouts tab (where QuickBooks sends admins back)
+  const [searchParams] = useSearchParams();
+  const [view, setView] = useState<View>(() => (searchParams.get('view') === 'payouts' ? 'payouts' : 'session'));
   const [month, setMonth] = useState<string>(ALL_MONTHS);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const [presence, setPresence] = useState<Presence>('all');
