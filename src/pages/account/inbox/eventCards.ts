@@ -244,6 +244,8 @@ export async function bookAcceptedSession(msg: ChatMessage, thread: ChatMessage[
     try {
       const body = await callCalendarFunction('createEvent', {
         calendarType,
+        // The accepted request this books, so the family is allowed to add it.
+        requestMessageId: msg.$id,
         eventData: {
           title: calendarTitle,
           location: msg.eventLocation || '',

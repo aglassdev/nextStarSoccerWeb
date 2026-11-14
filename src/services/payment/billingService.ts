@@ -234,7 +234,31 @@ export async function getBill(billId: string): Promise<Bill> {
   return doc as unknown as Bill;
 }
 
-// ── Mark a bill as paid (applies late fee if overdue) ──────────────────────────
+// ── Wait for Stripe to settle bills ─────────────────────────────────────────────
+// Only the Stripe webhook marks bills paid/processing (with any promo or late
+// fee the server approved) and sends the receipt. After paying, wait up to
+// ~15s so the bills already show as settled.
+export async function waitForBillsSettled(
+  billIds: string[],
+  statuses: string[] = ['paid'],
+  timeoutMs = 15000,
+): Promise<boolean> {
+  const ids = billIds.filter(Boolean);
+  if (ids.length === 0) return true;
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      const docs = await Promise.all(ids.map((id) => databases.getDocument(databaseId, collections.bills, id)));
+      if (docs.every((d: any) => statuses.includes(d.status))) return true;
+    } catch {
+      // keep waiting
+    }
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+  return false;
+}
+
+// ── Mark a bill as paid (admin tools only; customers' bills settle via Stripe) ──
 export async function markBillAsPaid(billId: string, paymentMethod: string): Promise<Bill> {
   const paidAt = new Date().toISOString();
   const bill = await getBill(billId);

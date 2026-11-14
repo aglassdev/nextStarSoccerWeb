@@ -10,19 +10,16 @@ import {
   getBill,
   getBillItems,
   getBillOwnerFirstNames,
-  markBillAsPaid,
-  markBillProcessing,
+  waitForBillsSettled,
   formatMoney,
   formatSessionDate,
   billTitle,
   calculateLateFee,
-  applyBillCoupon,
 } from '../../services/payment/billingService';
 import { findHardcodedCode, DiscountableItem } from '../../constants/discountCodes';
 import {
   createPaymentIntent,
   listPaymentMethodsDetailed,
-  sendPaymentReceipt,
   resolveUserStripeContext,
   SavedPaymentMethod,
 } from '../../services/payment/paymentApi';
@@ -147,14 +144,6 @@ const CheckoutForm = ({
     setPromoInput('');
   };
 
-  // Put the discount on the bill before it's marked paid/processing, so the
-  // receipt (which reads the bill back) shows it.
-  const recordCoupon = async (billId: string) => {
-    const discount = couponByBill[billId] || 0;
-    if (!appliedCoupon || discount <= 0) return;
-    try { await applyBillCoupon(billId, discount); } catch (e) { console.error(e); }
-  };
-
   // ── Money math ──
   const subtotal = useMemo(() => bills.reduce((s, b) => s + b.totalAmount, 0), [bills]);
   const lateFeeTotal = useMemo(() => bills.reduce((s, b) => s + b.lateFee, 0), [bills]);
@@ -194,6 +183,7 @@ const CheckoutForm = ({
         billMonth: bills[0]?.monthName || '',
         itemCount: String(bills.reduce((s, b) => s + (b.items?.length || 0), 0)),
       },
+      appliedCoupon: appliedCoupon || undefined,
       existingStripeCustomerId: stripeCustomerId || undefined,
       userInfo: { userId: user.$id, email: user.email, name: user.name, userType: userType || undefined },
     });
@@ -202,23 +192,14 @@ const CheckoutForm = ({
     return clientSecret;
   };
 
-  const settlePaid = async (methodLabel: string) => {
-    await Promise.all(
-      bills.map(async (b) => {
-        await recordCoupon(b.$id);
-        try { await markBillAsPaid(b.$id, methodLabel); } catch (e) { console.error(e); }
-        await sendPaymentReceipt(b.$id, user!.$id);
-      }),
-    );
+  // Stripe's webhook settles the bills and emails the receipts; the website
+  // never marks a bill paid itself. These just wait for that to land.
+  const settlePaid = async (_methodLabel: string) => {
+    await waitForBillsSettled(bills.map((b) => b.$id));
   };
 
   const markAllProcessing = () =>
-    Promise.all(
-      bills.map(async (b) => {
-        await recordCoupon(b.$id);
-        await markBillProcessing(b.$id, 'bank transfer').catch(() => {});
-      }),
-    );
+    waitForBillsSettled(bills.map((b) => b.$id), ['processing', 'paid']);
 
   const handlePay = async () => {
     if (!user) return;
@@ -249,7 +230,8 @@ const CheckoutForm = ({
             billMonth: bills[0]?.monthName || '',
             itemCount: String(bills.reduce((s, b) => s + (b.items?.length || 0), 0)),
           },
-          existingStripeCustomerId: stripeCustomerId || undefined,
+          appliedCoupon: appliedCoupon || undefined,
+      existingStripeCustomerId: stripeCustomerId || undefined,
           userInfo: {
             userId: user.$id,
             email: user.email,

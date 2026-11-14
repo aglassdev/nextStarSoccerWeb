@@ -5,7 +5,10 @@ import { ViteImageOptimizer } from 'vite-plugin-image-optimizer'
 import { seoPages } from './seoPages'
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
+  // Production builds drop every console.* call and debugger statement, so
+  // nothing (emails, ids, tokens) is printed in visitors' browsers.
+  esbuild: mode === 'production' ? { drop: ['console', 'debugger'] } : undefined,
   plugins: [
     react(),
     ViteImageOptimizer({
@@ -32,4 +35,4 @@ export default defineConfig({
   server: {
     port: 3000,
   },
-})
+}))

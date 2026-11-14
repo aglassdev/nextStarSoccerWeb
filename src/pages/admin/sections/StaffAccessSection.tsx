@@ -15,6 +15,8 @@ interface StaffAccount {
   lastActive: string | null;
   role: StaffRole;
   branches: BranchId[];
+  /** Has the coach label (coach tools; sees only their own chats and analyses). */
+  coach: boolean;
 }
 
 async function call<T>(payload: object): Promise<T> {
@@ -61,6 +63,7 @@ const AccessRow = ({ account, isYou, onSaved }: {
 }) => {
   const [role, setRole] = useState<StaffRole>(account.role);
   const [branches, setBranches] = useState<BranchId[]>(account.branches.length ? account.branches : ['dc']);
+  const [coach, setCoach] = useState<boolean>(account.coach);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [savedNote, setSavedNote] = useState('');
@@ -68,10 +71,12 @@ const AccessRow = ({ account, isYou, onSaved }: {
   useEffect(() => {
     setRole(account.role);
     setBranches(account.role === 'admin' && account.branches.length ? account.branches : ['dc']);
+    setCoach(account.coach);
   }, [account]);
 
   const effectiveBranches = role === 'admin' ? branches : [];
   const changed =
+    coach !== account.coach ||
     role !== account.role ||
     (role === 'admin' && [...effectiveBranches].sort().join() !== [...account.branches].sort().join());
 
@@ -85,12 +90,12 @@ const AccessRow = ({ account, isYou, onSaved }: {
     setSavedNote('');
     if (role === 'admin' && !branches.length) { setError('Tick at least one location.'); return; }
     const who = account.name || account.email;
-    if (role === 'none' && !window.confirm(`Remove all admin access for ${who}?`)) return;
+    if (role === 'none' && account.role !== 'none' && !window.confirm(`Remove all admin access for ${who}?`)) return;
     if (role === 'superadmin' && account.role !== 'superadmin'
       && !window.confirm(`Make ${who} a Super Administrator? They'll see every location and can change anyone's access.`)) return;
     setSaving(true);
     try {
-      const res = await call<{ account: StaffAccount }>({ action: 'set', userId: account.userId, role, branches: effectiveBranches });
+      const res = await call<{ account: StaffAccount }>({ action: 'set', userId: account.userId, role, branches: effectiveBranches, coach });
       onSaved(res.account);
       setSavedNote('Saved. It applies the next time they open the app or reload the site.');
     } catch (e: any) {
@@ -118,7 +123,7 @@ const AccessRow = ({ account, isYou, onSaved }: {
               ? 'border-white/15 text-white/70 bg-white/[0.04]'
               : 'border-white/10 text-white/35'
         }`}>
-          {roleTitle(account)}
+          {roleTitle(account)}{account.coach ? ' · Coach' : ''}
         </span>
       </div>
 
@@ -149,6 +154,11 @@ const AccessRow = ({ account, isYou, onSaved }: {
               ))}
             </div>
           )}
+
+          <label className="flex items-center gap-1.5 text-[12px] text-white/80 cursor-pointer">
+            <input type="checkbox" checked={coach} onChange={() => { setCoach((c) => !c); setSavedNote(''); }} className="accent-white" />
+            Coach
+          </label>
 
           <span className="text-white/25 text-[11px]">{ROLE_OPTIONS.find((o) => o.value === role)?.hint}</span>
 
@@ -198,7 +208,7 @@ const StaffAccessSection = () => {
   const onSaved = (a: StaffAccount) => {
     setStaff((prev) => {
       const rest = prev.filter((s) => s.userId !== a.userId);
-      return a.role === 'none' ? rest : [...rest, a].sort((x, y) =>
+      return a.role === 'none' && !a.coach ? rest : [...rest, a].sort((x, y) =>
         (x.role === 'superadmin' ? 0 : 1) - (y.role === 'superadmin' ? 0 : 1)
         || (x.name || x.email).localeCompare(y.name || y.email));
     });
@@ -228,7 +238,7 @@ const StaffAccessSection = () => {
           <span className="text-white/25">{'// '}</span>staff access
         </h2>
         <p className="text-white/25 text-[11px] font-mono mt-0.5">
-          Who can open the admin dashboards, and for which locations. Administrators only see their own locations.
+          Who can open the admin dashboards, and for which locations. Administrators only see their own locations. Coaches only see their own chats and video analyses.
         </p>
       </div>
 
@@ -239,7 +249,7 @@ const StaffAccessSection = () => {
       {/* Current staff */}
       <div className="bg-[#131211] border border-white/[0.07] rounded-xl overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
-          <p className="text-[10px] font-mono tracking-widest text-white/35 uppercase">Admin accounts</p>
+          <p className="text-[10px] font-mono tracking-widest text-white/35 uppercase">Admins and coaches</p>
           {!loading && <p className="text-[11px] font-mono text-white/30">{staff.length}</p>}
         </div>
         {loading ? (
