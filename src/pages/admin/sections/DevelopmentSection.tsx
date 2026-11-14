@@ -1,10 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Query } from 'appwrite';
-import { databases, databaseId, collections } from '../../../services/appwrite';
+import { databases, databaseId, collections, functions } from '../../../services/appwrite';
 
-const ENDPOINT = import.meta.env.VITE_APPWRITE_ENDPOINT as string;
-const PROJECT_ID = import.meta.env.VITE_APPWRITE_PROJECT_ID as string;
-const API_KEY = import.meta.env.VITE_APPWRITE_API_KEY as string | undefined;
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 const fmtNum = (n: number) => {
@@ -85,72 +82,18 @@ const DevelopmentSection = () => {
       );
       setCollCounts(counts);
 
-      if (!API_KEY) { setApiKeyMissing(true); setLoading(false); return; }
-
-      const h = { 'x-appwrite-project': PROJECT_ID, 'x-appwrite-key': API_KEY };
-
-      // ── 2. Auth users ──────────────────────────────────────────────────
+      // ── 2. Auth users, functions, storage — from the dev-overview function
+      // (Super Administrators only; no server key in the browser).
       try {
-        const r = await fetch(`${ENDPOINT}/users?limit=1`, { headers: h });
-        if (r.ok) {
-          const d = await r.json();
-          setAuthUsers(d.total ?? 0);
-        }
-      } catch { /* silent */ }
-
-      // ── 3. Functions list + per-function execution counts ──────────────
-      try {
-        const fnRes = await fetch(`${ENDPOINT}/functions?limit=25`, { headers: h });
-        if (fnRes.ok) {
-          const fnData = await fnRes.json();
-          const fnList: any[] = fnData.functions ?? [];
-
-          const withExec = await Promise.all(
-            fnList.map(async (fn): Promise<FunctionStat> => {
-              let execTotal: number | null = null;
-              try {
-                const er = await fetch(`${ENDPOINT}/functions/${fn.$id}/executions?limit=1`, { headers: h });
-                if (er.ok) {
-                  const ed = await er.json();
-                  execTotal = ed.total ?? 0;
-                }
-              } catch { /* silent */ }
-              return {
-                id: fn.$id,
-                name: fn.name,
-                runtime: fn.runtime ?? '',
-                executions: execTotal,
-                enabled: fn.enabled !== false,
-              };
-            })
-          );
-          setFnStats(withExec);
-        }
-      } catch { /* silent */ }
-
-      // ── 4. Storage buckets + per-bucket file counts ───────────────────
-      try {
-        const bkRes = await fetch(`${ENDPOINT}/storage/buckets?limit=25`, { headers: h });
-        if (bkRes.ok) {
-          const bkData = await bkRes.json();
-          const bkList: any[] = bkData.buckets ?? [];
-
-          const withFiles = await Promise.all(
-            bkList.map(async (bk): Promise<BucketStat> => {
-              let fileCount: number | null = null;
-              try {
-                const fr = await fetch(`${ENDPOINT}/storage/buckets/${bk.$id}/files?limit=1`, { headers: h });
-                if (fr.ok) {
-                  const fd = await fr.json();
-                  fileCount = fd.total ?? 0;
-                }
-              } catch { /* silent */ }
-              return { id: bk.$id, name: bk.name, files: fileCount };
-            })
-          );
-          setBucketStats(withFiles);
-        }
-      } catch { /* silent */ }
+        const res = await functions.createExecution('dev-overview', '', false);
+        const d = JSON.parse(res.responseBody || '{}');
+        if (res.status !== 'completed' || !d.success) throw new Error(d.error || 'unavailable');
+        setAuthUsers(d.authUsers ?? null);
+        setFnStats(d.functions ?? []);
+        setBucketStats(d.buckets ?? []);
+      } catch {
+        setApiKeyMissing(true);
+      }
 
       setLoading(false);
     })();
@@ -184,7 +127,7 @@ const DevelopmentSection = () => {
           <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
             <div className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
             <p className="text-amber-400 text-[11px] font-mono">
-              Add <code className="bg-white/10 px-1 rounded">VITE_APPWRITE_API_KEY</code> to Vercel env
+              Couldn't load function and storage stats
             </p>
           </div>
         )}
