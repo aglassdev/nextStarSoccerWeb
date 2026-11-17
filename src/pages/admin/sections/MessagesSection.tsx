@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Query, ID } from 'appwrite';
 import { databases, databaseId, collections } from '../../../services/appwrite';
 import { createCalendarEvent } from '../../../services/calendarAdmin';
+import { nativeAutocorrectProps, useAutocorrect } from '../../../hooks/useAutocorrect';
 
 // ── Accepting a session request ───────────────────────────────────────────────
 // Requests from the app's "Request a Session" screens store the date as text
@@ -325,6 +326,13 @@ const MessagesSection = () => {
 
   const threadRef = useRef<HTMLDivElement>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const msgInputRef = useRef<HTMLTextAreaElement>(null);
+  // Names and words in the open chat are taken as meant by autocorrect.
+  const autocorrectContext = useMemo(
+    () => [selectedConv?.clientName || '', pendingChat?.clientName || '', ...chatMessages.map((m) => m.message || '')].join(' '),
+    [selectedConv, pendingChat, chatMessages],
+  );
+  const autocorrect = useAutocorrect(msgInputRef, autocorrectContext);
 
   useEffect(() => { fetchConversations(); }, []);
   // Keep the remembered list in step with reads and sends made here.
@@ -395,7 +403,7 @@ const MessagesSection = () => {
 
   const sendMessage = async () => {
     if (!msgInput.trim() || msgSending) return;
-    const text = msgInput.trim();
+    const text = (autocorrect.finish() || msgInput).trim();
     const convId = selectedConvId || pendingChat?.conversationId;
     const clientId = selectedConv?.clientId || pendingChat?.clientId;
     if (!convId || !clientId || !collections.messages) return;
@@ -696,6 +704,8 @@ const MessagesSection = () => {
             {/* Input */}
             <div className="flex items-end gap-2 px-4 py-3 border-t border-white/[0.07] flex-shrink-0 bg-[#0d0b09]">
               <textarea
+                ref={msgInputRef}
+                {...nativeAutocorrectProps}
                 value={msgInput}
                 onChange={e => setMsgInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}

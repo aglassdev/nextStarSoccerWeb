@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   ChatMessage,
@@ -31,6 +31,7 @@ import {
   toIsoDate,
 } from './eventCards';
 import EventFormModal, { EventFormValues } from './EventFormModal';
+import { nativeAutocorrectProps, useAutocorrect } from '../../../hooks/useAutocorrect';
 
 // The app's client ChatScreen: header with the coach's name (or "Admin"),
 // day separators, bubbles (yours on the right in off-white, theirs on the left),
@@ -154,13 +155,20 @@ const ChatPane = ({ conversationId, conversation, newChat, sender, onChanged }: 
     el.style.height = `${Math.min(el.scrollHeight, 100)}px`;
   }, [text]);
 
+  // Names and words in this thread are taken as meant by autocorrect.
+  const autocorrectContext = useMemo(
+    () => [headerName, ...(messages || []).map((m) => m.message || '')].join(' '),
+    [headerName, messages],
+  );
+  const autocorrect = useAutocorrect(inputRef, autocorrectContext);
+
   const afterWrite = async (created?: ChatMessage | null) => {
     if (created) onChangedRef.current([created]);
     await fetchMessages({ markAsRead: false });
   };
 
   const handleSend = async () => {
-    const body = text.trim();
+    const body = (autocorrect.finish() || text).trim();
     if (!body || sending || unavailable) return;
     setSending(true);
     try {
@@ -384,6 +392,7 @@ const ChatPane = ({ conversationId, conversation, newChat, sender, onChanged }: 
             }
           }}
           placeholder="Message..."
+          {...nativeAutocorrectProps}
           maxLength={5000}
           disabled={unavailable}
           className="flex-1 min-w-0 resize-none bg-[#1A1A1A] rounded-[20px] px-4 py-2.5 text-[#F4F2EE] text-[15px] leading-[21px] placeholder:text-[#666] max-h-[100px] focus:outline-none focus-visible:ring-1 focus-visible:ring-white/20 disabled:opacity-50"

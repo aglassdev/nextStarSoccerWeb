@@ -5,6 +5,7 @@ import { databases, databaseId, collections } from '../../services/appwrite';
 import { useAccount } from '../account/AccountContext';
 import { AccountPageHeader } from '../account/AccountLayout';
 import { formatInboxDate, previewText } from '../account/inbox/chatService';
+import { nativeAutocorrectProps, useAutocorrect } from '../../hooks/useAutocorrect';
 
 // Coach Dashboard → Inbox, as the app's CoachInboxScreen: session requests
 // and chats routed to this coach (messages stamped with their coachId), with
@@ -128,6 +129,13 @@ const CoachInboxPage = () => {
   }, [messages]);
 
   const thread = threads.find((t) => t.id === openId) || null;
+  const replyRef = useRef<HTMLInputElement>(null);
+  // Names and words in the open chat are taken as meant by autocorrect.
+  const autocorrectContext = useMemo(
+    () => (thread ? [thread.name, ...thread.list.map((m) => m.message || '')].join(' ') : ''),
+    [thread],
+  );
+  const autocorrect = useAutocorrect(replyRef, autocorrectContext);
 
   // Opening a thread marks the family's messages read, and scrolls to the latest.
   useEffect(() => {
@@ -215,7 +223,7 @@ const CoachInboxPage = () => {
   };
 
   const sendReply = () => {
-    const text = reply.trim();
+    const text = (autocorrect.finish() || reply).trim();
     if (!text) return;
     run(async () => {
       await send({ message: text });
@@ -376,7 +384,7 @@ const CoachInboxPage = () => {
 
             {error && <p className="px-4 pb-2 text-red-400 text-xs">{error}</p>}
             <form className="border-t border-white/10 p-3 flex gap-2" onSubmit={(e) => { e.preventDefault(); sendReply(); }}>
-              <input value={reply} onChange={(e) => setReply(e.target.value)} placeholder="Message"
+              <input ref={replyRef} {...nativeAutocorrectProps} value={reply} onChange={(e) => setReply(e.target.value)} placeholder="Message"
                 className="flex-1 px-4 py-2.5 bg-[#1a1a1a] border border-white/10 rounded-lg text-white text-sm focus:outline-none" />
               <button type="submit" disabled={busy || !reply.trim()} className="px-5 py-2.5 bg-white text-black text-sm font-semibold rounded-lg disabled:opacity-40">Send</button>
             </form>
