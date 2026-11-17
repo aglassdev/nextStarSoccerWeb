@@ -447,15 +447,23 @@ const AdminDashboard = () => {
         const now = new Date();
         const todayStr = now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
 
-        const [unread, outstanding] = await Promise.all([
+        const [unread, outstanding, insolvent] = await Promise.all([
           collections.messages
             ? databases.listDocuments(databaseId, collections.messages, [Query.equal('read', false), Query.limit(1)]).catch(() => ({ total: 0 }))
             : { total: 0 },
           collections.bills
             ? databases.listDocuments(databaseId, collections.bills, [Query.equal('status', 'pending'), Query.limit(1)]).catch(() => ({ total: 0 }))
             : { total: 0 },
+          // Insolvent families' bills (payLater) aren't counted as outstanding.
+          collections.bills
+            ? databases.listDocuments(databaseId, collections.bills, [Query.equal('status', 'pending'), Query.equal('payLater', true), Query.limit(1)]).catch(() => ({ total: 0 }))
+            : { total: 0 },
         ]);
-        setStats({ unreadMessages: (unread as any).total, outstandingBills: (outstanding as any).total, loading: false });
+        setStats({
+          unreadMessages: (unread as any).total,
+          outstandingBills: Math.max(0, (outstanding as any).total - (insolvent as any).total),
+          loading: false,
+        });
 
         // Revenue = one-time/prepaid payments (payments collection) + paid
         // monthly bills (bills collection). In-app bill payments also leave a
@@ -579,6 +587,7 @@ const AdminDashboard = () => {
     allBillDocs.forEach(b => {
       if (billMonth !== 'all' && b.month !== billMonth) return;
       if (b.status === 'paid' || b.status === 'cancelled') { if (b.status === 'paid') paid++; return; }
+      if (b.payLater === true) return; // insolvent: kept out of pending and overdue
       const dueMs = b.dueDate ? Date.parse(b.dueDate) : NaN;
       if (!isNaN(dueMs) && dueMs < today) overdue++; else pending++;
     });

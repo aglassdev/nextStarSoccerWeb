@@ -36,6 +36,10 @@ const deriveBillStatus = (b: BillRecord): BillStatus => {
   return 'outstanding';
 };
 
+// Insolvent: a family who can't pay now and has agreed to pay later. Their
+// unpaid bills sit in their own section and stay out of the totals. Once paid, a bill is just settled.
+const isPayLater = (b: BillRecord): boolean => b.payLater === true && deriveBillStatus(b) !== 'settled';
+
 // ── Eastern-time helpers ───────────────────────────────────────────────────────
 // Bills are stored/displayed in America/New_York. A due date is saved at noon
 // Eastern with the correct DST offset (e.g. 2026-05-07T12:00:00.000-04:00). Noon is
@@ -74,6 +78,8 @@ const statusBadgeClass = (tab: BillStatus) => {
   return 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30';
 };
 
+const PAY_LATER_BADGE = 'bg-neutral-800 text-neutral-300 border border-neutral-700';
+
 const tabLabel: Record<BillStatus, string> = {
   outstanding: 'Outstanding',
   settled: 'Settled',
@@ -110,16 +116,22 @@ const XIcon = () => (
 // ── BillModal ─────────────────────────────────────────────────────────────────
 const BillModal = ({
   bill,
+  familyUnpaid,
   getName,
   onClose,
   onBillUpdated,
 }: {
   bill: BillRecord;
+  familyUnpaid: BillRecord[]; // this family's unpaid bills, this one included
   getName: (b: BillRecord) => string;
   onClose: () => void;
   onBillUpdated: () => void;
 }) => {
   const status = deriveBillStatus(bill);
+  const payLater = isPayLater(bill);
+  // Moving is for the whole family: every unpaid bill on the same side.
+  const payLaterTargets = familyUnpaid.filter(b => isPayLater(b) === payLater);
+  const [movingPayLater, setMovingPayLater] = useState(false);
 
   const [items, setItems] = useState<BillItemRecord[]>([]);
   const [loadingItems, setLoadingItems] = useState(true);
@@ -245,6 +257,23 @@ const BillModal = ({
     }
   };
 
+  const handleTogglePayLater = async () => {
+    setMovingPayLater(true);
+    setError('');
+    try {
+      for (const b of payLaterTargets) {
+        await databases.updateDocument(databaseId, collections.bills, b.$id, { payLater: !payLater });
+      }
+      onBillUpdated();
+      onClose();
+    } catch (e: any) {
+      setError(e.message || 'Failed to move bills');
+      onBillUpdated();
+    } finally {
+      setMovingPayLater(false);
+    }
+  };
+
   // Removes the bill and every session on it. Items go first, so a failure
   // part way leaves the bill in place to retry rather than orphaned items.
   const handleDeleteBill = async () => {
@@ -289,6 +318,9 @@ const BillModal = ({
               <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${statusBadgeClass(status)}`}>
                 {tabLabel[status]}
               </span>
+              {payLater && (
+                <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${PAY_LATER_BADGE}`}>Insolvent</span>
+              )}
             </div>
             <button onClick={onClose} className="text-neutral-500 hover:text-white transition-colors p-1">
               <XIcon />
@@ -488,12 +520,28 @@ const BillModal = ({
             >
               {deletingBill ? 'Deleting…' : 'Delete bill'}
             </button>
-            <button
-              onClick={onClose}
-              className="px-5 py-2 text-sm text-neutral-400 hover:text-white border border-neutral-700 hover:border-neutral-500 rounded-lg transition-colors"
-            >
-              Close
-            </button>
+            <div className="flex gap-2">
+              {status !== 'settled' && payLaterTargets.length > 0 && (
+                <button
+                  onClick={handleTogglePayLater}
+                  disabled={movingPayLater}
+                  title={payLater
+                    ? 'Puts this family\'s unpaid bills back in the main list and totals'
+                    : 'For a family who can\'t pay now and will pay later: moves their unpaid bills to Insolvent, out of the totals'}
+                  className="px-4 py-2 text-sm text-neutral-300 hover:text-white border border-neutral-700 hover:border-neutral-500 rounded-lg transition-colors disabled:opacity-40"
+                >
+                  {movingPayLater
+                    ? 'Moving…'
+                    : `${payLater ? 'Back to billing' : 'Move to insolvent'}${payLaterTargets.length > 1 ? ` (${payLaterTargets.length} bills)` : ''}`}
+                </button>
+              )}
+              <button
+                onClick={onClose}
+                className="px-5 py-2 text-sm text-neutral-400 hover:text-white border border-neutral-700 hover:border-neutral-500 rounded-lg transition-colors"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -514,6 +562,8 @@ const ALL_MONTHS = 'all';
 const BillsSection = () => {
   const [bills, setBills] = useState<BillRecord[]>([]);
   const [userNames, setUserNames] = useState<Record<string, string>>({});
+  // Player / child id → parent's user id, so a family's bills can be moved together.
+  const [parentOf, setParentOf] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState<BillStatus>('outstanding');
@@ -535,6 +585,7 @@ const BillsSection = () => {
 
       const uniqueIds = [...new Set(docs.map(b => b.userId).filter(Boolean))];
       const nameMap: Record<string, string> = {};
+      const parentMap: Record<string, string> = {};
 
       const lookupCollections = [
         collections.youthPlayers,
@@ -548,6 +599,7 @@ const BillsSection = () => {
         try {
           const colRes = await databases.listDocuments(databaseId, colId, [Query.limit(5000)]);
           for (const doc of colRes.documents as any[]) {
+            if (doc.userId && doc.linkedParentId && !parentMap[doc.userId]) parentMap[doc.userId] = doc.linkedParentId;
             const full = `${doc.firstName || ''} ${doc.lastName || ''}`.trim();
             if (!full) continue;
             if (doc.userId && uniqueIds.includes(doc.userId) && !nameMap[doc.userId]) {
@@ -566,6 +618,10 @@ const BillsSection = () => {
         try {
           const proxyRes = await databases.listDocuments(databaseId, collections.proxyChildren, [Query.limit(5000)]);
           for (const doc of proxyRes.documents as any[]) {
+            if (doc.parentUserId) {
+              if (doc.proxyId) parentMap[doc.proxyId] = doc.parentUserId;
+              if (doc.$id) parentMap[doc.$id] = doc.parentUserId;
+            }
             const full = `${doc.firstName || ''} ${doc.lastName || ''}`.trim();
             if (!full) continue;
             if (doc.proxyId && uniqueIds.includes(doc.proxyId) && !nameMap[doc.proxyId]) {
@@ -579,6 +635,7 @@ const BillsSection = () => {
       }
 
       setUserNames(nameMap);
+      setParentOf(parentMap);
     } catch (err: any) {
       setError('Failed to load bills: ' + (err.message || 'Unknown error'));
     } finally {
@@ -587,6 +644,9 @@ const BillsSection = () => {
   };
 
   const getName = (b: BillRecord) => userNames[b.userId] || b.userId || '—';
+  const familyOf = (b: BillRecord) => parentOf[b.userId] || b.parentUserId || b.userId;
+  const familyUnpaidOf = (bill: BillRecord) =>
+    bills.filter(b => familyOf(b) === familyOf(bill) && deriveBillStatus(b) !== 'settled');
 
   const toggleSort = (key: typeof sortKey) => {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -602,7 +662,16 @@ const BillsSection = () => {
   const monthLabel = months.find(([key]) => key === month)?.[1];
 
   // The month narrows everything under it — the cards, the tabs and the search.
-  const monthBills = month === ALL_MONTHS ? bills : bills.filter(b => b.month === month);
+  const monthBillsAll = month === ALL_MONTHS ? bills : bills.filter(b => b.month === month);
+  // Insolvent bills live in their own section at the bottom, outside the cards and tabs.
+  const monthBills = monthBillsAll.filter(b => !isPayLater(b));
+  const payLaterBills = monthBillsAll.filter(isPayLater);
+  const payLaterTotal = payLaterBills.reduce((s, b) => s + (b.totalAmount ?? 0), 0);
+  const payLaterRows = payLaterBills
+    .filter(b => getName(b).toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => familyOf(a).localeCompare(familyOf(b))
+      || getName(a).localeCompare(getName(b))
+      || (a.month || '').localeCompare(b.month || ''));
 
   const tabBills = monthBills.filter(b => deriveBillStatus(b) === activeTab);
   const filtered = tabBills.filter(b => getName(b).toLowerCase().includes(search.toLowerCase()));
@@ -774,10 +843,60 @@ const BillsSection = () => {
         </div>
       )}
 
+      {/* Insolvent — families who can't pay now and will pay later. Not in the cards or tabs above. */}
+      {!loading && !error && payLaterBills.length > 0 && (
+        <div className="mt-10">
+          <div className="flex flex-wrap items-end justify-between gap-2 mb-3">
+            <div>
+              <h3 className="text-lg font-semibold text-white">Insolvent</h3>
+              <p className="text-neutral-500 text-sm">Families who can't pay now and will pay later. Not counted in the totals above.</p>
+            </div>
+            <p className="text-neutral-400 text-sm">
+              {payLaterBills.length} bill{payLaterBills.length === 1 ? '' : 's'} · {fmtMoney(payLaterTotal)}
+            </p>
+          </div>
+          <div className="bg-neutral-900 rounded-lg border border-neutral-800 overflow-hidden">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-neutral-800 bg-neutral-950">
+                  {['Month', 'Name', 'Due Date', 'Amount', 'Status'].map(label => (
+                    <th key={label} className="text-left px-4 py-3 text-neutral-400 text-sm font-medium">{label}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-800">
+                {payLaterRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-8 text-center text-neutral-500">No insolvent bills match your search</td>
+                  </tr>
+                ) : payLaterRows.map(bill => (
+                  <tr
+                    key={bill.$id}
+                    onClick={() => setSelectedBill(bill)}
+                    className="hover:bg-neutral-800/50 cursor-pointer transition-colors"
+                  >
+                    <td className="px-4 py-3 text-white">{bill.monthName || '—'}</td>
+                    <td className="px-4 py-3 text-neutral-300">{getName(bill)}</td>
+                    <td className="px-4 py-3 text-neutral-400">{fmtDateEST(bill.dueDate)}</td>
+                    <td className="px-4 py-3 text-white">
+                      {bill.totalAmount != null ? `$${Number(bill.totalAmount).toFixed(2)}` : '—'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${PAY_LATER_BADGE}`}>Insolvent</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* Centered Modal */}
       {selectedBill && (
         <BillModal
           bill={selectedBill}
+          familyUnpaid={familyUnpaidOf(selectedBill)}
           getName={getName}
           onClose={() => setSelectedBill(null)}
           onBillUpdated={handleBillUpdated}
