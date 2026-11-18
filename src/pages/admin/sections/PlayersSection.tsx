@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Query } from 'appwrite';
 import { databases, databaseId, collections } from '../../../services/appwrite';
 import { CellLink, useRowOpen } from '../../../components/admin/RowLink';
+import { AutopayBadge, AutopayFilter, AutopayFilterChips, AutopayState, playerAutopay } from '../../../components/admin/AutopayBadge';
 
 type PlayerType = 'Youth' | 'Collegiate' | 'Professional';
 
@@ -13,6 +14,7 @@ interface PlayerRecord {
   type: PlayerType;
   isProxy?: boolean;
   parentName?: string;
+  autopay: AutopayState;
   [key: string]: any;
 }
 
@@ -23,6 +25,7 @@ const PlayersSection = () => {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [activeFilters, setActiveFilters] = useState<PlayerType[]>(['Youth', 'Collegiate', 'Professional']);
+  const [autopayFilter, setAutopayFilter] = useState<AutopayFilter>('all');
 
   useEffect(() => { fetchPlayers(); }, []);
 
@@ -42,7 +45,9 @@ const PlayersSection = () => {
 
       // Build parent ID → display name lookup
       const parentNameById: Record<string, string> = {};
+      const parentAutopayById: Record<string, boolean> = {};
       for (const p of parentsRes.documents as any[]) {
+        parentAutopayById[p.$id] = p.autoPay === 'true';
         const name = p.firstName || p.lastName
           ? `${p.firstName || ''} ${p.lastName || ''}`.trim()
           : p.name || p.email || '';
@@ -76,7 +81,10 @@ const PlayersSection = () => {
         isProxy: true,
         parentName: parentByPlayerId[d.$id],
       }));
-      setPlayers([...youth, ...collegiate, ...professional, ...proxy]);
+      // Whose autopay pays this player's bills, as the monthly autopay run decides.
+      setPlayers([...youth, ...collegiate, ...professional, ...proxy].map(p => ({
+        ...p, autopay: playerAutopay(p, parentAutopayById),
+      })));
     } catch (err: any) {
       setError('Failed to load players: ' + (err.message || 'Unknown error'));
     } finally { setLoading(false); }
@@ -86,10 +94,13 @@ const PlayersSection = () => {
     setActiveFilters(prev => prev.includes(type) ? prev.filter(f => f !== type) : [...prev, type]);
   };
 
-  const filtered = players.filter(p => {
+  const searched = players.filter(p => {
     const name = `${p.firstName} ${p.lastName}`.toLowerCase();
     return name.includes(search.toLowerCase()) && activeFilters.includes(p.type);
   });
+  const autopayCount = searched.filter(p => p.autopay.on).length;
+  const filtered = searched.filter(p =>
+    autopayFilter === 'all' || (autopayFilter === 'on') === p.autopay.on);
 
   const typeBadge = (type: PlayerType) => {
     const map: Record<PlayerType, string> = {
@@ -114,7 +125,8 @@ const PlayersSection = () => {
           className="w-full max-w-md px-4 py-2 bg-[#1d1c21] border border-white/10 rounded-lg text-white placeholder-white/30 focus:outline-none focus:ring-1 focus:ring-white/20" />
       </div>
 
-      <div className="flex gap-2 mb-6">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mb-6">
+        <div className="flex gap-2">
         {(['Youth', 'Collegiate', 'Professional'] as PlayerType[]).map(type => (
           <button key={type} onClick={() => toggleFilter(type)}
             className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
@@ -123,6 +135,9 @@ const PlayersSection = () => {
             {type}
           </button>
         ))}
+        </div>
+        <AutopayFilterChips value={autopayFilter} onChange={setAutopayFilter}
+          onCount={autopayCount} offCount={searched.length - autopayCount} />
       </div>
 
       {loading && <div className="flex items-center justify-center h-48"><div className="w-6 h-6 border border-white/10 border-t-white/40 rounded-full animate-spin" /></div>}
@@ -137,11 +152,12 @@ const PlayersSection = () => {
                 <th className="text-left px-4 py-3 text-white/40 text-xs font-medium uppercase tracking-wider">Birth Date</th>
                 <th className="text-left px-4 py-3 text-white/40 text-xs font-medium uppercase tracking-wider">Parent</th>
                 <th className="text-left px-4 py-3 text-white/40 text-xs font-medium uppercase tracking-wider">Type</th>
+                <th className="text-left px-4 py-3 text-white/40 text-xs font-medium uppercase tracking-wider">Autopay</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/[0.05]">
               {filtered.length === 0 ? (
-                <tr><td colSpan={4} className="px-4 py-8 text-center text-white/20 text-sm">No players found</td></tr>
+                <tr><td colSpan={5} className="px-4 py-8 text-center text-white/20 text-sm">No players found</td></tr>
               ) : (
                 filtered.map(player => {
                   const to = player.isProxy
@@ -183,6 +199,9 @@ const PlayersSection = () => {
                         )}
                       </div>
                       </CellLink>
+                    </td>
+                    <td className="p-0 h-px text-sm">
+                      <CellLink to={to} className="px-4 py-3"><AutopayBadge state={player.autopay} /></CellLink>
                     </td>
                   </tr>
                   );

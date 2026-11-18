@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Query } from 'appwrite';
 import { databases, databaseId, collections } from '../../services/appwrite';
 import PlayerCenterAccess from './PlayerCenterAccess';
+import { AutopayBadge, autopayOn, playerAutopay } from '../../components/admin/AutopayBadge';
 
 type PlayerType = 'Youth' | 'Collegiate' | 'Professional';
 
@@ -225,6 +226,8 @@ const PlayerProfile = () => {
   const [scholarship, setScholarship] = useState<string>('none');
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  // Autopay of the parent who pays this player's bills (proxy: parentUserId; real player: linkedParentId).
+  const [parentAutopay, setParentAutopay] = useState<{ id: string; on: boolean } | null>(null);
 
   useEffect(() => {
     if (!id || !type) return;
@@ -244,6 +247,13 @@ const PlayerProfile = () => {
         const playerType: PlayerType = isProxy ? 'Youth' : (type.charAt(0).toUpperCase() + type.slice(1)) as PlayerType;
         const p: PlayerRecord = { ...(doc as any), type: playerType, isProxy };
         setPlayer(p);
+        const payerParentId: string | undefined = isProxy ? (doc as any).parentUserId : (doc as any).linkedParentId;
+        setParentAutopay(null);
+        if (payerParentId && collections.parentUsers) {
+          databases.getDocument(databaseId, collections.parentUsers, payerParentId)
+            .then(pd => setParentAutopay({ id: payerParentId, on: autopayOn(pd as any) }))
+            .catch(() => setParentAutopay({ id: payerParentId, on: false }));
+        }
         if (!isProxy) {
           setTier(p.tier || 'Basic');
           setBilling(p.billing || 'unapproved');
@@ -611,6 +621,10 @@ const PlayerProfile = () => {
             <InfoRow label="Member Since" value={fmtDate(player.$createdAt)} />
             <InfoRow label="Appwrite ID" value={player.$id} />
             <InfoRow label="Stripe ID" value={stripeId} />
+            <div>
+              <p className="text-white/40 text-[10px] uppercase tracking-wider mb-1">Autopay</p>
+              <AutopayBadge state={playerAutopay(player, parentAutopay ? { [parentAutopay.id]: parentAutopay.on } : {})} />
+            </div>
           </div>
         </Card>
 

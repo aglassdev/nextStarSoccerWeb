@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Query } from 'appwrite';
 import { databases, databaseId, collections } from '../../../services/appwrite';
 import { CellLink, useRowOpen } from '../../../components/admin/RowLink';
+import { AutopayBadge, AutopayFilter, AutopayFilterChips, autopayOn } from '../../../components/admin/AutopayBadge';
 
 interface ParentRecord {
   $id: string;
@@ -21,6 +22,7 @@ const ParentsSection = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
+  const [autopayFilter, setAutopayFilter] = useState<AutopayFilter>('all');
 
   useEffect(() => { fetchParents(); }, []);
 
@@ -78,19 +80,27 @@ const ParentsSection = () => {
     return p.email || 'Unknown';
   };
 
-  const filtered = parents.filter(p => {
+  const searched = parents.filter(p => {
     const name = getDisplayName(p).toLowerCase();
     return name.includes(search.toLowerCase()) || (p.email || '').toLowerCase().includes(search.toLowerCase());
   });
+  const autopayCount = searched.filter(p => autopayOn(p)).length;
+  const filtered = searched.filter(p =>
+    autopayFilter === 'all' || (autopayFilter === 'on') === autopayOn(p));
 
   return (
     <div className="p-6">
       <h2 className="text-2xl font-bold text-white mb-6">Parents</h2>
 
-      <div className="mb-6">
+      <div className="mb-4">
         <input type="text" placeholder="Search parents..." value={search}
           onChange={e => setSearch(e.target.value)}
           className="w-full max-w-md px-4 py-2 bg-[#1d1c21] border border-white/10 rounded-lg text-white placeholder-white/30 focus:outline-none focus:ring-1 focus:ring-white/20" />
+      </div>
+
+      <div className="mb-6">
+        <AutopayFilterChips value={autopayFilter} onChange={setAutopayFilter}
+          onCount={autopayCount} offCount={searched.length - autopayCount} />
       </div>
 
       {loading && <div className="flex items-center justify-center h-48"><div className="w-6 h-6 border border-white/10 border-t-white/40 rounded-full animate-spin" /></div>}
@@ -104,11 +114,12 @@ const ParentsSection = () => {
                 <th className="text-left px-4 py-3 text-white/40 text-xs font-medium uppercase tracking-wider">Name</th>
                 <th className="text-left px-4 py-3 text-white/40 text-xs font-medium uppercase tracking-wider">Email</th>
                 <th className="text-left px-4 py-3 text-white/40 text-xs font-medium uppercase tracking-wider">Children</th>
+                <th className="text-left px-4 py-3 text-white/40 text-xs font-medium uppercase tracking-wider">Autopay</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/[0.05]">
               {filtered.length === 0 ? (
-                <tr><td colSpan={3} className="px-4 py-8 text-center text-white/20 text-sm">No parents found</td></tr>
+                <tr><td colSpan={4} className="px-4 py-8 text-center text-white/20 text-sm">No parents found</td></tr>
               ) : (
                 filtered.map(parent => {
                   const to = `/admin/parents/${parent.$id}`;
@@ -135,6 +146,11 @@ const ParentsSection = () => {
                           ))}
                         </div>
                       )}
+                      </CellLink>
+                    </td>
+                    <td className="p-0 h-px text-sm">
+                      <CellLink to={to} className="px-4 py-3">
+                        <AutopayBadge state={{ on: autopayOn(parent), via: autopayOn(parent) ? 'self' : null }} />
                       </CellLink>
                     </td>
                   </tr>
