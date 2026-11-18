@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Query } from 'appwrite';
 import { databases, databaseId, collections } from '../../services/appwrite';
 import PlayerCenterAccess from './PlayerCenterAccess';
+import { MemberKind, setFamilyAutopay } from '../../services/admin/familyAutopay';
 
 type PlayerType = 'Youth' | 'Collegiate' | 'Professional';
 
@@ -25,6 +26,7 @@ const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct
 // Mobile-app field values (services/billingService.ts + admin screens)
 const TIER_OPTIONS = ['Basic', 'Plus', 'Loyalty'] as const;
 const BILLING_OPTIONS = ['unapproved', 'approved'] as const;
+const AUTOPAY_OPTIONS = ['on', 'off'] as const;
 const SCHOLARSHIP_OPTIONS = ['none', 'tier1', 'tier2'] as const;
 const SCHOLARSHIP_DISPLAY: Record<string, string> = { none: 'None', tier1: 'Tier 1', tier2: 'Tier 2' };
 
@@ -225,6 +227,9 @@ const PlayerProfile = () => {
   const [scholarship, setScholarship] = useState<string>('none');
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [autopayNote, setAutopayNote] = useState('');
+  // The parent who pays this player's bills (proxy: parentUserId; real player: linkedParentId) has autopay on.
+  const [payerParentAutopay, setPayerParentAutopay] = useState(false);
 
   useEffect(() => {
     if (!id || !type) return;
@@ -244,6 +249,13 @@ const PlayerProfile = () => {
         const playerType: PlayerType = isProxy ? 'Youth' : (type.charAt(0).toUpperCase() + type.slice(1)) as PlayerType;
         const p: PlayerRecord = { ...(doc as any), type: playerType, isProxy };
         setPlayer(p);
+        const payerParentId: string | undefined = isProxy ? (doc as any).parentUserId : (doc as any).linkedParentId;
+        setPayerParentAutopay(false);
+        if (payerParentId && collections.parentUsers) {
+          databases.getDocument(databaseId, collections.parentUsers, payerParentId)
+            .then(pd => setPayerParentAutopay((pd as any).autoPay === 'true'))
+            .catch(() => {});
+        }
         if (!isProxy) {
           setTier(p.tier || 'Basic');
           setBilling(p.billing || 'unapproved');
@@ -382,6 +394,24 @@ const PlayerProfile = () => {
       if (field === 'scholarship') setScholarship(value);
     } catch (e) { console.error(e); }
     finally { setSaving(false); }
+  };
+
+  // Autopay applies to the whole family: this player, their parents and siblings.
+  const updateAutopay = async (on: boolean) => {
+    if (!id || !type || !player) return;
+    setSaving(true);
+    setAutopayNote('');
+    try {
+      const r = await setFamilyAutopay({ kind: type.toLowerCase() as MemberKind, id }, on);
+      setPlayer(prev => prev ? { ...prev, autoPay: on ? 'true' : '' } : null);
+      setPayerParentAutopay(on);
+      setAutopayNote(
+        r.failed ? `Saved for ${r.updated} of ${r.members} family members. Try again for the rest.`
+          : r.members > 1 ? `Autopay ${on ? 'on' : 'off'} for all ${r.members} family members.` : '',
+      );
+    } catch (e: any) {
+      setAutopayNote(`Couldn't change autopay: ${e?.message || 'unknown error'}`);
+    } finally { setSaving(false); }
   };
 
   if (loading) return (
@@ -617,11 +647,11 @@ const PlayerProfile = () => {
         {/* Right column: Admin Controls + Family stacked */}
         <div className="flex flex-col gap-4">
 
-          {/* Admin Controls — not applicable for proxy players */}
-          {!player.isProxy && (
+          {/* Admin Controls — proxy players only have Autopay (billing, tier and scholarship follow the parent) */}
           <div className="bg-[#1d1c21] border border-white/[0.08] rounded-xl p-5">
             <p className="text-white/50 text-[11px] font-medium tracking-widest uppercase mb-4">Admin Controls</p>
             <div className="space-y-4">
+              {!player.isProxy && (<>
               <OptionRow
                 label="Billing"
                 options={BILLING_OPTIONS}
@@ -644,9 +674,20 @@ const PlayerProfile = () => {
                 onChange={v => updateField('scholarship', v)}
                 disabled={saving}
               />
+              </>)}
+              <div>
+                <OptionRow
+                  label="Autopay"
+                  options={AUTOPAY_OPTIONS}
+                  // On when this player's bills get charged automatically: their own autopay or their paying parent's.
+                  value={player.autoPay === 'true' || payerParentAutopay ? 'on' : 'off'}
+                  onChange={v => updateAutopay(v === 'on')}
+                  disabled={saving}
+                />
+                {autopayNote && <p className="text-white/40 text-[11px] mt-2">{autopayNote}</p>}
+              </div>
             </div>
           </div>
-          )}
 
           {/* Player Center unlocks — the player's own website account (proxy players have none) */}
           {!player.isProxy && <PlayerCenterAccess userId={player.userId || player.$id} />}

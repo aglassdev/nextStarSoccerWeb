@@ -3,9 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Query } from 'appwrite';
 import { databases, databaseId, collections } from '../../services/appwrite';
 import PlayerCenterAccess from './PlayerCenterAccess';
+import { setFamilyAutopay } from '../../services/admin/familyAutopay';
 
 const TYPE_PATH: Record<string, string> = { Youth: 'youth', Collegiate: 'collegiate', Professional: 'professional', Proxy: 'proxy' };
 const BILLING_OPTIONS = ['unapproved', 'approved'] as const;
+const AUTOPAY_OPTIONS = ['on', 'off'] as const;
 
 interface ParentRecord {
   $id: string; $createdAt: string;
@@ -49,6 +51,7 @@ const ParentProfile = () => {
   const [bills, setBills]         = useState<any[]>([]);
   const [billing, setBilling]     = useState<string>('unapproved');
   const [saving, setSaving]       = useState(false);
+  const [autopayNote, setAutopayNote] = useState('');
   const [loading, setLoading]     = useState(true);
 
   useEffect(() => {
@@ -146,6 +149,23 @@ const ParentProfile = () => {
       if (field === 'billing') setBilling(value as string);
     } catch (e) { console.error(e); }
     finally { setSaving(false); }
+  };
+
+  // Autopay applies to the whole family: this parent, co-parents and every child.
+  const updateAutopay = async (on: boolean) => {
+    if (!id || !parent) return;
+    setSaving(true);
+    setAutopayNote('');
+    try {
+      const r = await setFamilyAutopay({ kind: 'parent', id }, on);
+      setParent(prev => prev ? { ...prev, autoPay: on ? 'true' : '' } : null);
+      setAutopayNote(
+        r.failed ? `Saved for ${r.updated} of ${r.members} family members. Try again for the rest.`
+          : r.members > 1 ? `Autopay ${on ? 'on' : 'off'} for all ${r.members} family members.` : '',
+      );
+    } catch (e: any) {
+      setAutopayNote(`Couldn't change autopay: ${e?.message || 'unknown error'}`);
+    } finally { setSaving(false); }
   };
 
   if (loading) return (
@@ -266,6 +286,31 @@ const ParentProfile = () => {
                   );
                 })}
               </div>
+            </div>
+
+            {/* Autopay: applies to the whole family */}
+            <div>
+              <p className="text-white/40 text-[10px] uppercase tracking-wider mb-2">Autopay</p>
+              <div className="flex gap-1.5">
+                {AUTOPAY_OPTIONS.map(opt => {
+                  const selected = (parent.autoPay === 'true' ? 'on' : 'off') === opt;
+                  return (
+                    <button
+                      key={opt}
+                      onClick={() => updateAutopay(opt === 'on')}
+                      disabled={saving || selected}
+                      className={`flex-1 px-2.5 py-1.5 rounded text-[11px] font-medium border transition-all capitalize ${
+                        selected
+                          ? 'bg-white/10 border-white/40 text-white'
+                          : 'bg-white/[0.04] border-white/10 text-white/45 hover:text-white hover:border-white/25'
+                      }`}
+                    >
+                      {opt}
+                    </button>
+                  );
+                })}
+              </div>
+              {autopayNote && <p className="text-white/40 text-[11px] mt-2">{autopayNote}</p>}
             </div>
           </div>
         </Card>
