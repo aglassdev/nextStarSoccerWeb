@@ -174,6 +174,20 @@ export async function listPaymentMethodsDetailed(
 }
 
 /**
+ * Whether the customer has a saved card or bank account: 'yes', 'no', or
+ * 'unknown' when the lookup failed (so a blip is never read as "none").
+ */
+export async function checkPaymentMethod(customerId?: string | null): Promise<'yes' | 'no' | 'unknown'> {
+  if (!customerId) return 'no';
+  try {
+    const response = await callFunction(paymentFunctions.listPaymentMethods, { customerId });
+    return ((response.paymentMethods || []) as any[]).length > 0 ? 'yes' : 'no';
+  } catch {
+    return 'unknown';
+  }
+}
+
+/**
  * True when the customer has at least one saved card or bank account. A failed
  * lookup counts as true, so a network blip never reads as "no payment method"
  * (same rule as the app's payment-method prompt).

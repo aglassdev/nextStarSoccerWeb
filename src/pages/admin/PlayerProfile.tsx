@@ -4,6 +4,7 @@ import { Query } from 'appwrite';
 import { databases, databaseId, collections } from '../../services/appwrite';
 import PlayerCenterAccess from './PlayerCenterAccess';
 import { MemberKind, setFamilyAutopay } from '../../services/admin/familyAutopay';
+import AutopayControl, { usePaymentMethodState } from '../../components/admin/AutopayControl';
 
 type PlayerType = 'Youth' | 'Collegiate' | 'Professional';
 
@@ -26,7 +27,6 @@ const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct
 // Mobile-app field values (services/billingService.ts + admin screens)
 const TIER_OPTIONS = ['Basic', 'Plus', 'Loyalty'] as const;
 const BILLING_OPTIONS = ['unapproved', 'approved'] as const;
-const AUTOPAY_OPTIONS = ['on', 'off'] as const;
 const SCHOLARSHIP_OPTIONS = ['none', 'tier1', 'tier2'] as const;
 const SCHOLARSHIP_DISPLAY: Record<string, string> = { none: 'None', tier1: 'Tier 1', tier2: 'Tier 2' };
 
@@ -228,8 +228,17 @@ const PlayerProfile = () => {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [autopayNote, setAutopayNote] = useState('');
-  // The parent who pays this player's bills (proxy: parentUserId; real player: linkedParentId) has autopay on.
-  const [payerParentAutopay, setPayerParentAutopay] = useState(false);
+  // The parent who pays this player's bills (proxy: parentUserId; real player: linkedParentId):
+  // whether their autopay is on, their Stripe customer and name. null = no paying parent.
+  const [payerParent, setPayerParent] = useState<{ autopay: boolean; stripeId: string | null; name: string } | null>(null);
+  const [payerLoaded, setPayerLoaded] = useState(false);
+  const payerParentAutopay = !!payerParent?.autopay;
+  // Autopay charges the paying parent when there is one, otherwise the player.
+  const autopayMethod = usePaymentMethodState(
+    payerParent ? payerParent.stripeId
+      : player ? (player.stripeCustomerId || player.stripeId || player.stripe_id || player.stripeID || null) : undefined,
+    payerLoaded && !!player,
+  );
 
   useEffect(() => {
     if (!id || !type) return;
@@ -250,11 +259,19 @@ const PlayerProfile = () => {
         const p: PlayerRecord = { ...(doc as any), type: playerType, isProxy };
         setPlayer(p);
         const payerParentId: string | undefined = isProxy ? (doc as any).parentUserId : (doc as any).linkedParentId;
-        setPayerParentAutopay(false);
+        setPayerParent(null);
+        setPayerLoaded(false);
         if (payerParentId && collections.parentUsers) {
           databases.getDocument(databaseId, collections.parentUsers, payerParentId)
-            .then(pd => setPayerParentAutopay((pd as any).autoPay === 'true'))
-            .catch(() => {});
+            .then((pd: any) => setPayerParent({
+              autopay: pd.autoPay === 'true',
+              stripeId: pd.stripeCustomerId || pd.stripeId || pd.stripe_id || pd.stripeID || null,
+              name: `${pd.firstName || ''} ${pd.lastName || ''}`.trim() || 'their parent',
+            }))
+            .catch(() => {})
+            .finally(() => setPayerLoaded(true));
+        } else {
+          setPayerLoaded(true);
         }
         if (!isProxy) {
           setTier(p.tier || 'Basic');
@@ -404,7 +421,7 @@ const PlayerProfile = () => {
     try {
       const r = await setFamilyAutopay({ kind: type.toLowerCase() as MemberKind, id }, on);
       setPlayer(prev => prev ? { ...prev, autoPay: on ? 'true' : '' } : null);
-      setPayerParentAutopay(on);
+      setPayerParent(prev => prev ? { ...prev, autopay: on } : prev);
       setAutopayNote(
         r.failed ? `Saved for ${r.updated} of ${r.members} family members. Try again for the rest.`
           : r.members > 1 ? `Autopay ${on ? 'on' : 'off'} for all ${r.members} family members.` : '',
@@ -675,17 +692,15 @@ const PlayerProfile = () => {
                 disabled={saving}
               />
               </>)}
-              <div>
-                <OptionRow
-                  label="Autopay"
-                  options={AUTOPAY_OPTIONS}
-                  // On when this player's bills get charged automatically: their own autopay or their paying parent's.
-                  value={player.autoPay === 'true' || payerParentAutopay ? 'on' : 'off'}
-                  onChange={v => updateAutopay(v === 'on')}
-                  disabled={saving}
-                />
-                {autopayNote && <p className="text-white/40 text-[11px] mt-2">{autopayNote}</p>}
-              </div>
+              {/* On when this player's bills get charged automatically: their own autopay or their paying parent's. */}
+              <AutopayControl
+                on={player.autoPay === 'true' || payerParentAutopay}
+                saving={saving}
+                method={autopayMethod}
+                payerName={payerParent ? payerParent.name : 'this player'}
+                note={autopayNote}
+                onChange={updateAutopay}
+              />
             </div>
           </div>
 

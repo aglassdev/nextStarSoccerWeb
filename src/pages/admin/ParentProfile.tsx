@@ -4,10 +4,10 @@ import { Query } from 'appwrite';
 import { databases, databaseId, collections } from '../../services/appwrite';
 import PlayerCenterAccess from './PlayerCenterAccess';
 import { setFamilyAutopay } from '../../services/admin/familyAutopay';
+import AutopayControl, { usePaymentMethodState } from '../../components/admin/AutopayControl';
 
 const TYPE_PATH: Record<string, string> = { Youth: 'youth', Collegiate: 'collegiate', Professional: 'professional', Proxy: 'proxy' };
 const BILLING_OPTIONS = ['unapproved', 'approved'] as const;
-const AUTOPAY_OPTIONS = ['on', 'off'] as const;
 
 interface ParentRecord {
   $id: string; $createdAt: string;
@@ -52,6 +52,11 @@ const ParentProfile = () => {
   const [billing, setBilling]     = useState<string>('unapproved');
   const [saving, setSaving]       = useState(false);
   const [autopayNote, setAutopayNote] = useState('');
+  // Autopay charges this parent, so their own saved card or bank is what counts.
+  const autopayMethod = usePaymentMethodState(
+    parent ? (parent.stripeCustomerId || parent.stripeId || parent.stripe_id || parent.stripeID || null) : undefined,
+    !!parent,
+  );
   const [loading, setLoading]     = useState(true);
 
   useEffect(() => {
@@ -288,30 +293,15 @@ const ParentProfile = () => {
               </div>
             </div>
 
-            {/* Autopay: applies to the whole family */}
-            <div>
-              <p className="text-white/40 text-[10px] uppercase tracking-wider mb-2">Autopay</p>
-              <div className="flex gap-1.5">
-                {AUTOPAY_OPTIONS.map(opt => {
-                  const selected = (parent.autoPay === 'true' ? 'on' : 'off') === opt;
-                  return (
-                    <button
-                      key={opt}
-                      onClick={() => updateAutopay(opt === 'on')}
-                      disabled={saving || selected}
-                      className={`flex-1 px-2.5 py-1.5 rounded text-[11px] font-medium border transition-all capitalize ${
-                        selected
-                          ? 'bg-white/10 border-white/40 text-white'
-                          : 'bg-white/[0.04] border-white/10 text-white/45 hover:text-white hover:border-white/25'
-                      }`}
-                    >
-                      {opt}
-                    </button>
-                  );
-                })}
-              </div>
-              {autopayNote && <p className="text-white/40 text-[11px] mt-2">{autopayNote}</p>}
-            </div>
+            {/* Autopay: applies to the whole family; needs a saved card or bank to turn on */}
+            <AutopayControl
+              on={parent.autoPay === 'true'}
+              saving={saving}
+              method={autopayMethod}
+              payerName="this parent"
+              note={autopayNote}
+              onChange={updateAutopay}
+            />
           </div>
         </Card>
 
