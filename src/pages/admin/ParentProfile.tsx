@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Query } from 'appwrite';
 import { databases, databaseId, collections } from '../../services/appwrite';
 import PlayerCenterAccess from './PlayerCenterAccess';
-import { AutopayBadge, autopayOn } from '../../components/admin/AutopayBadge';
 
 const TYPE_PATH: Record<string, string> = { Youth: 'youth', Collegiate: 'collegiate', Professional: 'professional', Proxy: 'proxy' };
 const BILLING_OPTIONS = ['unapproved', 'approved'] as const;
@@ -204,10 +203,6 @@ const ParentProfile = () => {
             <InfoRow label="Member Since" value={fmtDate(parent.$createdAt)} />
             <InfoRow label="Appwrite ID" value={parent.$id} />
             <InfoRow label="Stripe ID" value={stripeId} />
-            <div>
-              <p className="text-white/40 text-[10px] uppercase tracking-wider mb-1">Autopay</p>
-              <AutopayBadge state={{ on: autopayOn(parent), via: autopayOn(parent) ? 'self' : null }} />
-            </div>
           </div>
         </Card>
 
