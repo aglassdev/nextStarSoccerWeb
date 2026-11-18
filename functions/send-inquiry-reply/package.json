@@ -6,6 +6,6 @@
   "type": "module",
   "dependencies": {
     "nodemailer": "^6.9.7",
-    "node-appwrite": "^13.0.0"
+    "node-appwrite": "^31.3.0"
   }
 }

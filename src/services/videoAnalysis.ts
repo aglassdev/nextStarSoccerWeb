@@ -185,9 +185,13 @@ export const uploadToFilmBucket = (
   onProgress?: (fraction: number) => void,
   permissions?: string[],
 ) =>
-  storage.createFile(FILM_BUCKET, ID.unique(), file, permissions, (p) =>
-    onProgress?.(Math.min(1, p.progress / 100)),
-  );
+  storage.createFile({
+    bucketId: FILM_BUCKET,
+    fileId: ID.unique(),
+    file,
+    permissions,
+    onProgress: (p) => onProgress?.(Math.min(1, p.progress / 100)),
+  });
 
 /** A JPEG of the film's opening frame, made in the browser; null if it can't be decoded here. */
 export function captureThumbnail(file: File, atSeconds = 1): Promise<File | null> {

@@ -13,7 +13,7 @@
  *                    indexes.write, buckets.write
  */
 
-const { Client, Databases, Storage, Permission, Role, IndexType } = require('node-appwrite');
+const { Client, Databases, Storage, Permission, Role, DatabasesIndexType: IndexType } = require('node-appwrite');
 
 const ENDPOINT    = process.env.APPWRITE_ENDPOINT    || 'https://nyc.cloud.appwrite.io/v1';
 const PROJECT_ID  = process.env.APPWRITE_PROJECT_ID  || '';
