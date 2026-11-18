@@ -195,6 +195,8 @@ export function statementsFor(month: string, rows: PayoutRow[], sessions: Sessio
       get(r.coach, 'share').sessions.push({
         date: s.startDateTime, dateOnly: !!s.dateOnly, title: s.title, facility: s.facility, players: s.players ?? 0,
         gross: s.expectedRevenue, collected: s.revenue, coachCost: s.supportCost, facilityCost: s.facilityCost, otherCost: s.otherCost,
+        // 5% of revenue, off the top before session costs
+        adminFee: s.adminFee, expectedAdminFee: s.expectedAdminFee,
         attended: s.gyauAttended, expectedShare: s.expectedGyauShare, share: s.gyauShare,
       });
     } else {

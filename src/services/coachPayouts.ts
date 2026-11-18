@@ -56,9 +56,10 @@ const NOT_PAID_HERE = new Set(["peabo"]);
 export const SESSION_EXPENSES: Record<string, { label: string; amount: number }> = {
 };
 
-// Phillip Gyau takes 50% (present) or 30% (absent) of each session's profit
-// after facility hire and coach pay. The 5% admin fee is then taken from his
-// share, flat: 5% of the whole session profit, not 5% of his part of it.
+// Phillip Gyau takes 50% (present) or 30% (absent) of each session's profit.
+// The 5% admin fee comes off the session's raw income first, before any
+// session expenses: profit = revenue − 5% admin − facility hire − coach pay
+// − other costs, and his share is his percentage of that.
 // Profits and losses both count, so a losing session reduces what he is owed.
 export const ADMIN_FEE_RATE = 0.05;
 export const GYAU_ATTENDED_SHARE = 0.5;
@@ -286,7 +287,7 @@ export interface SessionRow {
   // the same either way, so only the revenue-derived figures differ.
   revenue: number;
   profit: number;
-  adminFee: number;      // 5% of profit, taken before Gyau's share
+  adminFee: number;      // 5% of revenue, taken before session expenses (Gyau's sessions only)
   gyauShare: number;
   expectedRevenue: number;
   expectedProfit: number;
@@ -438,9 +439,6 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
     const supportCost = supportCoaches.reduce((s, c) => s + c.amount, 0);
     const otherCost = otherCosts.reduce((s, c) => s + c.amount, 0);
     const facilityCost = facilityCostFor(event, data.facilityCosts);
-    const profit = revenue - facilityCost - supportCost - otherCost;
-
-    const expectedProfit = expectedRevenue - facilityCost - supportCost - otherCost;
 
     const attended = attendees.some(n => normalizeName(n) === GYAU);
     const eligible = attended ? gyauEligibleWhenAttended(event) : gyauEligible(event);
@@ -448,12 +446,14 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
     // Only sessions he has a row for count: one he missed that billed nothing
     // is no business of his.
     const counts = eligible && (attended || expectedRevenue > 0);
-    const split = (p: number) => {
-      const fee = counts ? p * ADMIN_FEE_RATE : 0;
-      return { fee, share: counts ? p * shareRate - fee : 0 };
-    };
-    const { fee: adminFee, share: gyauShare } = split(profit);
-    const { fee: expectedAdminFee, share: expectedGyauShare } = split(expectedProfit);
+
+    // The admin fee is taken off the raw income, before session expenses.
+    const adminFee = counts ? revenue * ADMIN_FEE_RATE : 0;
+    const expectedAdminFee = counts ? expectedRevenue * ADMIN_FEE_RATE : 0;
+    const profit = revenue - adminFee - facilityCost - supportCost - otherCost;
+    const expectedProfit = expectedRevenue - expectedAdminFee - facilityCost - supportCost - otherCost;
+    const gyauShare = counts ? profit * shareRate : 0;
+    const expectedGyauShare = counts ? expectedProfit * shareRate : 0;
 
     sessions.push({
       id: event.id,
@@ -529,8 +529,8 @@ export function computePayoutTable(data: CoachAttendanceData): PayoutTable {
       payment: session.gyauShare,
       expectedPayment: session.expectedGyauShare,
       basis: `${session.gyauAttended ? '50%' : '30%'} ${session.gyauAttended ? '(attended)' : '(did not attend)'} of `
-        + `${fmtUsd(session.profit)} profit, less 5% admin of ${fmtUsd(session.adminFee)} `
-        + `(expected: ${fmtUsd(session.expectedProfit)} profit, ${fmtUsd(session.expectedAdminFee)} admin)`,
+        + `${fmtUsd(session.profit)} profit, after 5% admin of ${fmtUsd(session.adminFee)} off revenue `
+        + `(expected: ${fmtUsd(session.expectedProfit)} profit after ${fmtUsd(session.expectedAdminFee)} admin)`,
       attended: session.gyauAttended,
     });
   }

@@ -129,15 +129,20 @@ export function hourlyStatement(s, prepared) {
 // ── Phillip Gyau: the session share report, for one month ────────────────────
 
 const sum = (rows, k) => rows.reduce((t, x) => t + (x[k] || 0), 0);
+// The 5% admin fee comes off the raw income first, before session expenses.
+// Sessions carry their fee; older payloads without one are 5% of revenue.
+const adminOf = (x) => (x.expectedAdminFee ?? (x.gross || 0) * 0.05);
+const adminCollectedOf = (x) => (x.adminFee ?? (x.collected || 0) * 0.05);
 const costOf = (x) => (x.coachCost || 0) + (x.facilityCost || 0) + (x.otherCost || 0);
 
 function shareSummary(rows, rate) {
   const exp = sum(rows, "gross"), col = sum(rows, "collected");
+  const adminExp = rows.reduce((t, x) => t + adminOf(x), 0), adminCol = rows.reduce((t, x) => t + adminCollectedOf(x), 0);
   const coach = sum(rows, "coachCost"), fac = sum(rows, "facilityCost"), other = sum(rows, "otherCost");
-  const ep = exp - coach - fac - other, cp = col - coach - fac - other;
+  const ep = exp - adminExp - coach - fac - other, cp = col - adminCol - coach - fac - other;
   return {
-    n: rows.length, rev: [exp, col], coach: [coach, coach], fac: [fac, fac], other: [other, other],
-    profit: [ep, cp], gross: [ep * rate, cp * rate], admin: [ep * 0.05, cp * 0.05],
+    n: rows.length, rev: [exp, col], admin: [adminExp, adminCol], coach: [coach, coach], fac: [fac, fac], other: [other, other],
+    profit: [ep, cp],
     share: [cents(sum(rows, "expectedShare")), cents(sum(rows, "share"))],
   };
 }
@@ -159,13 +164,12 @@ const summaryBlock = (heading, rateLabel, sm) => {
   const body = [
     [{ text: "" }, th("Expected", "right", "everything billed"), th("Collected", "right", "bills paid")],
     line("Gross revenue", sm.rev, { bold: true }),
+    line("Admin fee (5% of revenue)", sm.admin, { cost: true }),
     line("Coach pay", sm.coach, { cost: true }),
     line("Facility hire", sm.fac, { cost: true }),
     ...(Math.abs(sm.other[0]) > 0.004 ? [line("Other session costs", sm.other, { cost: true })] : []),
     line("Session profit", sm.profit, { bold: true }),
-    line(`${rateLabel} of profit`, sm.gross),
-    line("Admin fee (5% of profit)", sm.admin, { cost: true }),
-    line("Phillip's share", sm.share, { bold: true }),
+    line(`Phillip's share · ${rateLabel} of profit`, sm.share, { bold: true }),
   ];
   const last = body.length - 1;
   return {
@@ -196,11 +200,11 @@ const card = (k, v, s, dark) => ({
 });
 
 const shareSessionTable = (heading, rows) => {
-  const players = sum(rows, "players"), gross = sum(rows, "gross"), cost = rows.reduce((t, x) => t + costOf(x), 0);
+  const players = sum(rows, "players"), gross = sum(rows, "gross"), cost = rows.reduce((t, x) => t + adminOf(x) + costOf(x), 0);
   const body = [
-    [th("Date"), th("Session", "left", "location"), th("Players", "right"), th("Gross revenue", "right", "billed"), th("Costs", "right", "coach + facility"), th("Net revenue", "right", "gross – costs"), th("Collected", "right", "bills paid")],
+    [th("Date"), th("Session", "left", "location"), th("Players", "right"), th("Gross revenue", "right", "billed"), th("Costs", "right", "admin 5% + coach + facility"), th("Net revenue", "right", "gross – costs"), th("Collected", "right", "bills paid")],
     ...[...rows].sort((a, b) => a.date.localeCompare(b.date)).map((x) => {
-      const c = costOf(x);
+      const c = adminOf(x) + costOf(x);
       return [
         cell(when(x.date, x.dateOnly)),
         { stack: [{ text: x.title, fontSize: 8.3 }, ...(x.facility && x.facility !== "—" ? [{ text: x.facility, fontSize: 7.3, color: FAINT }] : [])], margin: [0, 3.5, 0, 3.5] },

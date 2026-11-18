@@ -390,7 +390,7 @@ const CoachPaymentsSection = () => {
                   )}
                   {t.expectedAdminFee !== undefined && t.expectedAdminFee > 0 && (
                     <p className="text-white/35 text-[10px] mt-1 pt-1 border-t border-white/[0.08]">
-                      net of {fmtMoney(t.adminFee ?? 0)} admin
+                      after {fmtMoney(t.adminFee ?? 0)} admin (5% of revenue)
                       {t.expectedAdminFee !== t.adminFee && <> · {fmtMoney(t.expectedAdminFee)} exp.</>}
                     </p>
                   )}
@@ -474,13 +474,13 @@ const CoachPaymentsSection = () => {
                     ) : visibleSessions.map(s => {
                       const breakdown = [
                         `Revenue ${fmtMoney(s.revenue)} collected of ${fmtMoney(s.expectedRevenue)} billed`,
+                        s.expectedAdminFee > 0 ? `− Admin 5% of revenue ${fmtMoney(s.adminFee)} (${fmtMoney(s.expectedAdminFee)} expected)` : null,
                         s.facilityCost > 0 ? `− Facility ${fmtMoney(s.facilityCost)}` : null,
                         s.supportCost > 0 ? `− Coaches ${fmtMoney(s.supportCost)}` : null,
                         ...s.otherCosts.map(c => `− ${c.label} ${fmtMoney(c.amount)}`),
                         `= ${fmtMoney(s.profit)} now, ${fmtMoney(s.expectedProfit)} once all bills are paid`,
-                        s.expectedAdminFee > 0 ? `− Admin 5% ${fmtMoney(s.adminFee)} (${fmtMoney(s.expectedAdminFee)} expected)` : null,
                         s.gyauEligible
-                          ? `Gyau ${s.gyauAttended ? '50%' : '30%'} of profit, less the admin fee → ${fmtMoney(s.gyauShare)} (${fmtMoney(s.expectedGyauShare)} expected)`
+                          ? `Gyau ${s.gyauAttended ? '50%' : '30%'} of profit → ${fmtMoney(s.gyauShare)} (${fmtMoney(s.expectedGyauShare)} expected)`
                           : 'Gyau share: not eligible',
                       ].filter(Boolean).join('\n');
                       return (
