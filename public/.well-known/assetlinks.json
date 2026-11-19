@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.nextstarsoccer.nextstar",
+      "sha256_cert_fingerprints": [
+        "47:76:64:B9:24:58:25:7B:28:8A:F7:A6:7B:F8:82:D2:29:A9:B8:81:D7:7B:F5:FF:7F:4E:6A:15:3A:CD:36:7F"
+      ]
+    }
+  }
+]
