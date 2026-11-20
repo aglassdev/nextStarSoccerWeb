@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { HERO_VIDEO, HERO_VIDEO_MOBILE, FUNDAMENTALS_VIDEO } from '../constants/siteVideos';
 import { Link } from 'react-router-dom';
 import Navigation from '../components/layout/Navigation';
 import Footer from '../components/layout/Footer';
@@ -25,15 +26,12 @@ const STATS: { end: number; suffix: string; label: string; detail: string }[] = 
 
 // ?v= changes whenever the hero is replaced, so browsers drop the old copy.
 const HERO_VERSION = '1015hq';
-const HERO_VIDEO = `/assets/hero-1080.mp4?v=${HERO_VERSION}`;
-const HERO_VIDEO_MOBILE = `/assets/hero-720.mp4?v=${HERO_VERSION}`;
 const HERO_POSTER = `/assets/hero-poster.jpg?v=${HERO_VERSION}`;
 
 // Filler media for the three split sections below, until the real photos and
 // video are uploaded. Swap these values to replace them.
 const ABOUT_IMAGE = homeImages.about;
 const TEAM_IMAGE = homeImages.team;
-const FUNDAMENTALS_VIDEO = '/assets/fundamentals.mp4?v=15hq';
 const FUNDAMENTALS_POSTER = homeImages.fundamentalsPoster;
 
 const STORY: {

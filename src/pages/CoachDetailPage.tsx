@@ -1,4 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
+import { coachVideo } from '../constants/siteVideos';
 import { useRef, useState, useCallback, useEffect } from 'react';
 import Navigation from '../components/layout/Navigation';
 import Footer from '../components/layout/Footer';
@@ -242,8 +243,8 @@ const VideoPlayer = ({ src, poster }: { src: string; poster?: string }) => {
   );
 };
 
-// Highlight reels, served from the site itself (Appwrite storage streamed them
-// too slowly to start). Each has a poster frame so it is never a black box.
+// Highlight reels, streamed from Appwrite Storage (see constants/siteVideos).
+// Each has a poster frame so it is never a black box.
 const COACH_VIDEO_COUNT: Record<string, number> = {
   'paul-torres': 2,
   'chris-pontius': 2,
@@ -255,7 +256,7 @@ const COACH_VIDEOS_REVERSED = new Set(['paul-torres']);
 const COACH_VIDEOS: Record<string, { src: string; poster: string }[]> = Object.fromEntries(
   Object.entries(COACH_VIDEO_COUNT).map(([slug, n]) => {
     const reels = Array.from({ length: n }, (_, i) => ({
-      src: `/assets/coaches/${slug}-${i + 1}.mp4`,
+      src: coachVideo(slug, i + 1),
       poster: `/assets/coaches/${slug}-${i + 1}-poster.jpg`,
     }));
     return [slug, COACH_VIDEOS_REVERSED.has(slug) ? reels.reverse() : reels];

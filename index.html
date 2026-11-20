@@ -15,6 +15,8 @@
     <title>Next Star Soccer</title>
     <!-- Preload above-the-fold hero so it starts fetching immediately -->
     <link rel="preload" as="image" href="/assets/hero-poster.jpg?v=1015hq" fetchpriority="high" />
+    <!-- The videos stream from Appwrite Storage: open that connection early -->
+    <link rel="preconnect" href="https://nyc.cloud.appwrite.io" />
   </head>
   <body>
     <div id="root"></div>
