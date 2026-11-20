@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Query, ID } from 'appwrite';
 import { databases, databaseId, collections } from '../../../services/appwrite';
@@ -212,7 +212,7 @@ function SessionNotesPanel({ eventId, eventDate, eventTime, currentUserId, curre
 // a pencil. Uses the same controls as the Event Assistant so a session edited
 // here ends up shaped exactly like one created there.
 function EventDetailsCard({
-  event, calType, coachNames, onSaved, onFeedback, onCoachesChanged,
+  event, calType, coachNames, onSaved, onFeedback, onCoachesChanged, canEdit = true,
 }: {
   event: CalendarEvent;
   calType: CalType;
@@ -220,6 +220,8 @@ function EventDetailsCard({
   onSaved: (patch: Partial<CalendarEvent>) => void;
   onFeedback: (msg: string, isError?: boolean) => void;
   onCoachesChanged: () => void;
+  /** Calendar edits are admin-only (the calendar function refuses anyone else). */
+  canEdit?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -379,7 +381,7 @@ function EventDetailsCard({
               )}
             </button>
           </div>
-        ) : (
+        ) : canEdit && (
           <button
             onClick={openEditor}
             title="Edit event"
@@ -563,6 +565,8 @@ function EventDetailView({
   onFeedback,
   currentUserId,
   currentUserName,
+  basePath,
+  canEditEvents,
 }: {
   event: CalendarEvent;
   calType: CalType;
@@ -572,6 +576,8 @@ function EventDetailView({
   onFeedback: (msg: string, isError?: boolean) => void;
   currentUserId?: string;
   currentUserName?: string;
+  basePath: string;
+  canEditEvents: boolean;
 }) {
   const [signups, setSignups] = useState<AttendeeDoc[]>([]);
   const [checkins, setCheckins] = useState<AttendeeDoc[]>([]);
@@ -893,7 +899,7 @@ function EventDetailView({
     return (
       // A real link, so it can open in a new tab; a plain click stays in place
       <Link
-        to={`/admin/attendance/${calType}/${ev.id}`}
+        to={`${basePath}/${calType}/${ev.id}`}
         onClick={e => {
           if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
           e.preventDefault();
@@ -936,6 +942,7 @@ function EventDetailView({
           onSaved={onEventEdited}
           onFeedback={onFeedback}
           onCoachesChanged={reloadCoaches}
+          canEdit={canEditEvents}
         />
 
         {/* Add player search */}
@@ -1005,7 +1012,7 @@ function EventDetailView({
         />
 
         {/* Signups | Checkins columns */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Signups */}
           <div className="bg-[#1d1c21] border border-white/[0.08] rounded-xl p-5 overflow-hidden">
             <p className="text-white/50 text-[11px] font-medium tracking-widest uppercase mb-4">
@@ -1114,7 +1121,7 @@ function EventDetailView({
         {(earlier.length > 0 || later.length > 0) && (
           <div className="bg-[#1d1c21] border border-white/[0.08] rounded-xl p-5">
             <p className="text-white/50 text-[11px] font-medium tracking-widest uppercase mb-4">Nearby Sessions</p>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <p className="text-white/35 text-[10px] uppercase tracking-wider mb-2">← Earlier</p>
                 {earlier.length === 0 ? (
@@ -1171,11 +1178,13 @@ function WeekView({
   privateEvents,
   allPlayers,
   onFeedback,
+  showCalFilter,
 }: {
   publicEvents: CalendarEvent[];
   privateEvents: CalendarEvent[];
   allPlayers: PlayerSearchResult[];
   onFeedback: (msg: string, isError?: boolean) => void;
+  showCalFilter: boolean;
 }) {
   const todayStr = easternDay(new Date().toISOString());
   const [weekStart, setWeekStart] = useState(() => sundayOf(todayStr));
@@ -1350,6 +1359,7 @@ function WeekView({
           </button>
 
           {/* Public / Private filter */}
+          {showCalFilter && (
           <div className="flex bg-white/[0.04] border border-white/10 rounded-lg p-0.5 ml-2">
             {(['all', 'public', 'private'] as const).map(f => (
               <button
@@ -1363,6 +1373,7 @@ function WeekView({
               </button>
             ))}
           </div>
+          )}
         </div>
         <div className="text-right">
           <p className="text-white text-sm font-medium">{weekLabel}</p>
@@ -1578,7 +1589,7 @@ function formatTableDateTime(dt: string, dateOnly?: boolean) {
 }
 
 function EventTable({
-  rows, scrollRef, highlightIds, firstUpcomingId, calFilter, onCalFilter, linkFor,
+  rows, scrollRef, highlightIds, firstUpcomingId, calFilter, onCalFilter, linkFor, showCalFilter, scope,
 }: {
   rows: TableEvent[];
   scrollRef: React.MutableRefObject<HTMLDivElement | null>;
@@ -1587,7 +1598,12 @@ function EventTable({
   calFilter: 'all' | 'public' | 'private';
   onCalFilter: (f: 'all' | 'public' | 'private') => void;
   linkFor: (ev: TableEvent) => string;
+  showCalFilter: boolean;
+  /** Keeps another view's remembered scroll spot (Coach+) apart from the admin's. */
+  scope?: string;
 }) {
+  // The remembered spot belongs to this view and its public/private filter.
+  const spotKey = scope ? `${scope}:${calFilter}` : calFilter;
   const rowOpen = useRowOpen();
   const [attendees, setAttendees] = useState<Record<string, string[]>>({});
   const [coaches, setCoaches] = useState<Record<string, string[]>>({});
@@ -1664,9 +1680,9 @@ function EventTable({
   const autoScrollAt = useRef<number | null>(null);
   const anchor = useCallback((): ListAnchor | null => {
     const saved = readAnchor();
-    if (saved && saved.filter === calFilter && rows.some(r => r.id === saved.id)) return saved;
-    return firstUpcomingId ? { id: firstUpcomingId, offset: 0, filter: calFilter } : null;
-  }, [rows, calFilter, firstUpcomingId]);
+    if (saved && saved.filter === spotKey && rows.some(r => r.id === saved.id)) return saved;
+    return firstUpcomingId ? { id: firstUpcomingId, offset: 0, filter: spotKey } : null;
+  }, [rows, spotKey, firstUpcomingId]);
   const settle = useCallback(() => {
     const list = scrollRef.current;
     const a = anchor();
@@ -1676,14 +1692,14 @@ function EventTable({
   }, [anchor, scrollRef]);
 
   // Switching the public/private filter starts that list on today.
-  const shownFilter = useRef(calFilter);
+  const shownFilter = useRef(spotKey);
   useEffect(() => {
-    if (shownFilter.current !== calFilter) {
-      shownFilter.current = calFilter;
+    if (shownFilter.current !== spotKey) {
+      shownFilter.current = spotKey;
       saveAnchor(null);
     }
     autoScrollAt.current = null;
-  }, [rows, calFilter]);
+  }, [rows, spotKey]);
   useEffect(() => { requestAnimationFrame(settle); }, [rows, loading, settle]);
 
   // Remember the row at the top as the admin scrolls (once a frame at most).
@@ -1699,7 +1715,7 @@ function EventTable({
       for (const el of list.querySelectorAll<HTMLElement>('tr[data-eid]')) {
         const box = el.getBoundingClientRect();
         if (box.bottom > top) {
-          saveAnchor({ id: el.dataset.eid!, offset: box.top - top, filter: calFilter });
+          saveAnchor({ id: el.dataset.eid!, offset: box.top - top, filter: spotKey });
           return;
         }
       }
@@ -1710,6 +1726,7 @@ function EventTable({
   return (
     <div className="flex flex-col h-[calc(100vh-180px)] min-h-0 bg-[#0e0e0e] border border-[#1c1c1c] rounded-xl overflow-hidden">
       <div className="px-4 py-3 border-b border-[#1a1a1a] flex items-center justify-between gap-3 flex-shrink-0">
+        {showCalFilter ? (
         <div className="flex bg-white/[0.04] border border-white/10 rounded-lg p-0.5">
           {(['all', 'public', 'private'] as const).map(f => (
             <button
@@ -1723,6 +1740,7 @@ function EventTable({
             </button>
           ))}
         </div>
+        ) : <span />}
         <p className="text-white/30 text-xs">
           {rows.length} session{rows.length === 1 ? '' : 's'}
           {!loading && <> · {totalCheckins} check-in{totalCheckins === 1 ? '' : 's'}</>}
@@ -1849,12 +1867,46 @@ function EventTable({
 }
 
 // ── Main section ─────────────────────────────────────────────────────────────
-const AttendanceManagerSection = () => {
+export interface AttendanceManagerProps {
+  /** Where the list lives; a session opens at `${basePath}/${calType}/${eventId}`. */
+  basePath?: string;
+  /** Narrows both calendars to the sessions this view covers (Coach+). */
+  include?: (ev: CalendarEvent, calType: CalType) => boolean;
+  /** Event details (title, time, place, coaches, facility cost) are admin-only. */
+  canEditEvents?: boolean;
+  /** The public/private toggle; off when the view only covers one calendar. */
+  showCalFilter?: boolean;
+  /** Replaces the admin heading; gets the List/Week and Jump to date controls. */
+  renderHeader?: (controls: ReactNode) => ReactNode;
+  /** Keeps this view's remembered view, filter and scroll spot apart from the admin's. */
+  scope?: string;
+  className?: string;
+}
+
+export const AttendanceManager = ({
+  basePath = '/admin/attendance',
+  include,
+  canEditEvents = true,
+  showCalFilter = true,
+  renderHeader,
+  scope,
+  className = 'p-6',
+}: AttendanceManagerProps) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const params = useParams<{ calType?: string; eventId?: string }>();
-  const [publicEvents, setPublicEvents] = useState<CalendarEvent[]>([]);
-  const [privateEvents, setPrivateEvents] = useState<CalendarEvent[]>([]);
+  const [loadedPublic, setPublicEvents] = useState<CalendarEvent[]>([]);
+  const [loadedPrivate, setPrivateEvents] = useState<CalendarEvent[]>([]);
+  // The sessions this view covers: everything in the admin, a slice elsewhere.
+  const publicEvents = useMemo(
+    () => (include ? loadedPublic.filter(e => include(e, 'public')) : loadedPublic),
+    [loadedPublic, include],
+  );
+  const privateEvents = useMemo(
+    () => (include ? loadedPrivate.filter(e => include(e, 'private')) : loadedPrivate),
+    [loadedPrivate, include],
+  );
+  const prefKey = (name: string) => `nss-${scope || 'admin'}-attendance-${name}`;
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<{ event: CalendarEvent; calType: CalType } | null>(null);
 
@@ -1866,13 +1918,14 @@ const AttendanceManagerSection = () => {
 
   // Table vs Week view, plus a shared player list for the week view's add search
   const [viewMode, setViewModeState] = useState<'table' | 'week'>(
-    () => readPref('nss-admin-attendance-view', ['table', 'week'] as const, 'table'),
+    () => readPref(prefKey('view'), ['table', 'week'] as const, 'table'),
   );
-  const [calFilter, setCalFilterState] = useState<'all' | 'public' | 'private'>(
-    () => readPref('nss-admin-attendance-filter', ['all', 'public', 'private'] as const, 'all'),
+  const [savedCalFilter, setCalFilterState] = useState<'all' | 'public' | 'private'>(
+    () => readPref(prefKey('filter'), ['all', 'public', 'private'] as const, 'all'),
   );
-  const setViewMode = (v: 'table' | 'week') => { setViewModeState(v); savePref('nss-admin-attendance-view', v); };
-  const setCalFilter = (f: 'all' | 'public' | 'private') => { setCalFilterState(f); savePref('nss-admin-attendance-filter', f); };
+  const calFilter = showCalFilter ? savedCalFilter : 'all';
+  const setViewMode = (v: 'table' | 'week') => { setViewModeState(v); savePref(prefKey('view'), v); };
+  const setCalFilter = (f: 'all' | 'public' | 'private') => { setCalFilterState(f); savePref(prefKey('filter'), f); };
   const [allPlayers, setAllPlayers] = useState<PlayerSearchResult[]>([]);
 
   const [successMsg, setSuccessMsg] = useState('');
@@ -1930,11 +1983,11 @@ const AttendanceManagerSection = () => {
         .find(e => e.id === params.eventId);
       if (!found) continue;
       setSelected({ event: found, calType });
-      if (calType !== wanted) navigate(`/admin/attendance/${calType}/${found.id}`, { replace: true });
+      if (calType !== wanted) navigate(`${basePath}/${calType}/${found.id}`, { replace: true });
       return;
     }
     setSelected(null);
-  }, [loading, params.eventId, params.calType, publicEvents, privateEvents, navigate]);
+  }, [loading, params.eventId, params.calType, publicEvents, privateEvents, navigate, basePath]);
 
   // Load the player roster once (shared with the week view's add-check-in search)
   useEffect(() => {
@@ -1992,40 +2045,44 @@ const AttendanceManagerSection = () => {
     window.setTimeout(() => setHighlightIds([]), 2800);
   };
 
-  return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-white">Attendance Manager</h2>
-        {!selected && !loading && (
-          <div className="flex items-center gap-2">
-            {/* List / Week toggle */}
-            <div className="flex bg-white/[0.04] border border-white/10 rounded-lg p-0.5">
-              {(['table', 'week'] as const).map(mode => (
-                <button
-                  key={mode}
-                  onClick={() => setViewMode(mode)}
-                  className={`px-3 py-1.5 text-sm rounded-md transition-colors capitalize ${
-                    viewMode === mode ? 'bg-white text-black font-medium' : 'text-white/60 hover:text-white'
-                  }`}
-                >
-                  {mode}
-                </button>
-              ))}
-            </div>
-            {viewMode === 'table' && (
-              <button
-                onClick={() => { setJumpDate(easternToday); setShowDateModal(true); }}
-                className="flex items-center gap-2 px-4 py-2 bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 rounded-lg text-white text-sm transition-colors"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                Jump to date
-              </button>
-            )}
-          </div>
-        )}
+  const controls = !selected && !loading && (
+    <div className="flex items-center gap-2">
+      {/* List / Week toggle */}
+      <div className="flex bg-white/[0.04] border border-white/10 rounded-lg p-0.5">
+        {(['table', 'week'] as const).map(mode => (
+          <button
+            key={mode}
+            onClick={() => setViewMode(mode)}
+            className={`px-3 py-1.5 text-sm rounded-md transition-colors capitalize ${
+              viewMode === mode ? 'bg-white text-black font-medium' : 'text-white/60 hover:text-white'
+            }`}
+          >
+            {mode}
+          </button>
+        ))}
       </div>
+      {viewMode === 'table' && (
+        <button
+          onClick={() => { setJumpDate(easternToday); setShowDateModal(true); }}
+          className="flex items-center gap-2 px-4 py-2 bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 rounded-lg text-white text-sm transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          Jump to date
+        </button>
+      )}
+    </div>
+  );
+
+  return (
+    <div className={className}>
+      {renderHeader ? renderHeader(controls) : (
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-white">Attendance Manager</h2>
+          {controls}
+        </div>
+      )}
 
       {successMsg && (
         <div className="mb-4 px-4 py-3 bg-green-500/10 border border-green-500/20 rounded-lg text-green-400 text-sm">{successMsg}</div>
@@ -2042,13 +2099,15 @@ const AttendanceManagerSection = () => {
           allEvents={selected.calType === 'public' ? publicEvents : privateEvents}
           onSelectEvent={(ev) => {
             setSelected({ event: ev, calType: selected.calType });
-            navigate(`/admin/attendance/${selected.calType}/${ev.id}`);
+            navigate(`${basePath}/${selected.calType}/${ev.id}`);
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
-          onBack={() => { setSelected(null); navigate('/admin/attendance'); }}
+          onBack={() => { setSelected(null); navigate(basePath); }}
           onFeedback={showFeedback}
           currentUserId={user?.$id}
           currentUserName={user?.name || user?.email?.split('@')[0]}
+          basePath={basePath}
+          canEditEvents={canEditEvents}
         />
       ) : loading ? (
         <div className="flex items-center justify-center h-40">
@@ -2060,6 +2119,7 @@ const AttendanceManagerSection = () => {
           privateEvents={privateEvents}
           allPlayers={allPlayers}
           onFeedback={showFeedback}
+          showCalFilter={showCalFilter}
         />
       ) : (
         <EventTable
@@ -2069,7 +2129,9 @@ const AttendanceManagerSection = () => {
           firstUpcomingId={firstUpcomingId}
           calFilter={calFilter}
           onCalFilter={setCalFilter}
-          linkFor={(ev) => `/admin/attendance/${ev.calType}/${ev.id}`}
+          linkFor={(ev) => `${basePath}/${ev.calType}/${ev.id}`}
+          showCalFilter={showCalFilter}
+          scope={scope}
         />
       )}
 
@@ -2120,5 +2182,7 @@ const AttendanceManagerSection = () => {
     </div>
   );
 };
+
+const AttendanceManagerSection = () => <AttendanceManager />;
 
 export default AttendanceManagerSection;

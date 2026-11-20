@@ -13,7 +13,7 @@ interface AccountState extends AccountInfo {
   refresh: () => Promise<void>;
 }
 
-const empty: AccountInfo = { userType: null, profile: null, collectionId: null, isCoach: false, isAdmin: false };
+const empty: AccountInfo = { userType: null, profile: null, collectionId: null, isCoach: false, coachName: null, isAdmin: false };
 
 export const AccountCtx = createContext<AccountState>({ ...empty, loading: true, children: [], refresh: async () => {} });
 

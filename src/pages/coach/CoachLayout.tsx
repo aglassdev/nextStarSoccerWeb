@@ -1,16 +1,19 @@
 import { useEffect } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import Navigation from '../../components/layout/Navigation';
 import { AccountMenuButton, AccountSideMenu } from '../../components/layout/AccountSideMenu';
 import type { MenuItem } from '../../components/layout/AccountMenu';
 import { AccountProvider, useAccount } from '../account/AccountContext';
 import { ensureCoachRole } from '../../services/videoAnalysis';
 import { ACCOUNTS_LIVE } from '../../constants/features';
+import { hasCoachPlus } from './coachPlus';
 
 // The web coach dashboard: the same account a coach uses in the app. Admins
 // can open it too. Laid out like the Account Center: the site's top bar, the
 // page, and the coach's pages down the right side (behind a menu button on
-// narrow screens). An opened video analysis uses the full width.
+// narrow screens). An opened video analysis uses the full width. Phillip
+// Gyau's is Coach+, with a Coach+ page for the sessions he takes a share of.
 
 const ITEMS: MenuItem[] = [
   { label: 'Dashboard', to: '/coach' },
@@ -29,8 +32,10 @@ let roleChecked = false;
 
 const Frame = () => {
   const { pathname } = useLocation();
-  const { loading, isCoach, isAdmin, userType } = useAccount();
+  const { user } = useAuth();
+  const { loading, isCoach, isAdmin, userType, coachName } = useAccount();
   const wide = pathname.startsWith('/coach/analysis/');
+  const plus = hasCoachPlus(user?.$id, [coachName, user?.name]);
 
   // New coach accounts get the "coach" tag that lets them see game film.
   useEffect(() => {
@@ -76,13 +81,14 @@ const Frame = () => {
       : [{ label: 'Settings', to: '/account/settings' }]),
     ...(isAdmin ? [{ label: 'Admin', to: '/admin/dashboard' }] : []),
   ];
-  const menu = { items: ITEMS, staff, isActive };
+  const items = plus ? [...ITEMS, { label: 'Coach+', to: '/coach/plus' }] : ITEMS;
+  const menu = { items, staff, isActive };
 
   return shell(
     <div className={`${wide ? 'max-w-[1840px] px-4 md:px-6' : 'max-w-[1640px] px-4 md:px-8'} mx-auto pt-16`}>
       {!wide && (
         <div className="lg:hidden flex items-center justify-between h-14">
-          <span className="text-white/40 text-xs tracking-[0.18em] uppercase">Coach Dashboard</span>
+          <span className="text-white/40 text-xs tracking-[0.18em] uppercase">{plus ? 'Coach+ Dashboard' : 'Coach Dashboard'}</span>
           <AccountMenuButton menu={menu} />
         </div>
       )}

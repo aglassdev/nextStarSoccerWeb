@@ -62,6 +62,7 @@ import CoachCalendarPage from './pages/coach/CoachCalendarPage';
 import CoachInboxPage from './pages/coach/CoachInboxPage';
 import CoachVideoAnalysisPage from './pages/coach/CoachVideoAnalysisPage';
 import CoachAnalysisWorkspacePage from './pages/coach/CoachAnalysisWorkspacePage';
+import CoachPlusPage from './pages/coach/CoachPlusPage';
 import PaymentPortalPage from './pages/user/PaymentPortalPage';
 import CheckoutPage from './pages/user/CheckoutPage';
 import StatusPage from './pages/StatusPage';
@@ -262,6 +263,9 @@ function AppRoutes() {
         <Route path="inbox" element={<CoachInboxPage />} />
         <Route path="video-analysis" element={<CoachVideoAnalysisPage />} />
         <Route path="analysis/:id" element={<CoachAnalysisWorkspacePage />} />
+        {/* Coach+ (Phillip Gyau): the attendance manager for the sessions he takes a share of */}
+        <Route path="plus" element={<CoachPlusPage />} />
+        <Route path="plus/:calType/:eventId" element={<CoachPlusPage />} />
         {/* Old addresses */}
         <Route path="sessions" element={<Navigate to="/coach" replace />} />
         <Route path="requests" element={<Navigate to="/coach/inbox" replace />} />

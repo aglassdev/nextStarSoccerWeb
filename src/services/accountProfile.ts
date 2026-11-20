@@ -10,6 +10,8 @@ export interface AccountInfo {
   collectionId: string | null;
   /** Has a Coaches doc (player+coach hybrids included), keyed by userId as in the app. */
   isCoach: boolean;
+  /** The name on their Coaches doc, when they coach. */
+  coachName: string | null;
   isAdmin: boolean;
 }
 
@@ -32,6 +34,7 @@ export async function resolveAccount(userId: string, labels?: string[]): Promise
     profile: ctx.profile,
     collectionId: ctx.collectionId,
     isCoach: !!coach,
+    coachName: coach ? `${coach.firstName || ''} ${coach.lastName || ''}`.trim() || null : null,
     // Admin access comes from the account's labels (Development → Staff Access).
     isAdmin: isAdminUser({ labels }),
   };
