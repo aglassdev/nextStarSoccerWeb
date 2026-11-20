@@ -10,10 +10,13 @@ import crypto from "node:crypto";
  *   - "authUrl"     → the Intuit sign-in address to connect QuickBooks
  *   - "sync"        { full? } → read payments now
  *   - "disconnect"  → revoke the connection
- *  Intuit, through the website's /api/quickbooks/* proxy (no session):
- *   - "callback"    { query } → finish connecting (checked by a signed state)
- *   - "webhook"     { rawBody, signature } → a payment changed (checked by
- *                   Intuit's signature), so sync
+ *  Intuit (no session), straight to this function's own address
+ *  (https://nss-quickbooks.nyc.appwrite.run), or through the website's
+ *  older /api/quickbooks/* proxy:
+ *   - GET  /callback  ?code&state&realmId → finish connecting (checked by a
+ *                     signed state), then send the admin back to Payouts
+ *   - POST /webhook   a payment changed (checked by Intuit's signature), so sync
+ *   (proxied: body.route "callback" { query } / "webhook" { rawBody, signature })
  *  The daily schedule runs a sync too.
  *
  * Settings (function environment variables, set in the Appwrite console):
@@ -36,7 +39,10 @@ const CONNECTION = "quickbooks_connection";
 const CONNECTION_DOC = "main";
 
 const SITE = "https://www.nextstarsoccer.com";
-const REDIRECT_URI = `${SITE}/api/quickbooks/callback`;
+// Where Intuit returns after connecting. This must match a Redirect URI in the
+// Intuit app's settings exactly. It's this function's own address, so it
+// doesn't depend on where the website is hosted.
+const REDIRECT_URI = process.env.QUICKBOOKS_REDIRECT_URI || "https://nss-quickbooks.nyc.appwrite.run/callback";
 const RETURN_TO = `${SITE}/admin/coach-payments?view=payouts`;
 const INTUIT_AUTH = "https://appcenter.intuit.com/connect/oauth2";
 const INTUIT_TOKEN = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer";
@@ -262,9 +268,22 @@ export default async (context) => {
   KEY = process.env.APPWRITE_API_KEY || req.headers["x-appwrite-key"] || "";
   const scheduled = req.headers["x-appwrite-trigger"] === "schedule";
   let body = {};
-  try { body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body || {}; } catch { body = {}; }
+  // Intuit calling this function's own address: GET /callback, POST /webhook
+  const path = String(req.path || "/").replace(/\/+$/, "");
+  const direct = !scheduled && (path === "/callback" || path === "/webhook");
+  if (direct && path === "/callback") {
+    const q = req.query || {};
+    body = { route: "callback", query: { code: q.code, state: q.state, realmId: q.realmId, error: q.error } };
+  } else if (direct) {
+    body = { route: "webhook", rawBody: req.bodyText ?? req.bodyRaw ?? "", signature: req.headers["intuit-signature"] || "" };
+  } else {
+    try { body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body || {}; } catch { body = {}; }
+  }
   // Only Appwrite's own schedule runs the daily sync
   const route = scheduled ? "(schedule)" : String(body.route || "").replace("(schedule)", "");
+  // After connecting, a direct call sends the admin's browser back to the site;
+  // through the proxy, the proxy does that with the address returned here.
+  const finish = (url) => (direct ? res.redirect(url, 302) : res.json({ redirect: url }));
 
   try {
     // Intuit's side: verified by signature or signed state, not by a session
@@ -281,10 +300,10 @@ export default async (context) => {
     }
     if (route === "callback") {
       const qy = body.query || {};
-      if (qy.error) return res.json({ redirect: `${RETURN_TO}&quickbooks=${encodeURIComponent(qy.error)}` });
+      if (qy.error) return finish(`${RETURN_TO}&quickbooks=${encodeURIComponent(qy.error)}`);
       if (!configured()) throw new HttpError(503, "QuickBooks keys not set");
       const st = readState(qy.state);
-      if (!st || !qy.code || !qy.realmId) return res.json({ redirect: `${RETURN_TO}&quickbooks=expired` });
+      if (!st || !qy.code || !qy.realmId) return finish(`${RETURN_TO}&quickbooks=expired`);
       const t = tokenFields(await tokenRequest({ grant_type: "authorization_code", code: qy.code, redirect_uri: REDIRECT_URI }));
       const conn = {
         realmId: String(qy.realmId), accessToken: t.accessToken, refreshToken: t.refreshToken,
@@ -295,7 +314,7 @@ export default async (context) => {
       try { companyName = (await qbo(conn, `companyinfo/${conn.realmId}`))?.CompanyInfo?.CompanyName || ""; } catch { /* optional */ }
       await saveConnection({ companyName });
       try { await sync(conn, { full: true }, log); } catch (e) { error(`first sync: ${e.message}`); }
-      return res.json({ redirect: `${RETURN_TO}&quickbooks=connected` });
+      return finish(`${RETURN_TO}&quickbooks=connected`);
     }
     if (route === "(schedule)" && scheduled) {
       const conn = await readConnection();
@@ -351,7 +370,7 @@ export default async (context) => {
   } catch (e) {
     const status = e instanceof HttpError ? e.status : 500;
     if (status >= 500) error(`quickbooks-sync ${route}: ${e.message}`);
-    if (route === "callback") return res.json({ redirect: `${RETURN_TO}&quickbooks=error` });
+    if (route === "callback") return finish(`${RETURN_TO}&quickbooks=error`);
     return res.json({ success: false, error: e instanceof HttpError ? e.message : "Something went wrong" }, status);
   }
 };

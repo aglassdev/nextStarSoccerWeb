@@ -1,0 +1,8 @@
+{
+  "name": "service-status",
+  "version": "1.0.0",
+  "description": "Public, read-only service status for status.nextstarsoccer.com",
+  "main": "src/main.js",
+  "type": "module",
+  "license": "ISC"
+}

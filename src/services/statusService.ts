@@ -86,19 +86,22 @@ function normalize(raw: any): StatusSection[] | null {
   return out;
 }
 
-// Public loader for the status page. Reads via the same-origin /api/status
-// proxy first — this works on any domain (e.g. the status.* subdomain, which
-// isn't a registered Appwrite web platform and would be CORS-blocked by a
-// direct browser read). Falls back to a direct SDK read, then to defaults.
+// Public loader for the status page. The status.* subdomain isn't a registered
+// Appwrite web platform, so a direct browser read there is CORS-blocked.
+// Instead it reads the service-status function's own address, which works
+// wherever the site is hosted; then the older same-origin /api/status route
+// (Vercel only); then a direct SDK read; then defaults.
+const STATUS_SOURCES = ['https://nss-status.nyc.appwrite.run/', '/api/status'];
+
 export async function loadStatusSectionsPublic(): Promise<StatusSection[]> {
-  try {
-    const r = await fetch('/api/status', { cache: 'no-store' });
-    if (r.ok) {
-      const json = await r.json();
-      const parsed = normalize(json);
+  for (const url of STATUS_SOURCES) {
+    try {
+      const r = await fetch(url, { cache: 'no-store' });
+      if (!r.ok) continue;
+      const parsed = normalize(await r.json());
       if (parsed && parsed.length) return parsed;
-    }
-  } catch { /* fall through to SDK */ }
+    } catch { /* try the next source */ }
+  }
   return loadStatusSections();
 }
 
