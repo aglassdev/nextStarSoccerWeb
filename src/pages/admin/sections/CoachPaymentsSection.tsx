@@ -116,6 +116,9 @@ const CoachPaymentsSection = () => {
   const { user } = useAuth();
   const [table, setTable] = useState<PayoutTable | null>(null);
   const [error, setError] = useState('');
+  // True while the figures are being recalculated; until then the table shows
+  // the last saved figures, which can predate recent check-in changes.
+  const [refreshing, setRefreshing] = useState(true);
   // ?view=payouts opens the Payouts tab (where QuickBooks sends admins back)
   const [searchParams] = useSearchParams();
   const [view, setView] = useState<View>(() => (searchParams.get('view') === 'payouts' ? 'payouts' : 'session'));
@@ -126,6 +129,7 @@ const CoachPaymentsSection = () => {
 
   const recalculate = useCallback(async (isCancelled: () => boolean = () => false) => {
     setError('');
+    setRefreshing(true);
     try {
       const data = await buildCoachAttendance();
       const computed = computePayoutTable(data);
@@ -134,6 +138,8 @@ const CoachPaymentsSection = () => {
       try { localStorage.setItem(CACHE_KEY, JSON.stringify(computed)); } catch { /* quota */ }
     } catch (e: any) {
       if (!isCancelled()) setError(e?.message || 'Failed to calculate payouts');
+    } finally {
+      if (!isCancelled()) setRefreshing(false);
     }
   }, []);
 
@@ -285,7 +291,15 @@ const CoachPaymentsSection = () => {
   return (
     <div className="px-5 py-5">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
-        <h1 className="text-white text-xl font-semibold">Coach Payments</h1>
+        <div className="flex items-baseline gap-3">
+          <h1 className="text-white text-xl font-semibold">Coach Payments</h1>
+          {table && refreshing && (
+            <span className="text-white/40 text-[11px] flex items-center gap-1.5" title="Showing the figures from your last visit until the recalculation finishes">
+              <span className="w-2.5 h-2.5 border border-white/40 border-t-transparent rounded-full animate-spin" />
+              Updating…
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           {/* Narrows the table and re-totals every coach card to that month.
               Payouts always covers every month. */}
