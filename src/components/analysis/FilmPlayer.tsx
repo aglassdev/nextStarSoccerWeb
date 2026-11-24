@@ -1,9 +1,12 @@
 import { ReactNode, forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
-import { formatTimestamp } from '../../services/videoAnalysis';
+import { formatTimestamp, streamJwt } from '../../services/videoAnalysis';
+import { useAdaptiveVideo } from '../../hooks/useAdaptiveVideo';
 
 // The game film player used by the coach workspace, the family's finished
 // analysis and the family's moment marking: a large film with a timeline that
 // carries a dash per marker (an annotation, a marked moment or a game mark).
+// It plays the film's adaptive stream once it's encoded (quality follows the
+// connection, and phone HEVC film plays everywhere), and the file till then.
 // Clicking a dash calls onMarkerClick. Stretches the coach can skip (before
 // the game, half time, after it) are dimmed on the bar. Space plays/pauses,
 // ←/→ skip 5 s.
@@ -23,7 +26,10 @@ export interface FilmPlayerHandle {
 }
 
 interface Props {
+  /** Signed link to the film file: the fallback, and the download link. */
   src: string;
+  /** The film's Appwrite Videos stream, when it's encoded. */
+  videoId?: string;
   poster?: string;
   markers: FilmMarker[];
   activeId?: string | null;
@@ -44,6 +50,8 @@ const MARKER_COLOR = { white: 'bg-white', sky: 'bg-[#7dd3fc]', game: 'bg-[#4ade8
 
 const SPEEDS = [0.5, 1, 1.5, 2];
 
+const finite = (n: number) => (Number.isFinite(n) ? n : 0);
+
 const isTyping = (target: EventTarget | null) => {
   const el = target as HTMLElement | null;
   const tag = el?.tagName;
@@ -51,7 +59,7 @@ const isTyping = (target: EventTarget | null) => {
 };
 
 const FilmPlayer = forwardRef<FilmPlayerHandle, Props>(
-  ({ src, poster, markers, activeId, onMarkerClick, onTime, overlay, actions, shortcuts, dimmed = [] }, ref) => {
+  ({ src, videoId, poster, markers, activeId, onMarkerClick, onTime, overlay, actions, shortcuts, dimmed = [] }, ref) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [playing, setPlaying] = useState(false);
     const [time, setTime] = useState(0);
@@ -62,6 +70,8 @@ const FilmPlayer = forwardRef<FilmPlayerHandle, Props>(
     const [hoverT, setHoverT] = useState<number | null>(null);
 
     const sorted = useMemo(() => [...markers].sort((a, b) => a.t - b.t), [markers]);
+
+    useAdaptiveVideo(videoRef, { videoId, file: src }, { jwt: streamJwt, onFatal: () => setFailed(true) });
 
     const seek = useCallback((t: number) => {
       const v = videoRef.current;
@@ -111,7 +121,7 @@ const FilmPlayer = forwardRef<FilmPlayerHandle, Props>(
     return (
       <div className="flex-1 min-w-0 flex flex-col bg-[#0b0b0b] border border-white/10 rounded-2xl overflow-hidden">
         <div className="relative flex-1 min-h-[240px] bg-black flex items-center justify-center" onClick={togglePlay}>
-          {failed ? (
+          {failed && (
             <div className="text-center px-6">
               <p className="text-white text-sm">This film can't play in this browser.</p>
               <p className="text-gray-500 text-xs mt-1">
@@ -119,25 +129,22 @@ const FilmPlayer = forwardRef<FilmPlayerHandle, Props>(
                 <a href={src} target="_blank" rel="noopener noreferrer" className="underline" onClick={(e) => e.stopPropagation()}>download it</a>.
               </p>
             </div>
-          ) : (
-            <video
-              ref={videoRef}
-              src={src}
-              poster={poster}
-              playsInline
-              preload="metadata"
-              className="absolute inset-0 w-full h-full object-contain"
-              onPlay={() => setPlaying(true)}
-              onPause={() => setPlaying(false)}
-              onTimeUpdate={(e) => { setTime(e.currentTarget.currentTime); onTime?.(e.currentTarget.currentTime); }}
-              onLoadedMetadata={(e) => setDuration(e.currentTarget.duration || 0)}
-              onDurationChange={(e) => setDuration(e.currentTarget.duration || 0)}
-              onWaiting={() => setBuffering(true)}
-              onPlaying={() => setBuffering(false)}
-              onCanPlay={() => setBuffering(false)}
-              onError={() => setFailed(true)}
-            />
           )}
+          <video
+            ref={videoRef}
+            poster={poster}
+            playsInline
+            preload="metadata"
+            className={`absolute inset-0 w-full h-full object-contain ${failed ? 'hidden' : ''}`}
+            onPlay={() => setPlaying(true)}
+            onPause={() => setPlaying(false)}
+            onTimeUpdate={(e) => { setTime(e.currentTarget.currentTime); onTime?.(e.currentTarget.currentTime); }}
+            onLoadedMetadata={(e) => setDuration(finite(e.currentTarget.duration))}
+            onDurationChange={(e) => setDuration(finite(e.currentTarget.duration))}
+            onWaiting={() => setBuffering(true)}
+            onPlaying={() => setBuffering(false)}
+            onCanPlay={() => setBuffering(false)}
+          />
           {buffering && !failed && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="w-10 h-10 border-2 border-white/30 border-t-white rounded-full animate-spin" />

@@ -14,6 +14,8 @@ import FilmPlayer, { FilmMarker, FilmPlayerHandle } from './FilmPlayer';
 
 interface Props {
   src: string;
+  /** The film's stream (see FilmPlayer). */
+  videoId?: string;
   poster?: string;
   annotations: Annotation[];
   /** The family's marked moments (coach view). */
@@ -50,7 +52,7 @@ export const FlagIcon = ({ className = 'w-3.5 h-3.5' }: { className?: string }) 
   </svg>
 );
 
-const AnnotatedPlayer = ({ src, poster, annotations, moments = [], gameMarks, editable, onAdd, onEdit, onDelete, sidebarNote }: Props) => {
+const AnnotatedPlayer = ({ src, videoId, poster, annotations, moments = [], gameMarks, editable, onAdd, onEdit, onDelete, sidebarNote }: Props) => {
   const player = useRef<FilmPlayerHandle>(null);
   const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [time, setTime] = useState(0);
@@ -114,6 +116,7 @@ const AnnotatedPlayer = ({ src, poster, annotations, moments = [], gameMarks, ed
       <FilmPlayer
         ref={player}
         src={src}
+        videoId={videoId}
         poster={poster}
         markers={markers}
         activeId={activeKey}

@@ -32,11 +32,13 @@ interface Props {
   analysis: VideoAnalysis;
   title: string;
   film: string;
+  /** The film's stream (see FilmPlayer). */
+  filmVideo?: string;
   poster?: string;
   onSubmitted: (a: VideoAnalysis) => void;
 }
 
-const MarkMomentsView = ({ analysis, title, film, poster, onSubmitted }: Props) => {
+const MarkMomentsView = ({ analysis, title, film, filmVideo, poster, onSubmitted }: Props) => {
   const player = useRef<FilmPlayerHandle>(null);
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [notes, setNotes] = useState(analysis.playerNotes || '');
@@ -216,6 +218,7 @@ const MarkMomentsView = ({ analysis, title, film, poster, onSubmitted }: Props) 
         <FilmPlayer
           ref={player}
           src={film}
+          videoId={filmVideo}
           poster={poster}
           markers={markers}
           activeId={activeId}

@@ -1,5 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { coachVideo } from '../constants/siteVideos';
+import { VideoSource, useAdaptiveVideo } from '../hooks/useAdaptiveVideo';
 import { useRef, useState, useCallback, useEffect } from 'react';
 import Navigation from '../components/layout/Navigation';
 import Footer from '../components/layout/Footer';
@@ -7,9 +8,11 @@ import { coaches, type Coach, type CareerEntry, type CareerSection } from '../co
 import { withPageImages } from '../hooks/usePageImages';
 
 // ── Video Player ──────────────────────────────────────────────────────────────
-const VideoPlayer = ({ src, poster }: { src: string; poster?: string }) => {
+const VideoPlayer = ({ source, poster }: { source: VideoSource; poster?: string }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  // An adaptive stream (see constants/siteVideos); nothing but its playlist loads until play.
+  useAdaptiveVideo(videoRef, source, { lazy: true });
   const seekRef = useRef<HTMLDivElement>(null);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -44,7 +47,7 @@ const VideoPlayer = ({ src, poster }: { src: string; poster?: string }) => {
   const handleLoaded = () => {
     const v = videoRef.current;
     if (!v) return;
-    setDuration(v.duration ?? 0);
+    setDuration(Number.isFinite(v.duration) ? v.duration : 0);
     // The poster stands in as the thumbnail, so nothing is fetched until play.
   };
   const handleEnded = () => setPlaying(false);
@@ -135,11 +138,11 @@ const VideoPlayer = ({ src, poster }: { src: string; poster?: string }) => {
     >
       <video
         ref={videoRef}
-        src={src}
         className="w-full aspect-video block cursor-pointer"
         onClick={togglePlay}
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoaded}
+        onDurationChange={handleLoaded}
         onEnded={handleEnded}
         onWaiting={() => setBuffering(true)}
         onPlaying={() => setBuffering(false)}
@@ -192,7 +195,7 @@ const VideoPlayer = ({ src, poster }: { src: string; poster?: string }) => {
 
             {/* Time */}
             <span className="text-white/60 text-[11px] tabular-nums flex-shrink-0">
-              {fmt(currentTime)} / {fmt(duration)}
+              {duration > 0 && `${fmt(currentTime)} / ${fmt(duration)}`}
             </span>
 
             <div className="flex-1" />
@@ -253,10 +256,10 @@ const COACH_VIDEO_COUNT: Record<string, number> = {
 };
 // Coaches whose reels show last-numbered first.
 const COACH_VIDEOS_REVERSED = new Set(['paul-torres']);
-const COACH_VIDEOS: Record<string, { src: string; poster: string }[]> = Object.fromEntries(
+const COACH_VIDEOS: Record<string, { source: VideoSource; poster: string }[]> = Object.fromEntries(
   Object.entries(COACH_VIDEO_COUNT).map(([slug, n]) => {
     const reels = Array.from({ length: n }, (_, i) => ({
-      src: coachVideo(slug, i + 1),
+      source: coachVideo(slug, i + 1),
       poster: `/assets/coaches/${slug}-${i + 1}-poster.jpg`,
     }));
     return [slug, COACH_VIDEOS_REVERSED.has(slug) ? reels.reverse() : reels];
@@ -402,7 +405,7 @@ const CoachDetailPage = () => {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {COACH_VIDEOS[coach.slug].map((v, i) => (
-                  <VideoPlayer key={i} src={v.src} poster={v.poster} />
+                  <VideoPlayer key={i} source={v.source} poster={v.poster} />
                 ))}
               </div>
             </div>

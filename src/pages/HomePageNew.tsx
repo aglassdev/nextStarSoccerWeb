@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { HERO_VIDEO, HERO_VIDEO_MOBILE, FUNDAMENTALS_VIDEO } from '../constants/siteVideos';
+import { heroVideo, FUNDAMENTALS_VIDEO } from '../constants/siteVideos';
+import type { VideoSource } from '../hooks/useAdaptiveVideo';
+import AdaptiveVideo from '../components/AdaptiveVideo';
 import { Link } from 'react-router-dom';
 import Navigation from '../components/layout/Navigation';
 import Footer from '../components/layout/Footer';
@@ -36,7 +38,7 @@ const FUNDAMENTALS_POSTER = homeImages.fundamentalsPoster;
 
 const STORY: {
     label: string; title: [string, string?]; body: string; cta?: string; to?: string;
-    image?: string; video?: string; poster?: string; alt?: string;
+    image?: string; video?: VideoSource; poster?: string; alt?: string;
 }[] = [
     {
         label: 'About us',
@@ -370,7 +372,7 @@ const StorySplit = ({ chapter: ch, mediaLeft, mediaFirst = false }: { chapter: C
     <section className="border-b border-white/[0.08] grid md:grid-cols-2">
         <div className={`relative ${ch.video ? 'aspect-video' : 'aspect-[4/3]'} md:aspect-auto md:min-h-[600px] bg-neutral-900 ${mediaFirst ? 'order-1' : 'order-2'} ${mediaLeft ? 'md:order-1' : 'md:order-2'}`}>
             {ch.video ? (
-                <video src={ch.video} poster={ch.poster} autoPlay loop muted playsInline preload="metadata" className="absolute inset-0 w-full h-full object-cover" />
+                <AdaptiveVideo source={ch.video} poster={ch.poster} autoPlay loop muted playsInline preload="metadata" className="absolute inset-0 w-full h-full object-cover" />
             ) : (
                 <img src={ch.image} alt={ch.alt} className="absolute inset-0 w-full h-full object-cover" loading="lazy" decoding="async" />
             )}
@@ -409,6 +411,9 @@ const HomePageNew = () => {
     const statsRef         = useRef<HTMLDivElement>(null);
     const socialSectionRef = useRef<HTMLDivElement>(null);
     const videoRef         = useRef<HTMLVideoElement>(null);
+    // Phones get at most 720p (the stream, or the lighter file without one). Chosen once, so a resize doesn't restart it.
+    const [heroPhone]      = useState(() => window.matchMedia('(max-width: 767px)').matches);
+    const [heroSource]     = useState(() => heroVideo(heroPhone));
 
     /* ── Responsive ── */
     useEffect(() => {
@@ -479,12 +484,14 @@ const HomePageNew = () => {
 
             {/* ═══════════════════════ HERO ═══════════════════════ */}
             <section className="relative h-screen overflow-hidden bg-black" style={{ height: '100svh' }}>
-                {/* Served from the site itself rather than Appwrite storage, which
-                    sent the 107 MB original slowly and kept dropping the line.
-                    Phones get a lighter 720p cut. The poster is the first frame,
-                    so the hero is never black while the video starts. */}
-                <video
+                {/* An adaptive stream from Appwrite Videos: it starts at a low
+                    quality and steps up to what the screen and connection can
+                    take (see constants/siteVideos). The poster is the first
+                    frame, so the hero is never black while the video starts. */}
+                <AdaptiveVideo
                     ref={videoRef}
+                    source={heroSource}
+                    maxHeight={heroPhone ? 720 : undefined}
                     autoPlay
                     loop
                     muted
@@ -492,10 +499,7 @@ const HomePageNew = () => {
                     preload="auto"
                     poster={HERO_POSTER}
                     className="absolute inset-0 w-full h-full object-cover"
-                >
-                    <source src={HERO_VIDEO_MOBILE} type="video/mp4" media="(max-width: 767px)" />
-                    <source src={HERO_VIDEO} type="video/mp4" />
-                </video>
+                />
                 <div className="absolute inset-0 bg-black/20" />
 
                 {/* Navigation sits in normal flow but is fixed — placement here keeps z-order clean */}

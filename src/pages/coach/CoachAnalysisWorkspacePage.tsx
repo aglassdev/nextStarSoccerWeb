@@ -2,8 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import AnnotatedPlayer from '../../components/analysis/AnnotatedPlayer';
 import AnalysisRecorder from '../../components/analysis/AnalysisRecorder';
+import AdaptiveVideo from '../../components/AdaptiveVideo';
 import { useAccount } from '../account/AccountContext';
 import {
+  AnalysisUrls,
   Annotation,
   VideoAnalysis,
   completeAnalysis,
@@ -16,6 +18,7 @@ import {
   parseGameMarks,
   parseMoments,
   saveCoachNotes,
+  streamJwt,
   updateAnalysis,
 } from '../../services/videoAnalysis';
 
@@ -35,7 +38,7 @@ const CoachAnalysisWorkspacePage = () => {
   const author = `${profile?.firstName || ''} ${profile?.lastName || ''}`.trim();
 
   const [a, setA] = useState<VideoAnalysis | null>(null);
-  const [urls, setUrls] = useState<{ film?: string; thumb?: string; recording?: string }>({});
+  const [urls, setUrls] = useState<AnalysisUrls[string]>({});
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [summary, setSummary] = useState('');
   const [saveState, setSaveState] = useState<'saved' | 'saving' | 'error'>('saved');
@@ -44,7 +47,7 @@ const CoachAnalysisWorkspacePage = () => {
   const saving = useRef<Promise<void>>(Promise.resolve());
 
   const loadUrls = useCallback(async (docId: string) => {
-    setUrls((await getAnalysisUrls([docId]))[docId] || {});
+    setUrls((await getAnalysisUrls([docId], true, true))[docId] || {});
   }, []);
 
   useEffect(() => {
@@ -178,6 +181,7 @@ const CoachAnalysisWorkspacePage = () => {
       {urls.film ? (
         <AnnotatedPlayer
           src={urls.film}
+          videoId={urls.filmVideo}
           poster={urls.thumb}
           annotations={annotations}
           moments={parseMoments(a.moments)}
@@ -199,7 +203,7 @@ const CoachAnalysisWorkspacePage = () => {
           <p className="text-white font-semibold text-sm mb-1">Video breakdown</p>
           <p className="text-gray-500 text-xs mb-4">The family watches this alongside the annotated film.</p>
           {done ? (
-            urls.recording ? <video src={urls.recording} controls playsInline preload="metadata" className="w-full max-h-72 bg-black rounded-xl" /> : <p className="text-gray-500 text-sm">No recording.</p>
+            urls.recording ? <AdaptiveVideo source={{ videoId: urls.recordingVideo, file: urls.recording }} jwt={streamJwt} controls playsInline preload="metadata" className="w-full max-h-72 bg-black rounded-xl" /> : <p className="text-gray-500 text-sm">No recording.</p>
           ) : (
             <AnalysisRecorder
               existingUrl={urls.recording}

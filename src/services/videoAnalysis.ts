@@ -1,5 +1,5 @@
 import { ExecutionMethod, ID, Query } from 'appwrite';
-import { databases, databaseId, functions, storage } from './appwrite';
+import { account, databases, databaseId, functions, storage } from './appwrite';
 import type { ClinicPlayerRef, GuestRegistration } from './clinicRegistration';
 
 // Online video analysis: buying (register-clinic verifies the Stripe payment),
@@ -146,12 +146,42 @@ export const completeAnalysis = (analysisId: string, recordingFileId?: string) =
 
 export const ensureCoachRole = () => action<{ isCoach: boolean; isAdmin: boolean }>('ensureRole');
 
-export type AnalysisUrls = Record<string, { thumb?: string; film?: string; recording?: string }>;
+export type AnalysisUrls = Record<string, {
+  thumb?: string;
+  film?: string;
+  recording?: string;
+  /** Appwrite Videos ids of the film's and recording's adaptive streams, once they're encoded. */
+  filmVideo?: string;
+  recordingVideo?: string;
+}>;
 
-/** Signed links (they work in <video>/<img> without a session). `full: false` = thumbnails only. */
-export const getAnalysisUrls = async (analysisIds: string[], full = true): Promise<AnalysisUrls> => {
+/**
+ * Signed links (they work in <video>/<img> without a session). `full: false` = thumbnails only.
+ * `stream: true` (pages that play the film) also asks for the stream ids.
+ */
+export const getAnalysisUrls = async (analysisIds: string[], full = true, stream = false): Promise<AnalysisUrls> => {
   if (analysisIds.length === 0) return {};
-  return (await action<{ urls: AnalysisUrls }>('urls', { analysisIds, full })).urls;
+  return (await action<{ urls: AnalysisUrls }>('urls', { analysisIds, full, stream })).urls;
+};
+
+let jwtCache: { jwt: string; until: number } | null = null;
+let jwtPending: Promise<string> | null = null;
+
+/**
+ * An Appwrite JWT for playing private streams (film and recordings): sent with
+ * each playlist and segment request, because the session cookie doesn't reach
+ * Appwrite's domain in Safari. Made once an hour, shared by every player.
+ */
+export const streamJwt = (): Promise<string> => {
+  if (jwtCache && Date.now() < jwtCache.until) return Promise.resolve(jwtCache.jwt);
+  jwtPending ??= account
+    .createJWT({ duration: 3600 })
+    .then(({ jwt }) => {
+      jwtCache = { jwt, until: Date.now() + 50 * 60_000 };
+      return jwt;
+    })
+    .finally(() => { jwtPending = null; });
+  return jwtPending;
 };
 
 export async function listMyAnalyses(userId: string): Promise<VideoAnalysis[]> {

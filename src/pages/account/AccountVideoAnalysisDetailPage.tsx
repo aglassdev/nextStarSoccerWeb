@@ -4,7 +4,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import AnnotatedPlayer from '../../components/analysis/AnnotatedPlayer';
 import { AccountPageHeader, AccountSpinner } from './AccountLayout';
 import MarkMomentsView from './MarkMomentsView';
+import AdaptiveVideo from '../../components/AdaptiveVideo';
 import {
+  AnalysisUrls,
   VideoAnalysis,
   formatDueDate,
   getAnalysis,
@@ -14,6 +16,7 @@ import {
   numberAnalyses,
   parseGameMarks,
   sharedAnnotations,
+  streamJwt,
 } from '../../services/videoAnalysis';
 
 // One analysis, as the family sees it: right after the upload, the space to
@@ -25,7 +28,7 @@ const AccountVideoAnalysisDetailPage = () => {
   const location = useLocation();
   const [n, setN] = useState<number | undefined>((location.state as { n?: number } | null)?.n);
   const [a, setA] = useState<VideoAnalysis | null>(null);
-  const [urls, setUrls] = useState<{ film?: string; thumb?: string; recording?: string }>({});
+  const [urls, setUrls] = useState<AnalysisUrls[string]>({});
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -33,7 +36,7 @@ const AccountVideoAnalysisDetailPage = () => {
       try {
         const doc = await getAnalysis(id);
         setA(doc);
-        if (doc.filmFileId) setUrls((await getAnalysisUrls([doc.$id]))[doc.$id] || {});
+        if (doc.filmFileId) setUrls((await getAnalysisUrls([doc.$id], true, true))[doc.$id] || {});
       } catch (e: any) {
         setError(e?.code === 404 || e?.code === 401 ? 'We couldn’t find that analysis on your account.' : e?.message || 'Could not load the analysis.');
       }
@@ -54,7 +57,7 @@ const AccountVideoAnalysisDetailPage = () => {
 
   if (a.status === 'uploaded') {
     return urls.film ? (
-      <MarkMomentsView analysis={a} title={title} film={urls.film} poster={urls.thumb} onSubmitted={setA} />
+      <MarkMomentsView analysis={a} title={title} film={urls.film} filmVideo={urls.filmVideo} poster={urls.thumb} onSubmitted={setA} />
     ) : (
       <>{back}<AccountSpinner /></>
     );
@@ -99,7 +102,7 @@ const AccountVideoAnalysisDetailPage = () => {
             <section>
               <h3 className="text-white font-semibold text-lg mb-3">Your coach's breakdown</h3>
               <div className="bg-black border border-white/10 rounded-2xl overflow-hidden">
-                <video src={urls.recording} controls playsInline preload="metadata" className="w-full max-h-[70vh] bg-black" />
+                <AdaptiveVideo source={{ videoId: urls.recordingVideo, file: urls.recording }} jwt={streamJwt} controls playsInline preload="metadata" className="w-full max-h-[70vh] bg-black" />
               </div>
             </section>
           )}
@@ -112,7 +115,7 @@ const AccountVideoAnalysisDetailPage = () => {
           {urls.film && (
             <section>
               <h3 className="text-white font-semibold text-lg mb-3">Annotated film</h3>
-              <AnnotatedPlayer src={urls.film} poster={urls.thumb} annotations={annotations} gameMarks={parseGameMarks(a.gameMarks)} />
+              <AnnotatedPlayer src={urls.film} videoId={urls.filmVideo} poster={urls.thumb} annotations={annotations} gameMarks={parseGameMarks(a.gameMarks)} />
             </section>
           )}
         </>
