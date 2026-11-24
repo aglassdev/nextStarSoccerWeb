@@ -10,6 +10,9 @@ import type HlsType from 'hls.js';
 // Apple devices play public streams natively. Everything else, and private
 // streams everywhere (they need a JWT header, which native playback can't
 // send), go through hls.js, loaded only when a stream is about to play.
+//
+// `topQuality` skips the adaptive part: it plays the stream's highest quality
+// on its own, from the first frame, on every device.
 
 const ENDPOINT = import.meta.env.VITE_APPWRITE_ENDPOINT || 'https://nyc.cloud.appwrite.io/v1';
 const PROJECT = import.meta.env.VITE_APPWRITE_PROJECT_ID || '68577380002195dec512';
@@ -32,8 +35,13 @@ interface Options {
   lazy?: boolean;
   /** Nothing can play: the stream failed (or there was none) and so did the file. */
   onFatal?: () => void;
-  /** The tallest quality to step up to (e.g. 720 for the hero on phones). */
-  maxHeight?: number;
+  /**
+   * Always the highest quality (the hero and Fundamentals: 1080p), never a
+   * lower one to start with or on a slow connection. It plays that quality's
+   * own playlist, which leaves out a separate audio track, so it's for
+   * muted videos only.
+   */
+  topQuality?: boolean;
 }
 
 let hlsModule: Promise<typeof HlsType> | null = null;
@@ -43,6 +51,26 @@ const loadHls = () => (hlsModule ??= import('hls.js').then((m) => m.default));
 // Safari and every iOS browser: native HLS is smoother there and needs no script.
 const nativeHls = (video: HTMLVideoElement) =>
   /Apple/.test(navigator.vendor) && !!video.canPlayType('application/vnd.apple.mpegurl');
+
+/** The playlist of the stream's highest quality, read from its master playlist. */
+async function topPlaylist(videoId: string, jwt?: () => Promise<string>) {
+  const master = streamUrl(videoId);
+  const token = await jwt?.();
+  const res = await fetch(master, token ? { headers: { 'X-Appwrite-JWT': token } } : undefined);
+  if (!res.ok) throw new Error(`No stream yet (${res.status})`);
+  const lines = (await res.text()).split('\n').map((l) => l.trim());
+  let best = '';
+  let bestHeight = -1;
+  lines.forEach((line, i) => {
+    const height = line.startsWith('#EXT-X-STREAM-INF') ? Number(/RESOLUTION=\d+x(\d+)/.exec(line)?.[1]) : NaN;
+    if (height > bestHeight && lines[i + 1] && !lines[i + 1].startsWith('#')) {
+      bestHeight = height;
+      best = lines[i + 1];
+    }
+  });
+  if (!best) throw new Error('The stream has no qualities');
+  return new URL(best, master).href;
+}
 
 const hasMse = () =>
   typeof window !== 'undefined' &&
@@ -58,7 +86,7 @@ export function useAdaptiveVideo(ref: RefObject<HTMLVideoElement>, source: Video
   const fileKey = videoId ? '' : file;
   const lazy = !!options.lazy;
   const isPrivate = !!options.jwt;
-  const maxHeight = options.maxHeight;
+  const top = !!options.topQuality;
 
   useEffect(() => {
     const video = ref.current;
@@ -88,19 +116,21 @@ export function useAdaptiveVideo(ref: RefObject<HTMLVideoElement>, source: Video
     // The element's own errors: on a native stream, move to the file; on the file, give up.
     listen('error', () => { if (!hls) playFile(); });
 
+    const stream = (id: string) => (top ? topPlaylist(id, opts.current.jwt) : Promise.resolve(streamUrl(id)));
+
     if (!videoId) {
       playFile();
     } else if (!isPrivate && nativeHls(video)) {
-      video.src = streamUrl(videoId);
+      stream(videoId).then((url) => { if (!cancelled) video.src = url; }, playFile);
     } else if (!hasMse()) {
       playFile();
     } else {
-      loadHls().then((Hls) => {
+      Promise.all([loadHls(), stream(videoId)]).then(([Hls, url]) => {
         if (cancelled) return;
         if (!Hls.isSupported()) { playFile(); return; }
         const instance = new Hls({
           autoStartLoad: !lazy,
-          capLevelToPlayerSize: true,
+          capLevelToPlayerSize: !top,
           // A stream that isn't ready answers 404: fall back to the file at once.
           manifestLoadPolicy: {
             default: {
@@ -121,12 +151,6 @@ export function useAdaptiveVideo(ref: RefObject<HTMLVideoElement>, source: Video
           }),
         });
         hls = instance;
-        if (maxHeight) {
-          instance.on(Hls.Events.MANIFEST_PARSED, (_e, data) => {
-            const allowed = data.levels.map((l, i) => (l.height <= maxHeight ? i : -1)).filter((i) => i >= 0);
-            if (allowed.length) instance.autoLevelCapping = Math.max(...allowed);
-          });
-        }
         let recovered = false;
         instance.on(Hls.Events.ERROR, (_e, data) => {
           if (!data.fatal) return;
@@ -145,7 +169,7 @@ export function useAdaptiveVideo(ref: RefObject<HTMLVideoElement>, source: Video
             instance.startLoad(video.currentTime || -1);
           });
         }
-        instance.loadSource(streamUrl(videoId));
+        instance.loadSource(url);
         instance.attachMedia(video);
       }).catch(() => playFile());
     }
@@ -158,5 +182,5 @@ export function useAdaptiveVideo(ref: RefObject<HTMLVideoElement>, source: Video
       video.removeAttribute('src');
       video.load();
     };
-  }, [ref, videoId, fileKey, lazy, isPrivate, maxHeight]);
+  }, [ref, videoId, fileKey, lazy, isPrivate, top]);
 }

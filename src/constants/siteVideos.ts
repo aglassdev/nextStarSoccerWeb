@@ -39,11 +39,8 @@ const fileUrl = (fileId: string) =>
 
 export const siteVideo = (fileId: string): VideoSource => ({ videoId: STREAMS[fileId], file: fileUrl(fileId) });
 
-/** The hero's stream; without it, phones get the lighter 720p file (and the stream stops at 720p there too). */
-export const heroVideo = (phone: boolean): VideoSource => ({
-  videoId: STREAMS['site-hero-1080'],
-  file: fileUrl(phone ? 'site-hero-720' : 'site-hero-1080'),
-});
+/** The hero, which plays at 1080p on every screen (see topQuality in hooks/useAdaptiveVideo). */
+export const HERO_VIDEO = siteVideo('site-hero-1080');
 export const FUNDAMENTALS_VIDEO = siteVideo('site-fundamentals');
 
 /** A coach's numbered highlight reel, e.g. coachVideo('paul-torres', 1). */

@@ -10,13 +10,13 @@ interface Props extends Omit<VideoHTMLAttributes<HTMLVideoElement>, 'src'> {
   jwt?: () => Promise<string>;
   lazy?: boolean;
   onFatal?: () => void;
-  maxHeight?: number;
+  topQuality?: boolean;
 }
 
-const AdaptiveVideo = forwardRef<HTMLVideoElement, Props>(({ source, jwt, lazy, onFatal, maxHeight, ...rest }, ref) => {
+const AdaptiveVideo = forwardRef<HTMLVideoElement, Props>(({ source, jwt, lazy, onFatal, topQuality, ...rest }, ref) => {
   const video = useRef<HTMLVideoElement>(null);
   useImperativeHandle(ref, () => video.current as HTMLVideoElement);
-  useAdaptiveVideo(video, source, { jwt, lazy, onFatal, maxHeight });
+  useAdaptiveVideo(video, source, { jwt, lazy, onFatal, topQuality });
   return <video ref={video} {...rest} />;
 });
 

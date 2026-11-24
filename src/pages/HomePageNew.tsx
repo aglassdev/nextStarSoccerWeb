@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { heroVideo, FUNDAMENTALS_VIDEO } from '../constants/siteVideos';
+import { HERO_VIDEO, FUNDAMENTALS_VIDEO } from '../constants/siteVideos';
 import type { VideoSource } from '../hooks/useAdaptiveVideo';
 import AdaptiveVideo from '../components/AdaptiveVideo';
 import { Link } from 'react-router-dom';
@@ -372,7 +372,7 @@ const StorySplit = ({ chapter: ch, mediaLeft, mediaFirst = false }: { chapter: C
     <section className="border-b border-white/[0.08] grid md:grid-cols-2">
         <div className={`relative ${ch.video ? 'aspect-video' : 'aspect-[4/3]'} md:aspect-auto md:min-h-[600px] bg-neutral-900 ${mediaFirst ? 'order-1' : 'order-2'} ${mediaLeft ? 'md:order-1' : 'md:order-2'}`}>
             {ch.video ? (
-                <AdaptiveVideo source={ch.video} poster={ch.poster} autoPlay loop muted playsInline preload="metadata" className="absolute inset-0 w-full h-full object-cover" />
+                <AdaptiveVideo source={ch.video} topQuality poster={ch.poster} autoPlay loop muted playsInline preload="metadata" className="absolute inset-0 w-full h-full object-cover" />
             ) : (
                 <img src={ch.image} alt={ch.alt} className="absolute inset-0 w-full h-full object-cover" loading="lazy" decoding="async" />
             )}
@@ -411,9 +411,6 @@ const HomePageNew = () => {
     const statsRef         = useRef<HTMLDivElement>(null);
     const socialSectionRef = useRef<HTMLDivElement>(null);
     const videoRef         = useRef<HTMLVideoElement>(null);
-    // Phones get at most 720p (the stream, or the lighter file without one). Chosen once, so a resize doesn't restart it.
-    const [heroPhone]      = useState(() => window.matchMedia('(max-width: 767px)').matches);
-    const [heroSource]     = useState(() => heroVideo(heroPhone));
 
     /* ── Responsive ── */
     useEffect(() => {
@@ -484,14 +481,13 @@ const HomePageNew = () => {
 
             {/* ═══════════════════════ HERO ═══════════════════════ */}
             <section className="relative h-screen overflow-hidden bg-black" style={{ height: '100svh' }}>
-                {/* An adaptive stream from Appwrite Videos: it starts at a low
-                    quality and steps up to what the screen and connection can
-                    take (see constants/siteVideos). The poster is the first
-                    frame, so the hero is never black while the video starts. */}
+                {/* Streamed from Appwrite Videos, always at 1080p (see
+                    constants/siteVideos). The poster is the first frame, so
+                    the hero is never black while the video starts. */}
                 <AdaptiveVideo
                     ref={videoRef}
-                    source={heroSource}
-                    maxHeight={heroPhone ? 720 : undefined}
+                    source={HERO_VIDEO}
+                    topQuality
                     autoPlay
                     loop
                     muted
