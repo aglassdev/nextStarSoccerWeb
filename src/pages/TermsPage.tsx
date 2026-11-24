@@ -77,7 +77,7 @@ footer.contact{font-size:14.5px;line-height:1.7;}
 <h2 id="s1"><span class="num">1.</span>Agreement to These Terms</h2>
 <p>We are Next Star Soccer LLC, doing business as Next Star LLC ("Company," "we," "us," or "our"), a company registered in Maryland, United States at 5508 Ridgefield Road, Bethesda, MD 20816.</p>
 <p>We operate the website nextstarsoccer.com (the "Site"), the mobile application Next Star (the "App"), and provide youth, collegiate, and professional soccer training sessions, team training events, camps, and clinics, together with any other related products and services that refer or link to these legal terms (collectively, the "Legal Terms") (collectively with the Site and the App, the "Services").</p>
-<p>You can contact us by phone at 1-301-728-0764, email at info@nextstarsoccer.com, or by mail to 5508 Ridgefield Road, Bethesda, MD 20816, United States.</p>
+<p>You can contact us by phone at 1-301-742-1796, email at info@nextstarsoccer.com, or by mail to 5508 Ridgefield Road, Bethesda, MD 20816, United States.</p>
 <p>These Legal Terms constitute a legally binding agreement made between you, whether personally or on behalf of an entity ("you"), and Next Star Soccer LLC concerning your access to and use of the Services. You agree that by accessing the Services, you have read, understood, and agreed to be bound by all of these Legal Terms, including the assumption of risk and waiver of liability in Section 10 and the medical treatment authorization in Section 11.</p>
 <p class="caps"><strong>If you do not agree with all of these legal terms, then you are expressly prohibited from using the services and you must discontinue use immediately.</strong></p>
 <p>We will provide you with prior notice of any scheduled changes to the Services you are using. The modified Legal Terms will become effective upon posting or notifying you at info@nextstarsoccer.com, as stated in the notice. By continuing to use the Services after the effective date of any changes, you agree to be bound by the modified terms.</p>
@@ -262,7 +262,7 @@ Next Star Soccer LLC<br>
 5508 Ridgefield Road<br>
 Bethesda, MD 20816<br>
 United States<br>
-Phone: 1-301-728-0764<br>
+Phone: 1-301-742-1796<br>
 info@nextstarsoccer.com
 </footer>
 
