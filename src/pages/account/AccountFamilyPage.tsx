@@ -384,8 +384,26 @@ const AccountFamilyPage = () => {
     );
   }
 
+  // A kid with bills, signups or check-ins stays: deleting them would leave those
+  // records pointing at nothing (unnamed bills the family can no longer see). Both
+  // the proxyId and the document $id are checked; if the check fails, assume history.
+  const proxyHasHistory = async (proxyId: string, docId: string): Promise<boolean> => {
+    const ids = [...new Set([proxyId, docId].filter(Boolean))];
+    const byKid = Query.or([Query.equal('onBehalfOfProxyId', ids), Query.equal('userId', ids)]);
+    try {
+      const results = await Promise.all([
+        databases.listDocuments(databaseId, collections.bills || 'bills', [Query.equal('userId', ids), Query.limit(1)]),
+        databases.listDocuments(databaseId, collections.signups || '685034dc000324686c89', [byKid, Query.limit(1)]),
+        databases.listDocuments(databaseId, collections.checkins || '689fdc3d002b02b91c1b', [byKid, Query.limit(1)]),
+      ]);
+      return results.some((r) => r.documents.length > 0);
+    } catch {
+      return true;
+    }
+  };
+
   // As the app: a temporary account is deleted with its relationships (never
-  // once it has been claimed); a linked account is unlinked.
+  // once it has been claimed, or once it has history); a linked account is unlinked.
   const confirmRemove = async () => {
     if (!toRemove || !user) return;
     setRemoving(true);
@@ -398,6 +416,12 @@ const AccountFamilyPage = () => {
         const proxy: any = r.documents[0];
         if (!proxy) throw new Error('Proxy child not found');
         if (proxy.migratedToUserId) throw new Error('Cannot delete proxy child that has been migrated to real account');
+        if (await proxyHasHistory(toRemove.id, proxy.$id)) {
+          const name = toRemove.firstName || 'This player';
+          throw new Error(
+            `${name} has sessions or bills on file with us, so we keep their record. If ${name} is no longer training with us, send us a message and we'll take care of it.`,
+          );
+        }
         const rels = await databases.listDocuments(databaseId, collections.familyRelationships001, [
           Query.equal('childProxyId', toRemove.id), Query.limit(100),
         ]);
