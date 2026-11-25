@@ -307,6 +307,7 @@ function AppRoutes() {
       <Route path="/admin/dev/staff" element={<AdminDashboard />} />
       <Route path="/admin/session-reviews" element={<AdminDashboard />} />
       <Route path="/admin/scholarships" element={<AdminDashboard />} />
+      <Route path="/admin/uncollectables" element={<AdminDashboard />} />
       <Route path="/admin/video-analysis" element={<AdminDashboard />} />
 
       {/* Catch all - redirect to home */}
